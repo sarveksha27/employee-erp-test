@@ -1,9 +1,9 @@
 [project]
-name = "student_erp"
+name = "employee_erp"
 authors = [
     { name = "Your Team Name", email = "beingdeveloper84@gmail.com"}
 ]
-description = ".Student ERP Management System"
+description = ".Employee ERP Management System"
 requires-python = ">=3.14"
 readme = "README.md"
 dynamic = ["version"]
