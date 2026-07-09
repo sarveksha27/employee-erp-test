@@ -86,7 +86,8 @@ app_license = "mit"
 # ------------
 
 # before_install = "employee_erp.install.before_install"
-# after_install = "employee_erp.install.after_install"
+after_install = "employee_erp.setup.install.after_install"
+
 
 # Uninstallation
 # ------------

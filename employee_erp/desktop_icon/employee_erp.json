@@ -1,0 +1,22 @@
+{
+ "app": "employee_erp",
+ "bg_color": "gray",
+ "creation": "2026-07-09 18:56:00.909077",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "users",
+ "icon_type": "Link",
+ "idx": 0,
+ "label": "Employee ERP",
+ "link_to": "Employee ERP",
+ "link_type": "Workspace Sidebar",
+ "modified": "2026-07-09 18:56:00.909077",
+ "modified_by": "Administrator",
+ "name": "Employee ERP",
+ "owner": "Administrator",
+ "parent_icon": "ERPNext",
+ "restrict_removal": 0,
+ "roles": [],
+ "standard": 1
+}
