@@ -1,0 +1,13 @@
+{
+ "creation": "2026-07-15 10:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Report",
+ "is_standard": "Yes",
+ "modified": "2026-07-15 10:00:00.000000",
+ "module": "Sarveksha Vendor",
+ "name": "Intercompany Purchase Report",
+ "owner": "Administrator",
+ "ref_doctype": "Intercompany Transfer",
+ "report_name": "Intercompany Purchase Report",
+ "report_type": "Script Report"
+}

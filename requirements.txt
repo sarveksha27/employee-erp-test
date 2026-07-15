@@ -1,0 +1,2 @@
+# Python dependencies for sarveksha_vendor
+# This app uses standard Frappe and ERPNext libraries

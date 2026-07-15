@@ -1,0 +1,57 @@
+{
+ "actions": [],
+ "allow_events_in_timeline": 0,
+ "allow_header_label_edit": 0,
+ "allow_import": 0,
+ "allow_rename": 0,
+ "creation": "2026-07-15 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "payment_term",
+  "invoice_portion",
+  "due_date",
+  "amount",
+  "paid"
+ ],
+ "fields": [
+  {
+   "fieldname": "payment_term",
+   "fieldtype": "Link",
+   "label": "Payment Term",
+   "options": "Payment Term"
+  },
+  {
+   "fieldname": "invoice_portion",
+   "fieldtype": "Percent",
+   "label": "Invoice Portion (%)"
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "label": "Due Date"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount"
+  },
+  {
+   "fieldname": "paid",
+   "fieldtype": "Check",
+   "label": "Paid"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "modified": "2026-07-15 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Sarveksha Vendor",
+ "name": "Vendor Payment Schedule",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

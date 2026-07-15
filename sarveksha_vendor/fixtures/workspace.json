@@ -1,0 +1,14 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Workspace",
+  "name": "Vendor Payment Tracking",
+  "title": "Vendor Payment Tracking",
+  "icon": "folder-open",
+  "category": "Modules",
+  "is_standard": 1,
+  "public": 1,
+  "module": "Sarveksha Vendor",
+  "content": "[{\"type\":\"header\",\"data\":{\"text\":\"Vendor Payment Tracking\",\"level\":1}},{\"type\":\"links\",\"data\":{\"card_name\":\"Transactions\",\"links\":[{\"type\":\"Link\",\"label\":\"Vendor Contracts\",\"link_to\":\"Vendor Contract\",\"link_type\":\"DocType\"},{\"type\":\"Link\",\"label\":\"Vendor Payment Requests\",\"link_to\":\"Vendor Payment Request\",\"link_type\":\"DocType\"},{\"type\":\"Link\",\"label\":\"Shipments\",\"link_to\":\"Shipment\",\"link_type\":\"DocType\"},{\"type\":\"Link\",\"label\":\"Equipment\",\"link_to\":\"Equipment\",\"link_type\":\"DocType\"},{\"type\":\"Link\",\"label\":\"Custom Clearance\",\"link_to\":\"Custom Clearance\",\"link_type\":\"DocType\"},{\"type\":\"Link\",\"label\":\"Payment Batches\",\"link_to\":\"Payment Batch\",\"link_type\":\"DocType\"},{\"type\":\"Link\",\"label\":\"Intercompany Transfers\",\"link_to\":\"Intercompany Transfer\",\"link_type\":\"DocType\"}]}},{\"type\":\"links\",\"data\":{\"card_name\":\"Reports\",\"links\":[{\"type\":\"Link\",\"label\":\"Vendor Ledger\",\"link_to\":\"Vendor Ledger\",\"link_type\":\"Report\"},{\"type\":\"Link\",\"label\":\"Outstanding Bills\",\"link_to\":\"Outstanding Bills\",\"link_type\":\"Report\"},{\"type\":\"Link\",\"label\":\"Payment Aging\",\"link_to\":\"Payment Aging\",\"link_type\":\"Report\"},{\"type\":\"Link\",\"label\":\"Upcoming Payments\",\"link_to\":\"Upcoming Payments\",\"link_type\":\"Report\"},{\"type\":\"Link\",\"label\":\"Shipment Report\",\"link_to\":\"Shipment Report\",\"link_type\":\"Report\"},{\"type\":\"Link\",\"label\":\"Equipment Purchase Report\",\"link_to\":\"Equipment Purchase Report\",\"link_type\":\"Report\"},{\"type\":\"Link\",\"label\":\"Intercompany Purchase Report\",\"link_to\":\"Intercompany Purchase Report\",\"link_type\":\"Report\"},{\"type\":\"Link\",\"label\":\"Vendor Performance\",\"link_to\":\"Vendor Performance\",\"link_type\":\"Report\"}]}}]"
+ }
+]
