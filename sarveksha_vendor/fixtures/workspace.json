@@ -4,6 +4,8 @@
   "doctype": "Workspace",
   "name": "Vendor Payment Tracking",
   "title": "Vendor Payment Tracking",
+  "label": "Vendor Payment Tracking",
+  "type": "Workspace",
   "icon": "folder-open",
   "category": "Modules",
   "is_standard": 1,

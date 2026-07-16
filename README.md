@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Sarveksha Vendor
 
 Vendor Payment Tracking module for a multi-company organization built on top of **Frappe Framework v16** and **ERPNext v16**.
@@ -24,3 +25,6 @@ bench migrate
 ## License
 
 MIT License
+=======
+# sarveksha-_vendor_erp
+>>>>>>> 7345c593fa4fb6aba0f23b872c92ec14ecde0b9d
