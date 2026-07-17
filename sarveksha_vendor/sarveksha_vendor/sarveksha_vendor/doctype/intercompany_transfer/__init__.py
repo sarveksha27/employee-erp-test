@@ -1,0 +1,1 @@
+# intercompany transfer doctype

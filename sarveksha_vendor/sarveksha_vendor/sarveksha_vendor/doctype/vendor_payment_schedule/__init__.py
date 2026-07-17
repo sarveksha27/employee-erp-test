@@ -1,0 +1,1 @@
+# vendor payment schedule doctype

@@ -1,9 +1,0 @@
-*.pyc
-__pycache__/
-*.egg-info/
-dist/
-build/
-node_modules/
-.DS_Store
-*.swp
-*.swo

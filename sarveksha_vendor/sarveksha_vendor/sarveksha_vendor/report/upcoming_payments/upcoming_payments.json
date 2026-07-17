@@ -1,0 +1,16 @@
+{
+ "add_total_row": 1,
+ "columns": [],
+ "creation": "2026-07-17 12:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Report",
+ "is_standard": "Yes",
+ "modified": "2026-07-17 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Sarveksha Vendor",
+ "name": "Upcoming Payments",
+ "owner": "Administrator",
+ "ref_doctype": "Vendor Payment Schedule",
+ "report_name": "Upcoming Payments",
+ "report_type": "Script Report"
+}

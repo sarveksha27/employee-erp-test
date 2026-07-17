@@ -1,0 +1,50 @@
+{
+ "actions": [],
+ "allow_events_in_timeline": 1,
+ "allow_import": 1,
+ "allow_rename": 1,
+ "creation": "2026-07-17 12:00:00.000000",
+ "doctype": "DocType",
+ "document_type": "Other",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "payment_request",
+  "vendor",
+  "amount"
+ ],
+ "fields": [
+  {
+   "fieldname": "payment_request",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Payment Request",
+   "options": "Vendor Payment Request",
+   "reqd": 1
+  },
+  {
+   "fieldname": "vendor",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Vendor",
+   "options": "Vendor",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "read_only": 1
+  }
+ ],
+ "istable": 1,
+ "modified": "2026-07-17 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Sarveksha Vendor",
+ "name": "Payment Batch Entry",
+ "owner": "Administrator",
+ "permissions": [],
+ "standard": "Yes",
+ "track_changes": 1
+}

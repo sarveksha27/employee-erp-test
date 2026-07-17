@@ -1,0 +1,2 @@
+# Python dependencies for sarveksha_vendor
+# Packages should be compatible with Frappe Framework v16

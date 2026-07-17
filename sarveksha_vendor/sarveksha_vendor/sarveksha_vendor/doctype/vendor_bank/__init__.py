@@ -1,0 +1,1 @@
+# vendor bank doctype

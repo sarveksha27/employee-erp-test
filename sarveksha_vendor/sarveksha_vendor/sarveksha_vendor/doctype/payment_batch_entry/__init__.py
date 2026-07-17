@@ -1,0 +1,1 @@
+# payment batch entry doctype
