@@ -28,6 +28,14 @@ app_license = "mit"
 # app_include_css = "/assets/sarveksha_erp/css/sarveksha_erp.css"
 # app_include_js = "/assets/sarveksha_erp/js/sarveksha_erp.js"
 
+fixtures = [
+    {"dt": "Company"},
+    {"dt": "Fiscal Year"},
+    {"dt": "Fiscal Year Company"},
+    {"dt": "Supplier Group"},
+    {"dt": "Supplier"}
+]
+
 # include js, css files in header of web template
 # web_include_css = "/assets/sarveksha_erp/css/sarveksha_erp.css"
 # web_include_js = "/assets/sarveksha_erp/js/sarveksha_erp.js"
