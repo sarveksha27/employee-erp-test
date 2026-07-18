@@ -158,6 +158,28 @@
    "collapsible": 1,
    "indent": 0,
    "keep_closed": 0,
+   "label": "Vendor",
+   "link_to": "Vendor",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Company",
+   "link_to": "Company",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
    "label": "Vendor Bank",
    "link_to": "Vendor Bank",
    "link_type": "DocType",
