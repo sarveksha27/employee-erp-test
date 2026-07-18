@@ -1,0 +1,52 @@
+{
+ "creation": "2026-07-18 02:26:20.833501",
+ "docstatus": 0,
+ "doctype": "Workspace Sidebar",
+ "header_icon": "accounting",
+ "idx": 0,
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "accounting",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Vendor Payments",
+   "link_to": "Vendor Payment",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "users-round",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Vendors",
+   "link_to": "Supplier",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "home",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Company",
+   "link_to": "Company",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-07-18 12:00:44.386029",
+ "modified_by": "Administrator",
+ "module": "Vendor Management",
+ "name": "Vendor Management",
+ "owner": "Administrator",
+ "standard": 1,
+ "title": "Vendor Management"
+}

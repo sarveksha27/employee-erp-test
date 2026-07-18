@@ -7,34 +7,81 @@
  "docstatus": 0,
  "doctype": "Workspace",
  "hide_custom": 0,
- "icon": "payment",
+ "icon": "accounting",
  "idx": 0,
  "indicator_color": "green",
  "is_hidden": 0,
  "label": "Vendor Management",
  "link_type": "DocType",
- "links": [],
- "modified": "2026-07-18 02:51:07.906210",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Vendor Portal",
+   "link_count": 0,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Vendor Payments",
+   "link_count": 0,
+   "link_to": "Vendor Payment",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Vendors",
+   "link_count": 0,
+   "link_to": "Supplier",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-07-18 12:01:30.851206",
  "modified_by": "Administrator",
  "module": "Vendor Management",
  "name": "Vendor Management",
  "number_cards": [],
  "owner": "Administrator",
+ "parent_page": "",
  "public": 1,
  "quick_lists": [],
- "roles": [
+ "roles": [],
+ "sequence_id": 2.0,
+ "shortcuts": [
   {
-   "role": "System Manager"
+   "color": "green",
+   "doc_view": "",
+   "format": "{} Open",
+   "icon": "accounting",
+   "label": "Vendor Payment",
+   "link_to": "Vendor Payment",
+   "stats_filter": "[]",
+   "type": "DocType"
   },
   {
-   "role": "Accounts Manager"
+   "color": "blue",
+   "doc_view": "",
+   "icon": "accounting",
+   "label": "Supplier",
+   "link_to": "Supplier",
+   "type": "DocType"
   },
   {
-   "role": "Accounts User"
+   "doc_view": "",
+   "icon": "accounting",
+   "label": "Company",
+   "link_to": "Company",
+   "type": "DocType"
   }
  ],
- "sequence_id": 0.0,
- "shortcuts": [],
  "title": "Vendor Management",
  "type": "Workspace"
 }
