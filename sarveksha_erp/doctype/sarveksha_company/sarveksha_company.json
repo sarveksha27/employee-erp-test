@@ -1,0 +1,292 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "field:company_code",
+ "creation": "2026-07-19 12:00:00.000000",
+ "doctype": "DocType",
+ "document_type": "Setup",
+ "engine": "InnoDB",
+ "field_order": [
+  "company_code",
+  "company_name",
+  "legal_name",
+  "status",
+  "sec_location",
+  "country",
+  "address",
+  "phone",
+  "email",
+  "website",
+  "sec_tax_ids",
+  "registration_number",
+  "gst",
+  "pan",
+  "tan",
+  "vat",
+  "tin",
+  "import_export_code",
+  "sec_finance",
+  "currency",
+  "fiscal_year_start",
+  "fiscal_year_end",
+  "default_warehouse",
+  "default_bank",
+  "default_tax_configuration",
+  "default_payment_terms",
+  "default_shipping_configuration",
+  "sec_media",
+  "logo",
+  "letterhead",
+  "company_seal",
+  "authorized_signatory",
+  "footer"
+ ],
+ "fields": [
+  {
+   "fieldname": "company_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company Code",
+   "reqd": 1,
+   "unique": 1,
+   "description": "Short code identifying the company (e.g. SRI, OHL)"
+  },
+  {
+   "fieldname": "company_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Company Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "legal_name",
+   "fieldtype": "Data",
+   "label": "Legal Name"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Active\nInactive"
+  },
+  {
+   "fieldname": "sec_location",
+   "fieldtype": "Section Break",
+   "label": "Location & Contact"
+  },
+  {
+   "fieldname": "country",
+   "fieldtype": "Link",
+   "label": "Country",
+   "options": "Country",
+   "reqd": 1
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "fieldname": "website",
+   "fieldtype": "Data",
+   "label": "Website"
+  },
+  {
+   "fieldname": "sec_tax_ids",
+   "fieldtype": "Section Break",
+   "label": "Tax Identifications"
+  },
+  {
+   "fieldname": "registration_number",
+   "fieldtype": "Data",
+   "label": "Registration Number"
+  },
+  {
+   "fieldname": "gst",
+   "fieldtype": "Data",
+   "label": "GST Identification Number"
+  },
+  {
+   "fieldname": "pan",
+   "fieldtype": "Data",
+   "label": "PAN"
+  },
+  {
+   "fieldname": "tan",
+   "fieldtype": "Data",
+   "label": "TAN"
+  },
+  {
+   "fieldname": "vat",
+   "fieldtype": "Data",
+   "label": "VAT Registration Number"
+  },
+  {
+   "fieldname": "tin",
+   "fieldtype": "Data",
+   "label": "TIN"
+  },
+  {
+   "fieldname": "import_export_code",
+   "fieldtype": "Data",
+   "label": "Import Export Code (IEC)"
+  },
+  {
+   "fieldname": "sec_finance",
+   "fieldtype": "Section Break",
+   "label": "Financial & Operations"
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fiscal_year_start",
+   "fieldtype": "Date",
+   "label": "Fiscal Year Start",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fiscal_year_end",
+   "fieldtype": "Date",
+   "label": "Fiscal Year End",
+   "reqd": 1
+  },
+  {
+   "fieldname": "default_warehouse",
+   "fieldtype": "Data",
+   "label": "Default Warehouse"
+  },
+  {
+   "fieldname": "default_bank",
+   "fieldtype": "Data",
+   "label": "Default Bank"
+  },
+  {
+   "fieldname": "default_tax_configuration",
+   "fieldtype": "Link",
+   "label": "Default Tax Configuration",
+   "options": "Sarveksha Tax Configuration"
+  },
+  {
+   "fieldname": "default_payment_terms",
+   "fieldtype": "Text",
+   "label": "Default Payment Terms"
+  },
+  {
+   "fieldname": "default_shipping_configuration",
+   "fieldtype": "Text",
+   "label": "Default Shipping Configuration"
+  },
+  {
+   "fieldname": "sec_media",
+   "fieldtype": "Section Break",
+   "label": "Media & Branding"
+  },
+  {
+   "fieldname": "logo",
+   "fieldtype": "Attach Image",
+   "label": "Logo"
+  },
+  {
+   "fieldname": "letterhead",
+   "fieldtype": "Attach Image",
+   "label": "Letterhead"
+  },
+  {
+   "fieldname": "company_seal",
+   "fieldtype": "Attach Image",
+   "label": "Company Seal"
+  },
+  {
+   "fieldname": "authorized_signatory",
+   "fieldtype": "Data",
+   "label": "Authorized Signatory"
+  },
+  {
+   "fieldname": "footer",
+   "fieldtype": "Text",
+   "label": "Footer"
+  }
+ ],
+ "icon": "fa fa-building",
+ "idx": 1,
+ "links": [],
+ "modified": "2026-07-19 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Sarveksha ERP",
+ "name": "Sarveksha Company",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Management",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Procurement Manager"
+  },
+  {
+   "read": 1,
+   "role": "Purchase Executive"
+  },
+  {
+   "read": 1,
+   "role": "Finance"
+  },
+  {
+   "read": 1,
+   "role": "Accounts"
+  },
+  {
+   "read": 1,
+   "role": "Auditor"
+  },
+  {
+   "read": 1,
+   "role": "Read Only"
+  }
+ ],
+ "show_name_in_global_search": 1,
+ "sort_field": "creation",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1
+}

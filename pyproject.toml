@@ -1,0 +1,24 @@
+[project]
+name = "sarveksha_erp"
+authors = [
+    { name = "Sarveksha Group", email = "erp@sarveksha.com"}
+]
+description = "Clean, modern Procurement ERP for Sarveksha Group"
+requires-python = ">=3.10"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = [
+    # "frappe~=16.0.0" # Managed by bench
+]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "UP", "B", "RUF"]
+ignore = ["E101", "W191", "E501"]

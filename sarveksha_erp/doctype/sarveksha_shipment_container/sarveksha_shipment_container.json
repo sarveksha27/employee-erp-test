@@ -1,0 +1,213 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "field:shipment_number",
+ "creation": "2026-07-19 12:00:00.000000",
+ "doctype": "DocType",
+ "document_type": "Transaction",
+ "engine": "InnoDB",
+ "field_order": [
+  "shipment_number",
+  "container_number",
+  "shipment_mode",
+  "delivery_status",
+  "sec_specs",
+  "vehicle",
+  "warehouse",
+  "port",
+  "shipping_line",
+  "current_location",
+  "sec_docs",
+  "bill_of_lading",
+  "shipping_bill",
+  "commercial_invoice",
+  "sec_dates",
+  "etd",
+  "eta",
+  "sec_remarks",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "shipment_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Shipment Number",
+   "reqd": 1,
+   "unique": 1,
+   "description": "Unique Shipment / BL tracking identifier"
+  },
+  {
+   "fieldname": "container_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Container Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "shipment_mode",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Shipment Mode",
+   "options": "Ocean\nAir\nRoad\nRail"
+  },
+  {
+   "default": "In Transit",
+   "fieldname": "delivery_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Delivery Status",
+   "options": "In Transit\nCustom Clearance\nOut for Delivery\nDelivered"
+  },
+  {
+   "fieldname": "sec_specs",
+   "fieldtype": "Section Break",
+   "label": "Logistics & Transport"
+  },
+  {
+   "fieldname": "vehicle",
+   "fieldtype": "Data",
+   "label": "Vehicle / Vessel Name"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Data",
+   "label": "Warehouse"
+  },
+  {
+   "fieldname": "port",
+   "fieldtype": "Data",
+   "label": "Port of Entry/Exit"
+  },
+  {
+   "fieldname": "shipping_line",
+   "fieldtype": "Data",
+   "label": "Shipping Line / Carrier"
+  },
+  {
+   "fieldname": "current_location",
+   "fieldtype": "Data",
+   "label": "Current Location"
+  },
+  {
+   "fieldname": "sec_docs",
+   "fieldtype": "Section Break",
+   "label": "Logistics Documents"
+  },
+  {
+   "fieldname": "bill_of_lading",
+   "fieldtype": "Attach",
+   "label": "Bill of Lading (B/L)"
+  },
+  {
+   "fieldname": "shipping_bill",
+   "fieldtype": "Attach",
+   "label": "Shipping Bill"
+  },
+  {
+   "fieldname": "commercial_invoice",
+   "fieldtype": "Attach",
+   "label": "Commercial Invoice"
+  },
+  {
+   "fieldname": "sec_dates",
+   "fieldtype": "Section Break",
+   "label": "Schedule Dates"
+  },
+  {
+   "fieldname": "etd",
+   "fieldtype": "Date",
+   "label": "Estimated Departure (ETD)",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "eta",
+   "fieldtype": "Date",
+   "label": "Estimated Arrival (ETA)",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sec_remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Text",
+   "label": "Remarks"
+  }
+ ],
+ "icon": "fa fa-ship",
+ "idx": 1,
+ "links": [],
+ "modified": "2026-07-19 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Sarveksha ERP",
+ "name": "Sarveksha Shipment Container",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Logistics",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Export",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Management"
+  },
+  {
+   "read": 1,
+   "role": "Procurement Manager"
+  },
+  {
+   "read": 1,
+   "role": "Warehouse"
+  },
+  {
+   "read": 1,
+   "role": "Auditor"
+  },
+  {
+   "read": 1,
+   "role": "Read Only"
+  }
+ ],
+ "show_name_in_global_search": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

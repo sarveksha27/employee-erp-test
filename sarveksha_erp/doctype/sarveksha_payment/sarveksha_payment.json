@@ -1,0 +1,236 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-07-19 12:00:00.000000",
+ "doctype": "DocType",
+ "document_type": "Transaction",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "payment_number",
+  "company",
+  "vendor",
+  "purchase_order",
+  "invoice",
+  "status",
+  "sec_stage",
+  "payment_stage",
+  "currency",
+  "amount",
+  "exchange_rate",
+  "sec_details",
+  "bank",
+  "swift",
+  "transaction_number",
+  "utr",
+  "sec_dates",
+  "payment_date",
+  "due_date",
+  "sec_remarks",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "PAY-.company.-.YYYY.-.####\nPAY-.####",
+   "reqd": 1,
+   "hidden": 0
+  },
+  {
+   "fieldname": "payment_number",
+   "fieldtype": "Data",
+   "label": "Payment Number",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Sarveksha Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "vendor",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Vendor",
+   "options": "Sarveksha Vendor",
+   "reqd": 1
+  },
+  {
+   "fieldname": "purchase_order",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Purchase Order",
+   "options": "Sarveksha Purchase Order",
+   "reqd": 1
+  },
+  {
+   "fieldname": "invoice",
+   "fieldtype": "Data",
+   "label": "Commercial / PI Invoice Number"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Pending\nSent\nCleared\nFailed"
+  },
+  {
+   "fieldname": "sec_stage",
+   "fieldtype": "Section Break",
+   "label": "Stage & Value"
+  },
+  {
+   "fieldname": "payment_stage",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Payment Stage",
+   "options": "Advance\nMilestone\nFinal"
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "reqd": 1
+  },
+  {
+   "default": "1.0",
+   "fieldname": "exchange_rate",
+   "fieldtype": "Float",
+   "label": "Exchange Rate"
+  },
+  {
+   "fieldname": "sec_details",
+   "fieldtype": "Section Break",
+   "label": "Transaction Details"
+  },
+  {
+   "fieldname": "bank",
+   "fieldtype": "Data",
+   "label": "Bank Name / Branch"
+  },
+  {
+   "fieldname": "swift",
+   "fieldtype": "Data",
+   "label": "SWIFT"
+  },
+  {
+   "fieldname": "transaction_number",
+   "fieldtype": "Data",
+   "label": "Transaction Number / Ref"
+  },
+  {
+   "fieldname": "utr",
+   "fieldtype": "Data",
+   "label": "UTR Number"
+  },
+  {
+   "fieldname": "sec_dates",
+   "fieldtype": "Section Break",
+   "label": "Execution Dates"
+  },
+  {
+   "fieldname": "payment_date",
+   "fieldtype": "Date",
+   "label": "Payment Date",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "label": "Due Date"
+  },
+  {
+   "fieldname": "sec_remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Text",
+   "label": "Remarks"
+  }
+ ],
+ "icon": "fa fa-money",
+ "idx": 1,
+ "links": [],
+ "modified": "2026-07-19 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Sarveksha ERP",
+ "name": "Sarveksha Payment",
+ "naming_rule": "By naming_series",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Management"
+  },
+  {
+   "read": 1,
+   "role": "Procurement Manager"
+  },
+  {
+   "read": 1,
+   "role": "Auditor"
+  },
+  {
+   "read": 1,
+   "role": "Read Only"
+  }
+ ],
+ "show_name_in_global_search": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

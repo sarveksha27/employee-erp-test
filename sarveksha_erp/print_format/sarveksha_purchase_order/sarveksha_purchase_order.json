@@ -1,0 +1,18 @@
+{
+ "creation": "2026-07-19 12:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Print Format",
+ "doc_type": "Sarveksha Purchase Order",
+ "format_data": null,
+ "idx": 0,
+ "line_breaks": 0,
+ "modified": "2026-07-19 12:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Sarveksha Purchase Order Standard",
+ "owner": "Administrator",
+ "print_format_builder": 0,
+ "print_format_type": "Jinja Print Format",
+ "raw_printing": 0,
+ "standard": "Yes",
+ "disabled": 0
+}

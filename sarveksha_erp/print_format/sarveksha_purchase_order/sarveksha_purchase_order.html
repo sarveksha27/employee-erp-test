@@ -1,0 +1,245 @@
+{% set company = frappe.get_doc("Sarveksha Company", doc.company) if doc.company else None %}
+{% set vendor = frappe.get_doc("Sarveksha Vendor", doc.vendor) if doc.vendor else None %}
+{% set equipment = frappe.get_doc("Sarveksha Equipment", doc.equipment) if doc.equipment else None %}
+
+<div class="print-format-container" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; padding: 20px; line-height: 1.5; font-size: 13px;">
+    
+    <!-- Letterhead -->
+    {% if company and company.letterhead %}
+    <div class="print-heading-image" style="margin-bottom: 20px; text-align: center;">
+        <img src="{{ company.letterhead }}" style="max-width: 100%; height: auto;">
+    </div>
+    {% else %}
+    <div class="header-fallback" style="border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            {% if company and company.logo %}
+            <img src="{{ company.logo }}" style="max-height: 60px; margin-bottom: 5px;"><br>
+            {% endif %}
+            <span style="font-size: 18px; font-weight: bold; text-transform: uppercase;">{{ company.company_name if company else doc.company }}</span><br>
+            {% if company and company.address %}
+            <span style="font-size: 11px; color: #666;">{{ company.address | replace('\n', ', ') }}</span>
+            {% endif %}
+        </div>
+        <div style="text-align: right;">
+            <h2 style="margin: 0; color: #1a56db; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">PURCHASE ORDER</h2>
+            <span style="font-size: 12px; color: #555;"><b>Status:</b> {{ doc.status }}</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- PO Details Card -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px;">
+        <!-- Company & Vendor Info -->
+        <div>
+            <h4 style="margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; color: #777; border-bottom: 1px solid #eee; padding-bottom: 4px;">Vendor Details</h4>
+            <strong>{{ vendor.vendor_name if vendor else doc.vendor }}</strong><br>
+            {% if vendor %}
+                {% if vendor.address %}{{ vendor.address | replace('\n', '<br>') | safe }}<br>{% endif %}
+                {% if vendor.contact_person %}<b>Contact:</b> {{ vendor.contact_person }}<br>{% endif %}
+                {% if vendor.phone %}<b>Phone:</b> {{ vendor.phone }}<br>{% endif %}
+                {% if vendor.email %}<b>Email:</b> {{ vendor.email }}<br>{% endif %}
+                {% if vendor.gst %}<b>GSTIN:</b> {{ vendor.gst }}<br>{% endif %}
+                {% if vendor.vat %}<b>VAT:</b> {{ vendor.vat }}<br>{% endif %}
+            {% endif %}
+        </div>
+
+        <!-- PO metadata -->
+        <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 15px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                <tr>
+                    <td style="padding: 4px 0; color: #666;"><b>PO Number:</b></td>
+                    <td style="padding: 4px 0; text-align: right; font-weight: bold;">{{ doc.po_number or doc.name }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px 0; color: #666;"><b>Revision:</b></td>
+                    <td style="padding: 4px 0; text-align: right;">{{ doc.revision }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px 0; color: #666;"><b>Date:</b></td>
+                    <td style="padding: 4px 0; text-align: right;">{{ doc.creation.strftime('%Y-%m-%d') if doc.creation else '' }}</td>
+                </tr>
+                {% if doc.quotation_number %}
+                <tr>
+                    <td style="padding: 4px 0; color: #666;"><b>Quotation No:</b></td>
+                    <td style="padding: 4px 0; text-align: right;">{{ doc.quotation_number }} {% if doc.quotation_date %}({{ doc.quotation_date }}){% endif %}</td>
+                </tr>
+                {% endif %}
+                {% if doc.proforma_invoice_number %}
+                <tr>
+                    <td style="padding: 4px 0; color: #666;"><b>PI Number:</b></td>
+                    <td style="padding: 4px 0; text-align: right;">{{ doc.proforma_invoice_number }} {% if doc.proforma_invoice_date %}({{ doc.proforma_invoice_date }}){% endif %}</td>
+                </tr>
+                {% endif %}
+                {% if doc.expected_delivery %}
+                <tr>
+                    <td style="padding: 4px 0; color: #666;"><b>Expected Delivery:</b></td>
+                    <td style="padding: 4px 0; text-align: right; color: #1a56db; font-weight: bold;">{{ doc.expected_delivery }}</td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <!-- Equipment List Table -->
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
+        <thead>
+            <tr style="background-color: #1a56db; color: white;">
+                <th style="padding: 10px; text-align: left; border-top-left-radius: 4px; border-bottom-left-radius: 4px;">Equipment / Description</th>
+                <th style="padding: 10px; text-align: center;">HSN Code</th>
+                <th style="padding: 10px; text-align: right;">Quantity</th>
+                <th style="padding: 10px; text-align: right;">Rate ({{ doc.currency }})</th>
+                <th style="padding: 10px; text-align: right; border-top-right-radius: 4px; border-bottom-right-radius: 4px;">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+                <td style="padding: 12px 10px; vertical-align: top;">
+                    <strong>{{ equipment.equipment_name if equipment else doc.equipment }}</strong>
+                    {% if equipment and equipment.description %}
+                    <div style="font-size: 11px; color: #666; margin-top: 4px;">{{ equipment.description }}</div>
+                    {% endif %}
+                    {% if equipment and equipment.brand %}
+                    <div style="font-size: 11px; color: #666;">Brand: {{ equipment.brand }} | Model: {{ equipment.model }}</div>
+                    {% endif %}
+                </td>
+                <td style="padding: 12px 10px; text-align: center; vertical-align: top;">{{ equipment.hsn_code if equipment else '' }}</td>
+                <td style="padding: 12px 10px; text-align: right; vertical-align: top;">{{ doc.quantity }} {{ doc.unit or '' }}</td>
+                <td style="padding: 12px 10px; text-align: right; vertical-align: top;">{{ doc.rate | money(doc.currency) }}</td>
+                <td style="padding: 12px 10px; text-align: right; vertical-align: top; font-weight: bold;">{{ (doc.quantity * doc.rate) | money(doc.currency) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Calculations Grid -->
+    <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 30px; margin-bottom: 25px;">
+        <!-- Terms / Empty Sections -->
+        <div>
+            {% if doc.payment_terms %}
+            <div style="margin-bottom: 15px;">
+                <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #777;">Payment Terms</h4>
+                <div style="font-size: 12px; background: #f9fafb; padding: 10px; border-radius: 4px; border: 1px solid #eee;">{{ doc.payment_terms }}</div>
+            </div>
+            {% endif %}
+
+            {% if doc.delivery_location %}
+            <div style="margin-bottom: 15px;">
+                <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #777;">Delivery Location / Warehouse</h4>
+                <div style="font-size: 12px; background: #f9fafb; padding: 10px; border-radius: 4px; border: 1px solid #eee;">
+                    <b>Location:</b> {{ doc.delivery_location }}<br>
+                    {% if doc.warehouse %}<b>Warehouse:</b> {{ doc.warehouse }}{% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Totals details -->
+        <div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                <tr>
+                    <td style="padding: 6px 0; color: #666;">Subtotal:</td>
+                    <td style="padding: 6px 0; text-align: right;">{{ (doc.quantity * doc.rate) | money(doc.currency) }}</td>
+                </tr>
+                {% if doc.discount and doc.discount > 0 %}
+                <tr>
+                    <td style="padding: 6px 0; color: #c2410c;">Discount:</td>
+                    <td style="padding: 6px 0; text-align: right; color: #c2410c;">- {{ doc.discount | money(doc.currency) }}</td>
+                </tr>
+                {% endif %}
+                {% if doc.tax and doc.tax > 0 %}
+                <tr>
+                    <td style="padding: 6px 0; color: #666;">Tax:</td>
+                    <td style="padding: 6px 0; text-align: right;">+ {{ doc.tax | money(doc.currency) }}</td>
+                </tr>
+                {% endif %}
+                {% if doc.freight and doc.freight > 0 %}
+                <tr>
+                    <td style="padding: 6px 0; color: #666;">Freight Charges:</td>
+                    <td style="padding: 6px 0; text-align: right;">+ {{ doc.freight | money(doc.currency) }}</td>
+                </tr>
+                {% endif %}
+                {% if doc.packing and doc.packing > 0 %}
+                <tr>
+                    <td style="padding: 6px 0; color: #666;">Packing Charges:</td>
+                    <td style="padding: 6px 0; text-align: right;">+ {{ doc.packing | money(doc.currency) }}</td>
+                </tr>
+                {% endif %}
+                {% if doc.insurance and doc.insurance > 0 %}
+                <tr>
+                    <td style="padding: 6px 0; color: #666;">Insurance:</td>
+                    <td style="padding: 6px 0; text-align: right;">+ {{ doc.insurance | money(doc.currency) }}</td>
+                </tr>
+                {% endif %}
+                {% if doc.other_charges and doc.other_charges > 0 %}
+                <tr>
+                    <td style="padding: 6px 0; color: #666;">Other Charges:</td>
+                    <td style="padding: 6px 0; text-align: right;">+ {{ doc.other_charges | money(doc.currency) }}</td>
+                </tr>
+                {% endif %}
+                <tr style="border-top: 1px solid #333; font-size: 15px; font-weight: bold;">
+                    <td style="padding: 10px 0;">Grand Total:</td>
+                    <td style="padding: 10px 0; text-align: right; color: #1a56db;">{{ doc.grand_total | money(doc.currency) }}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- Logistics Section (conditional) -->
+    {% if doc.shipment_type or doc.container_number or doc.port %}
+    <div style="background-color: #f3f4f6; border-radius: 6px; padding: 15px; margin-bottom: 25px; font-size: 12px;">
+        <h4 style="margin: 0 0 10px 0; font-size: 11px; text-transform: uppercase; color: #4b5563; border-bottom: 1px solid #d1d5db; padding-bottom: 4px;">Logistics Details</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+            {% if doc.shipment_type %}<div><b>Shipment Type:</b> {{ doc.shipment_type }}</div>{% endif %}
+            {% if doc.container_number %}<div><b>Container No:</b> {{ doc.container_number }}</div>{% endif %}
+            {% if doc.port %}<div><b>Port/Hub:</b> {{ doc.port }}</div>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Bank Information Sections -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; font-size: 12px;">
+        {% if doc.company_bank %}
+        <div>
+            <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #777;">Company Bank Account</h4>
+            <div style="background: #f9fafb; padding: 10px; border-radius: 4px; border: 1px solid #eee; white-space: pre-line;">{{ doc.company_bank }}</div>
+        </div>
+        {% endif %}
+        {% if doc.vendor_bank %}
+        <div>
+            <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #777;">Vendor Bank Account</h4>
+            <div style="background: #f9fafb; padding: 10px; border-radius: 4px; border: 1px solid #eee; white-space: pre-line;">{{ doc.vendor_bank }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Signatures -->
+    <div style="margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; text-align: center; font-size: 12px;">
+        <div>
+            <div style="border-bottom: 1px solid #ccc; margin-bottom: 5px; height: 30px;">
+                {% if doc.prepared_by %}<span style="font-style: italic; color: #555;">{{ doc.prepared_by }}</span>{% endif %}
+            </div>
+            <b>Prepared By</b>
+        </div>
+        <div>
+            <div style="border-bottom: 1px solid #ccc; margin-bottom: 5px; height: 30px;">
+                {% if doc.verified_by %}<span style="font-style: italic; color: #555;">{{ doc.verified_by }}</span>{% endif %}
+            </div>
+            <b>Verified By</b>
+        </div>
+        <div>
+            <div style="border-bottom: 1px solid #ccc; margin-bottom: 5px; height: 30px;">
+                {% if doc.authorized_signatory or (company and company.authorized_signatory) %}
+                <span style="font-style: italic; color: #555;">{{ doc.authorized_signatory or company.authorized_signatory }}</span>
+                {% endif %}
+            </div>
+            <b>Authorized Signatory</b>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    {% if company and company.footer or doc.footer %}
+    <div class="print-footer" style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 10px; font-size: 10px; text-align: center; color: #999;">
+        {{ company.footer if company and company.footer else doc.footer }}
+    </div>
+    {% endif %}
+
+</div>
