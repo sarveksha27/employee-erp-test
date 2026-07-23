@@ -1,1 +1,0 @@
-# vendor contract doctype

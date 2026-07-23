@@ -1,1 +1,0 @@
-# doctypes package

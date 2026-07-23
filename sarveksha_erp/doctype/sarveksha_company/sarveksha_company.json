@@ -14,10 +14,14 @@
   "status",
   "sec_location",
   "country",
+  "state",
+  "city",
   "address",
+  "postal_code",
   "phone",
   "email",
   "website",
+  "linkedin_url",
   "sec_tax_ids",
   "registration_number",
   "gst",
@@ -35,6 +39,8 @@
   "default_tax_configuration",
   "default_payment_terms",
   "default_shipping_configuration",
+  "default_port",
+  "default_cfa",
   "sec_media",
   "logo",
   "letterhead",
@@ -44,14 +50,14 @@
  ],
  "fields": [
   {
+   "description": "Short code identifying the company (e.g. SRI, OHL)",
    "fieldname": "company_code",
    "fieldtype": "Data",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Company Code",
    "reqd": 1,
-   "unique": 1,
-   "description": "Short code identifying the company (e.g. SRI, OHL)"
+   "unique": 1
   },
   {
    "fieldname": "company_name",
@@ -87,9 +93,24 @@
    "reqd": 1
   },
   {
+   "fieldname": "state",
+   "fieldtype": "Data",
+   "label": "State"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City"
+  },
+  {
    "fieldname": "address",
    "fieldtype": "Text",
    "label": "Address"
+  },
+  {
+   "fieldname": "postal_code",
+   "fieldtype": "Data",
+   "label": "Postal Code"
   },
   {
    "fieldname": "phone",
@@ -105,6 +126,11 @@
    "fieldname": "website",
    "fieldtype": "Data",
    "label": "Website"
+  },
+  {
+   "fieldname": "linkedin_url",
+   "fieldtype": "Data",
+   "label": "LinkedIn Profile"
   },
   {
    "fieldname": "sec_tax_ids",
@@ -197,6 +223,16 @@
    "label": "Default Shipping Configuration"
   },
   {
+   "fieldname": "default_port",
+   "fieldtype": "Data",
+   "label": "Default Port"
+  },
+  {
+   "fieldname": "default_cfa",
+   "fieldtype": "Data",
+   "label": "Default CFA Agent"
+  },
+  {
    "fieldname": "sec_media",
    "fieldtype": "Section Break",
    "label": "Media & Branding"
@@ -230,7 +266,7 @@
  "icon": "fa fa-building",
  "idx": 1,
  "links": [],
- "modified": "2026-07-19 12:00:00.000000",
+ "modified": "2026-07-23 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Sarveksha ERP",
  "name": "Sarveksha Company",

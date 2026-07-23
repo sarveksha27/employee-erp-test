@@ -43,6 +43,13 @@ class SarvekshaPurchaseOrder(Document):
 			if getdate(self.proforma_invoice_date) < getdate(self.quotation_date):
 				frappe.throw(_("Proforma Invoice Date cannot be before Quotation Date."))
 
+def validate_po(doc, method=None):
+	if hasattr(doc, "calculate_totals"):
+		doc.calculate_totals()
+	if hasattr(doc, "validate_dates"):
+		doc.validate_dates()
+
+
 
 @frappe.whitelist()
 def parse_po_pdf(file_url):
