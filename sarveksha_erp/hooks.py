@@ -94,7 +94,7 @@ fixtures = [
 # ------------
 
 # before_install = "sarveksha_erp.install.before_install"
-# after_install = "sarveksha_erp.install.after_install"
+after_install = "sarveksha_erp.install.after_install"
 
 # Uninstallation
 # ------------
