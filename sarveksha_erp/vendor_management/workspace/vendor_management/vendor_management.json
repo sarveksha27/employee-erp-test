@@ -1,0 +1,87 @@
+{
+ "app": "sarveksha_erp",
+ "charts": [],
+ "content": "[{\"id\":\"h1_shortcuts\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"sc_vendor_payment\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vendor Payment\",\"col\":4}},{\"id\":\"sc_supplier\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Supplier\",\"col\":4}},{\"id\":\"sc_company\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company\",\"col\":4}}]",
+ "creation": "2026-07-18 02:51:07.906210",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "hide_custom": 0,
+ "icon": "accounting",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Vendor Management",
+ "link_type": "DocType",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Vendor Portal",
+   "link_count": 0,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Vendor Payments",
+   "link_count": 0,
+   "link_to": "Vendor Payment",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Vendors",
+   "link_count": 0,
+   "link_to": "Supplier",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-07-18 12:01:30.851206",
+ "modified_by": "Administrator",
+ "module": "Vendor Management",
+ "name": "Vendor Management",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 2.0,
+ "shortcuts": [
+  {
+   "color": "green",
+   "doc_view": "",
+   "format": "{} Open",
+   "icon": "accounting",
+   "label": "Vendor Payment",
+   "link_to": "Vendor Payment",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "blue",
+   "doc_view": "",
+   "icon": "accounting",
+   "label": "Supplier",
+   "link_to": "Supplier",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "icon": "accounting",
+   "label": "Company",
+   "link_to": "Company",
+   "type": "DocType"
+  }
+ ],
+ "title": "Vendor Management",
+ "type": "Workspace"
+}

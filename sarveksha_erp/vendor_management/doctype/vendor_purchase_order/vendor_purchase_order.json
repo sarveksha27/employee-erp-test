@@ -1,0 +1,616 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-07-25 00:38:15.156674",
+ "description": "Purchase Order raised by Sarveksha to a Vendor for equipment procurement",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "status",
+  "revision",
+  "col_break_header",
+  "po_date",
+  "company",
+  "default_port",
+  "sec_vendor",
+  "vendor",
+  "vendor_gstin",
+  "vendor_pan",
+  "col_break_vendor",
+  "vendor_bank_name",
+  "vendor_account_number",
+  "vendor_ifsc",
+  "sec_equipment",
+  "equipment",
+  "equipment_name",
+  "hsn_code",
+  "brand",
+  "manufacturer",
+  "col_break_equipment",
+  "quantity",
+  "unit",
+  "country_of_origin",
+  "specification",
+  "sec_pricing",
+  "currency",
+  "exchange_rate",
+  "rate",
+  "discount_percent",
+  "col_break_pricing",
+  "tax_amount",
+  "freight",
+  "insurance",
+  "packing_charges",
+  "other_charges",
+  "grand_total",
+  "sec_references",
+  "quotation_ref",
+  "quotation_date",
+  "pi_number",
+  "pi_date",
+  "col_break_references",
+  "expected_delivery",
+  "delivery_location",
+  "warehouse",
+  "port",
+  "shipment_type",
+  "container_number",
+  "sec_shipping_docs",
+  "invoice_doc",
+  "shipping_bill",
+  "bill_of_lading",
+  "packing_list",
+  "col_break_shipping",
+  "commercial_invoice",
+  "certificate_of_origin",
+  "inspection_report",
+  "insurance_doc",
+  "cfa_doc",
+  "sec_payment",
+  "payment_terms",
+  "advance_percentage",
+  "advance_amount",
+  "payment_status",
+  "col_break_payment",
+  "second_payment",
+  "final_payment",
+  "company_bank",
+  "sec_approval",
+  "prepared_by",
+  "verified_by",
+  "col_break_approval",
+  "approved_by",
+  "signatory",
+  "sec_remarks",
+  "remarks",
+  "attachments",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "default": "SRI.PO.-.####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "SRI.PO.-.####\nSRI.RPO.-.####",
+   "reqd": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nSubmitted\nVendor Confirmed\nPartially Paid\nFully Paid\nShipped\nDelivered\nCancelled",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "revision",
+   "fieldtype": "Int",
+   "label": "Revision No."
+  },
+  {
+   "fieldname": "col_break_header",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Today",
+   "fieldname": "po_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "PO Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "description": "Auto-fetched from Company once Member 1 adds custom_default_port field",
+   "fieldname": "default_port",
+   "fieldtype": "Data",
+   "label": "Default Port",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_vendor",
+   "fieldtype": "Section Break",
+   "label": "Vendor Details"
+  },
+  {
+   "fieldname": "vendor",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Vendor",
+   "options": "Supplier",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "vendor.tax_id",
+   "fieldname": "vendor_gstin",
+   "fieldtype": "Data",
+   "label": "Vendor GSTIN",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vendor_pan",
+   "fieldtype": "Data",
+   "label": "Vendor PAN",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_break_vendor",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Auto-fetched from Supplier once Member 2 adds custom_bank_name",
+   "fieldname": "vendor_bank_name",
+   "fieldtype": "Data",
+   "label": "Vendor Bank",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vendor_account_number",
+   "fieldtype": "Data",
+   "label": "Vendor Account No.",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vendor_ifsc",
+   "fieldtype": "Data",
+   "label": "IFSC Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_equipment",
+   "fieldtype": "Section Break",
+   "label": "Equipment Details"
+  },
+  {
+   "description": "\u26a0\ufe0f TEMP: Will become Link(Equipment) once Member 3 pushes the Equipment DocType",
+   "fieldname": "equipment",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Equipment",
+   "reqd": 1
+  },
+  {
+   "fieldname": "equipment_name",
+   "fieldtype": "Data",
+   "label": "Equipment Name"
+  },
+  {
+   "fieldname": "hsn_code",
+   "fieldtype": "Data",
+   "label": "HSN Code"
+  },
+  {
+   "fieldname": "brand",
+   "fieldtype": "Data",
+   "label": "Brand"
+  },
+  {
+   "fieldname": "manufacturer",
+   "fieldtype": "Data",
+   "label": "Manufacturer"
+  },
+  {
+   "fieldname": "col_break_equipment",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "quantity",
+   "fieldtype": "Float",
+   "label": "Quantity",
+   "reqd": 1
+  },
+  {
+   "fieldname": "unit",
+   "fieldtype": "Link",
+   "label": "Unit of Measure",
+   "options": "UOM"
+  },
+  {
+   "fieldname": "country_of_origin",
+   "fieldtype": "Link",
+   "label": "Country of Origin",
+   "options": "Country"
+  },
+  {
+   "fieldname": "specification",
+   "fieldtype": "Text Editor",
+   "label": "Specification / Description"
+  },
+  {
+   "fieldname": "sec_pricing",
+   "fieldtype": "Section Break",
+   "label": "Pricing & Charges"
+  },
+  {
+   "default": "USD",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "description": "Exchange rate to INR base currency",
+   "fieldname": "exchange_rate",
+   "fieldtype": "Float",
+   "label": "Exchange Rate"
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "label": "Unit Rate",
+   "options": "currency",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "discount_percent",
+   "fieldtype": "Percent",
+   "label": "Discount %"
+  },
+  {
+   "fieldname": "col_break_pricing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tax / GST Amount",
+   "options": "currency"
+  },
+  {
+   "fieldname": "freight",
+   "fieldtype": "Currency",
+   "label": "Freight Charges",
+   "options": "currency"
+  },
+  {
+   "fieldname": "insurance",
+   "fieldtype": "Currency",
+   "label": "Insurance",
+   "options": "currency"
+  },
+  {
+   "fieldname": "packing_charges",
+   "fieldtype": "Currency",
+   "label": "Packing Charges",
+   "options": "currency"
+  },
+  {
+   "fieldname": "other_charges",
+   "fieldtype": "Currency",
+   "label": "Other Charges",
+   "options": "currency"
+  },
+  {
+   "bold": 1,
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Grand Total",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_references",
+   "fieldtype": "Section Break",
+   "label": "References & Logistics"
+  },
+  {
+   "fieldname": "quotation_ref",
+   "fieldtype": "Data",
+   "label": "Quotation Reference"
+  },
+  {
+   "fieldname": "quotation_date",
+   "fieldtype": "Date",
+   "label": "Quotation Date"
+  },
+  {
+   "fieldname": "pi_number",
+   "fieldtype": "Data",
+   "label": "Proforma Invoice No."
+  },
+  {
+   "fieldname": "pi_date",
+   "fieldtype": "Date",
+   "label": "PI Date"
+  },
+  {
+   "fieldname": "col_break_references",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "expected_delivery",
+   "fieldtype": "Date",
+   "label": "Expected Delivery Date"
+  },
+  {
+   "fieldname": "delivery_location",
+   "fieldtype": "Data",
+   "label": "Delivery Location"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Destination Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "description": "e.g., Mundra, Conakry, Freetown, Douala",
+   "fieldname": "port",
+   "fieldtype": "Data",
+   "label": "Port"
+  },
+  {
+   "fieldname": "shipment_type",
+   "fieldtype": "Select",
+   "label": "Shipment Type",
+   "options": "\nSea\nAir\nRoad\nCourier"
+  },
+  {
+   "fieldname": "container_number",
+   "fieldtype": "Data",
+   "label": "Container Number"
+  },
+  {
+   "fieldname": "sec_shipping_docs",
+   "fieldtype": "Section Break",
+   "label": "Shipping Documents"
+  },
+  {
+   "fieldname": "invoice_doc",
+   "fieldtype": "Attach",
+   "label": "Invoice"
+  },
+  {
+   "fieldname": "shipping_bill",
+   "fieldtype": "Attach",
+   "label": "Shipping Bill"
+  },
+  {
+   "fieldname": "bill_of_lading",
+   "fieldtype": "Attach",
+   "label": "Bill of Lading (BL)"
+  },
+  {
+   "fieldname": "packing_list",
+   "fieldtype": "Attach",
+   "label": "Packing List"
+  },
+  {
+   "fieldname": "col_break_shipping",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "commercial_invoice",
+   "fieldtype": "Attach",
+   "label": "Commercial Invoice"
+  },
+  {
+   "fieldname": "certificate_of_origin",
+   "fieldtype": "Attach",
+   "label": "Certificate of Origin (COO)"
+  },
+  {
+   "fieldname": "inspection_report",
+   "fieldtype": "Attach",
+   "label": "Inspection Report"
+  },
+  {
+   "fieldname": "insurance_doc",
+   "fieldtype": "Attach",
+   "label": "Insurance Document"
+  },
+  {
+   "fieldname": "cfa_doc",
+   "fieldtype": "Attach",
+   "label": "CFA / Clearing Agent Doc"
+  },
+  {
+   "fieldname": "sec_payment",
+   "fieldtype": "Section Break",
+   "label": "Payment Tracking"
+  },
+  {
+   "description": "e.g., 30% advance, 70% before dispatch",
+   "fieldname": "payment_terms",
+   "fieldtype": "Small Text",
+   "label": "Payment Terms"
+  },
+  {
+   "default": "0",
+   "fieldname": "advance_percentage",
+   "fieldtype": "Percent",
+   "label": "Advance %"
+  },
+  {
+   "fieldname": "advance_amount",
+   "fieldtype": "Currency",
+   "label": "Advance Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "payment_status",
+   "fieldtype": "Select",
+   "label": "Payment Status",
+   "options": "Pending\nAdvance Paid\nPartially Paid\nFully Paid"
+  },
+  {
+   "fieldname": "col_break_payment",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "second_payment",
+   "fieldtype": "Currency",
+   "label": "Second Payment Amount",
+   "options": "currency"
+  },
+  {
+   "fieldname": "final_payment",
+   "fieldtype": "Currency",
+   "label": "Final Payment Amount",
+   "options": "currency"
+  },
+  {
+   "description": "Bank account from which SRI pays the vendor",
+   "fieldname": "company_bank",
+   "fieldtype": "Data",
+   "label": "Company Bank (SRI)"
+  },
+  {
+   "fieldname": "sec_approval",
+   "fieldtype": "Section Break",
+   "label": "Approval & Sign-off"
+  },
+  {
+   "default": "__user",
+   "fieldname": "prepared_by",
+   "fieldtype": "Link",
+   "label": "Prepared By",
+   "options": "User"
+  },
+  {
+   "fieldname": "verified_by",
+   "fieldtype": "Link",
+   "label": "Verified By",
+   "options": "User"
+  },
+  {
+   "fieldname": "col_break_approval",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "signatory",
+   "fieldtype": "Data",
+   "label": "Authorized Signatory"
+  },
+  {
+   "fieldname": "sec_remarks",
+   "fieldtype": "Section Break",
+   "label": "Remarks & Attachments"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "attachments",
+   "fieldtype": "Attach",
+   "label": "Additional Attachments"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Vendor Purchase Order",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-07-25 00:38:15.156674",
+ "modified_by": "Administrator",
+ "module": "Vendor Management",
+ "name": "Vendor Purchase Order",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Purchase Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Purchase User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "vendor,company,status",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "vendor"
+}
