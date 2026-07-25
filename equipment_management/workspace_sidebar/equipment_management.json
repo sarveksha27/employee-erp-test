@@ -11,17 +11,6 @@
    "collapsible": 1,
    "indent": 0,
    "keep_closed": 0,
-   "label": "Home",
-   "link_to": "Equipment Management",
-   "link_type": "Workspace",
-   "show_arrow": 0,
-   "type": "Link"
-  },
-  {
-   "child": 0,
-   "collapsible": 1,
-   "indent": 0,
-   "keep_closed": 0,
    "label": "Equipment",
    "link_to": "Equipment",
    "link_type": "DocType",
