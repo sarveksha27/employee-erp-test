@@ -1,0 +1,28 @@
+{
+ "app": "equipment_management",
+ "creation": "2026-07-25 10:36:24.782968",
+ "docstatus": 0,
+ "doctype": "Workspace Sidebar",
+ "header_icon": "settings",
+ "idx": 0,
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Equipment",
+   "link_to": "Equipment",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-07-25 10:41:37.259495",
+ "modified_by": "Administrator",
+ "module": "Equipment Management",
+ "name": "Equipment Management",
+ "owner": "Administrator",
+ "standard": 1,
+ "title": "Equipment Management"
+}
