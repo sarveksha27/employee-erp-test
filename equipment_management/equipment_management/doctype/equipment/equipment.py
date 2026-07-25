@@ -6,6 +6,7 @@ from frappe.model.document import Document
 
 
 class Equipment(Document):
-	def before_insert(self):
+	def autoname(self):
 		if not self.equipment_code:
 			self.equipment_code = frappe.model.naming.make_autoname("EQ-.#####")
+		self.name = self.equipment_code

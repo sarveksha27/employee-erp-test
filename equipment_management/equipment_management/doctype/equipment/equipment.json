@@ -2,7 +2,7 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "autoname": "field:hsn_code",
+ "autoname": "field:equipment_code",
  "creation": "2026-07-25 10:15:00.000000",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -86,8 +86,7 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "HSN Code",
-   "reqd": 1,
-   "unique": 1
+   "reqd": 1
   },
   {
    "fieldname": "brand",
