@@ -1,2 +1,2 @@
-Sarveksha ERP
 Vendor Management
+Equipment Management

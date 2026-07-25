@@ -1,0 +1,239 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-07-25 10:15:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "general_section",
+  "equipment_code",
+  "equipment_name",
+  "category",
+  "status",
+  "col_break_1",
+  "hsn_code",
+  "brand",
+  "manufacturer",
+  "model",
+  "spec_section",
+  "specification",
+  "description",
+  "col_break_2",
+  "image",
+  "datasheet",
+  "country_of_origin",
+  "unit",
+  "costing_section",
+  "approx_cost_inr",
+  "approx_cost_usd",
+  "last_purchase_cost_inr",
+  "last_purchase_cost_usd",
+  "col_break_3",
+  "gst_percentage",
+  "preferred_vendor",
+  "service_section",
+  "warranty_months",
+  "col_break_4",
+  "calibration_required",
+  "amc_applicable"
+ ],
+ "fields": [
+  {
+   "fieldname": "general_section",
+   "fieldtype": "Section Break",
+   "label": "General Details"
+  },
+  {
+   "fieldname": "equipment_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Equipment Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "equipment_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Equipment Name",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Category",
+   "options": "Mining Equipment\nLaboratory Equipment\nConstruction Equipment\nElectrical\nIT & Networking\nChemicals & Consumables\nGeneral",
+   "reqd": 1
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Active\nDiscontinued\nPending Approval"
+  },
+  {
+   "fieldname": "col_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "hsn_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "HSN Code",
+   "reqd": 1
+  },
+  {
+   "fieldname": "brand",
+   "fieldtype": "Data",
+   "label": "Brand"
+  },
+  {
+   "fieldname": "manufacturer",
+   "fieldtype": "Data",
+   "label": "Manufacturer"
+  },
+  {
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "label": "Model"
+  },
+  {
+   "fieldname": "spec_section",
+   "fieldtype": "Section Break",
+   "label": "Specifications & Media"
+  },
+  {
+   "fieldname": "specification",
+   "fieldtype": "Text Editor",
+   "label": "Specification"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "col_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Image"
+  },
+  {
+   "fieldname": "datasheet",
+   "fieldtype": "Attach",
+   "label": "Datasheet"
+  },
+  {
+   "fieldname": "country_of_origin",
+   "fieldtype": "Link",
+   "label": "Country of Origin",
+   "options": "Country"
+  },
+  {
+   "fieldname": "unit",
+   "fieldtype": "Link",
+   "label": "Unit",
+   "options": "UOM"
+  },
+  {
+   "fieldname": "costing_section",
+   "fieldtype": "Section Break",
+   "label": "Costing & Procurement"
+  },
+  {
+   "fieldname": "approx_cost_inr",
+   "fieldtype": "Currency",
+   "label": "Approx Cost (INR)"
+  },
+  {
+   "fieldname": "approx_cost_usd",
+   "fieldtype": "Currency",
+   "label": "Approx Cost (USD)"
+  },
+  {
+   "fieldname": "last_purchase_cost_inr",
+   "fieldtype": "Currency",
+   "label": "Last Purchase Cost (INR)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_purchase_cost_usd",
+   "fieldtype": "Currency",
+   "label": "Last Purchase Cost (USD)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gst_percentage",
+   "fieldtype": "Percent",
+   "label": "GST Percentage"
+  },
+  {
+   "fieldname": "preferred_vendor",
+   "fieldtype": "Link",
+   "label": "Preferred Vendor",
+   "options": "Supplier"
+  },
+  {
+   "fieldname": "service_section",
+   "fieldtype": "Section Break",
+   "label": "Warranty & Service"
+  },
+  {
+   "fieldname": "warranty_months",
+   "fieldtype": "Int",
+   "label": "Warranty (Months)"
+  },
+  {
+   "fieldname": "col_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "calibration_required",
+   "fieldtype": "Check",
+   "label": "Calibration Required"
+  },
+  {
+   "default": "0",
+   "fieldname": "amc_applicable",
+   "fieldtype": "Check",
+   "label": "AMC Applicable"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-25 10:15:00.000000",
+ "modified_by": "Administrator",
+ "module": "Equipment Management",
+ "name": "Equipment",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

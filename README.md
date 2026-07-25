@@ -1,28 +1,22 @@
-# Equipment Management Module
+# Sarveksha ERP
 
-A standalone custom Frappe application designed to catalog heavy engineering, laboratory, construction, electrical, IT, and chemical equipment.
+Custom Frappe Application for Sarveksha ERP and Vendor Management.
 
 ## Features
 
-1. **Equipment Master DocType**
-   - Stores detailed technical and financial metadata for all heavy engineering and laboratory equipment.
-   - **Auto-generated Equipment Codes as Primary Key:** The unique identifier (ID) is dynamically generated sequentially (e.g., `EQ-00001`, `EQ-00002`) on record creation, acting as the primary key.
-   - **Non-Unique 8-digit HSN Codes:** Equipment items can share the same HSN code (for cases where multiple equipment configurations fall under a single classification).
-   - **Dual-Currency Costing:** Support for tracking prices in both `INR` (Indian Rupees) and `USD` (US Dollars).
+1. **Vendor Management & Payment Tracking**
+   - **Vendor Purchase Orders:** Manage purchase orders raised to vendors with multi-currency support, tax calculation, payment terms, and delivery tracking.
+   - **Vendor Payments:** Record and track payment transactions (`VP-.YYYY.-`) linked to companies and suppliers.
+   - **Supplier Integration:** Seamlessly integrated with standard ERPNext `Supplier` and `Company` DocTypes.
 
-2. **Pre-Seeded High-Integrity Dataset**
-   - Includes **3,290** high-integrity equipment records pre-loaded as app fixtures.
-   - All HSN records are normalized to exactly 8 digits.
-   - Excludes "General" category items, leaving only specific equipment groups (Mining, Laboratory, Construction, Electrical, IT, and Chemicals).
+2. **Automated Data Setup & Initialization**
+   - Built-in `after_install` hooks to initialize multi-entity company structures (India, Guinea, Senegal, Botswana, Mauritius, Sierra Leone, UAE).
+   - Automatic seeding of Supplier Groups and Fiscal Years.
+   - Automatic import of Vendor master lists from Excel datasets (`VendorList-sarveksha.xlsx`).
 
-3. **Workspace & Sidebar**
-   - Clean, minimal sidebar with a single **Equipment** link — no clutter.
-   - Home workspace shows a **Quick Access** shortcut directly to the Equipment list (no dashboard charts).
-
-4. **Equipment Name Search Bar**
-   - A real-time search bar is rendered at the top of the Equipment list view.
-   - Type any part of an equipment name to instantly filter the list.
-   - Includes a `×` clear button to reset the search.
+3. **Workspace & Navigation**
+   - Custom **Vendor Management** Workspace and Workspace Sidebar.
+   - Quick access shortcuts for Suppliers, Companies, and Vendor Payments.
 
 ---
 
@@ -30,18 +24,17 @@ A standalone custom Frappe application designed to catalog heavy engineering, la
 
 1. **Get the App**
    ```bash
-   bench get-app https://github.com/manikkDev/employee-erp-test.git --branch equip
+   bench get-app https://github.com/manikkDev/employee-erp-test.git
    ```
 
 2. **Install on Site**
    ```bash
-   bench --site development install-app equipment_management
+   bench --site <site-name> install-app sarveksha_erp
    ```
 
-3. **Run Migration (Import Data)**
-   All 3,290 pre-seeded equipment items are stored as app fixtures and will automatically import into your database during migration:
+3. **Run Migration & Data Setup**
    ```bash
-   bench --site development migrate
+   bench --site <site-name> migrate
    ```
 
 ---
@@ -50,11 +43,10 @@ A standalone custom Frappe application designed to catalog heavy engineering, la
 
 | Component | Path |
 |---|---|
-| Database Table | `tabEquipment` |
-| DocType Definition | `equipment_management/doctype/equipment/` |
-| List View Controller | `equipment_management/doctype/equipment/equipment.js` |
-| Data Fixtures | `equipment_management/fixtures/equipment.json` |
-| Workspace Definition | `equipment_management/workspace/equipment_management/` |
-| Sidebar Definition | `equipment_management/workspace_sidebar/equipment_management.json` |
-| Autonaming | Custom `autoname` method in `equipment.py` |
+| Module Definitions | `sarveksha_erp/modules.txt` |
+| Vendor Purchase Order DocType | `sarveksha_erp/vendor_management/doctype/vendor_purchase_order/` |
+| Vendor Payment DocType | `sarveksha_erp/vendor_management/doctype/vendor_payment/` |
+| Workspace Definition | `sarveksha_erp/vendor_management/workspace/vendor_management/` |
+| Data Fixtures | `sarveksha_erp/fixtures/` |
+
 

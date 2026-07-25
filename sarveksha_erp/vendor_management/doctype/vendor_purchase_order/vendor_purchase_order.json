@@ -197,11 +197,11 @@
    "label": "Equipment Details"
   },
   {
-   "description": "\u26a0\ufe0f TEMP: Will become Link(Equipment) once Member 3 pushes the Equipment DocType",
    "fieldname": "equipment",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Equipment",
+   "options": "Equipment",
    "reqd": 1
   },
   {

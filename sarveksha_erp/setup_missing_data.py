@@ -8,46 +8,114 @@ def execute():
     print("STARTING DATA SETUP...")
     print("=" * 60)
 
-    # 1. CREATE MISSING COMPANIES
-    companies = [
-        {"company_name": "Sarveksha Realty and Inframine LLP", "abbr": "SRIL", "country": "India", "default_currency": "INR"},
-        {"company_name": "Sarveksha BSTP SAS", "abbr": "SBSTP", "country": "Senegal", "default_currency": "XOF"},
-        {"company_name": "Sarveksha Mining SARL", "abbr": "SMS", "country": "Guinea", "default_currency": "GNF"},
-        {"company_name": "Sarveksha Botswana Proprietary Limited", "abbr": "SBPL", "country": "Botswana", "default_currency": "BWP"},
-        {"company_name": "Odhav Holdings", "abbr": "OH", "country": "Mauritius", "default_currency": "USD"},
-        {"company_name": "Sarveksha SL Limited", "abbr": "SSL", "country": "Sierra Leone", "default_currency": "SLL"},
-        {"company_name": "Baani Minerals", "abbr": "BM", "country": "India", "default_currency": "INR"},
+    # 1. CLEANUP OBSOLETE COMPANIES
+    if frappe.db.exists("Company", "Baani Minerals"):
+        frappe.delete_doc("Company", "Baani Minerals", force=True)
+        print("  ✓ Removed obsolete company: Baani Minerals")
+
+    # 2. CREATE & UPDATE OFFICIAL COMPANIES
+    company_records = [
+        {
+            "company_name": "Sarveksha Realty and Inframine LLP",
+            "abbr": "SRIL",
+            "country": "India",
+            "default_currency": "INR",
+            "tax_id": "27AFTFS2557J1Z8",
+            "custom_registration_no": "ACS-0698",
+            "custom_import_export_code": "AFTFS2557J",
+            "custom_default_port": "Mundra, JNPT",
+            "phone_no": "+91 9769008220",
+            "email": "sudheerg@sarveksha.com",
+            "website": "www.sarveksha.com"
+        },
+        {
+            "company_name": "Sarveksha BSTP SAS",
+            "abbr": "SBSTP",
+            "country": "Guinea",
+            "default_currency": "USD",
+            "tax_id": "684060320",
+            "custom_registration_no": "RCCM / GN / TCC .2024. B. 02459",
+            "custom_default_port": "Conakry",
+            "phone_no": "+224 626407133",
+            "email": "svbstp@gmail.com",
+            "website": "www.sarveksha.com"
+        },
+        {
+            "company_name": "Sarveksha Mining SARL",
+            "abbr": "SMS",
+            "country": "Cameroon",
+            "default_currency": "USD",
+            "custom_registration_no": "CM-NSI-02-2025-B12-00560",
+            "custom_default_port": "Douala",
+            "phone_no": "+237652280756",
+            "email": "cameroonprojects@sarveksha.com",
+            "website": "www.sarveksha.com"
+        },
+        {
+            "company_name": "Baani Resources SARL",
+            "abbr": "BRS",
+            "country": "Cameroon",
+            "default_currency": "USD",
+            "custom_registration_no": "CM-NSI-02-2025-B12-00784",
+            "custom_default_port": "Douala",
+            "phone_no": "+237652280756",
+            "email": "cameroonprojects@sarveksha.com",
+            "website": "www.sarveksha.com"
+        },
+        {
+            "company_name": "Sarveksha Botswana Proprietary Limited",
+            "abbr": "SBPL",
+            "country": "Botswana",
+            "default_currency": "USD",
+            "custom_registration_no": "BW00009608412",
+            "custom_default_port": "Durban",
+            "phone_no": "+237652280756",
+            "email": "sudheerg@sarveksha.com",
+            "website": "www.sarveksha.com"
+        },
+        {
+            "company_name": "Sarveksha SL Limited",
+            "abbr": "SSL",
+            "country": "Sierra Leone",
+            "default_currency": "USD",
+            "tax_id": "1001412648",
+            "custom_registration_no": "SLI 20624 SARVE22162",
+            "custom_default_port": "Freetown",
+            "phone_no": "+232 74899999",
+            "email": "svbstp@gmail.com",
+            "website": "www.sarveksha.com"
+        },
+        {
+            "company_name": "Odhav Holdings",
+            "abbr": "OH",
+            "country": "Mauritius",
+            "default_currency": "USD",
+            "email": "svbstp@gmail.com",
+            "website": "www.sarveksha.com"
+        },
+        {
+            "company_name": "Globe Multitrade and Service LLC",
+            "abbr": "GMT",
+            "country": "United Arab Emirates",
+            "default_currency": "USD",
+            "website": "www.sarveksha.com"
+        }
     ]
 
-    for c_data in companies:
-        if not frappe.db.exists("Company", c_data["company_name"]):
+    for cdata in company_records:
+        cname = cdata["company_name"]
+        if not frappe.db.exists("Company", cname):
             doc = frappe.new_doc("Company")
-            doc.update(c_data)
+            doc.update(cdata)
             doc.insert(ignore_permissions=True)
-            print(f"  ✓ Created Company: {c_data['company_name']}")
+            print(f"  ✓ Created Company: {cname}")
         else:
-            print(f"  ✓ Company {c_data['company_name']} already exists.")
-    
+            for k, v in cdata.items():
+                if k != "company_name":
+                    frappe.db.set_value("Company", cname, k, v)
+            print(f"  ✓ Updated Company: {cname}")
+
     frappe.db.commit()
-
-    # 2. EXECUTE ORIGINAL SETUP SCRIPTS
-    try:
-        from sarveksha_erp.setup_vendor_module import execute as run_vendor
-        run_vendor()
-    except Exception as e:
-        print("Error running setup_vendor_module:", e)
-
-    try:
-        from sarveksha_erp.setup_doctypes import execute as run_doctypes
-        run_doctypes()
-    except Exception as e:
-        print("Error running setup_doctypes:", e)
-
-    try:
-        from sarveksha_erp.full_setup import execute as run_full
-        run_full()
-    except Exception as e:
-        print("Error running full_setup:", e)
 
     # 3. IMPORT VENDOR EXCEL DATA
     file_path = os.path.join(frappe.get_app_path("sarveksha_erp"), "..", "datasets-needed", "VendorList-sarveksha.xlsx")
@@ -57,9 +125,7 @@ def execute():
             wb = load_workbook(file_path, data_only=True)
             sheet = wb.active
             
-            # Assuming first row is headers. We find indices of required columns
             headers = [str(cell.value).strip() if cell.value else "" for cell in sheet[1]]
-            print(f"Found headers: {headers}")
             
             name_idx = -1
             group_idx = -1
@@ -71,7 +137,7 @@ def execute():
                     group_idx = i
                     
             if name_idx == -1:
-                name_idx = 0 # default to first column
+                name_idx = 0
                 
             created_count = 0
             for row_idx, row in enumerate(sheet.iter_rows(min_row=2), start=2):

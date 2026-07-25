@@ -1,9 +1,9 @@
 [project]
-name = "equipment_management"
+name = "sarveksha_erp"
 authors = [
-    { name = "Equipment Management Team", email = "admin@example.com"}
+    { name = "Sarveksha Team", email = "info@sarveksha.com"}
 ]
-description = "Equipment Management Module"
+description = "Vendor Management and ERP for Sarveksha"
 requires-python = ">=3.14"
 readme = "README.md"
 dynamic = ["version"]
