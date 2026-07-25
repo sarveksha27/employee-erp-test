@@ -1,4 +1,8 @@
+*.pyc
 __pycache__/
-*.py[cod]
+*.pyo
+*.pyd
+.frappe/
 .DS_Store
-*:Zone.Identifier
+*.swp
+*.swo
