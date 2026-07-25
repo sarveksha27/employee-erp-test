@@ -6,8 +6,8 @@ A standalone custom Frappe application designed to catalog heavy engineering, la
 
 1. **Equipment Master DocType**
    - Stores detailed technical and financial metadata for all heavy engineering and laboratory equipment.
-   - **Strict 8-digit HSN Code Primary Key:** The unique identifier (ID) is mapped directly to the HSN code for strict compliance.
-   - **Auto-generated Equipment Codes:** Sequential codes (e.g., `EQ-00001`, `EQ-00002`) are generated dynamically on insertion.
+   - **Auto-generated Equipment Codes as Primary Key:** The unique identifier (ID) is dynamically generated sequentially (e.g., `EQ-00001`, `EQ-00002`) on record creation, acting as the primary key.
+   - **Non-Unique 8-digit HSN Codes:** Equipment items can share the same HSN code (for cases where multiple equipment configurations fall under a single classification).
    - **Dual-Currency Costing:** Support for tracking prices in both `INR` (Indian Rupees) and `USD` (US Dollars).
 
 2. **Pre-Seeded High-Integrity Dataset**
@@ -46,4 +46,4 @@ A standalone custom Frappe application designed to catalog heavy engineering, la
 * **Database Table:** `tabEquipment`
 * **DocType Definition:** `equipment_management/doctype/equipment/`
 * **Data Fixtures:** `equipment_management/fixtures/equipment.json`
-* **Autonaming Hook:** Handled via `before_insert` in `equipment.py`.
+* **Autonaming Hook:** Handled via custom `autoname` method in `equipment.py`.
