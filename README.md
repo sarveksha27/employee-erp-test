@@ -1,6 +1,6 @@
 # Equipment Management Module
 
-A standalone custom Frappe application designed to catalog heavy engineering, laboratory, construction, electrical, IT, and chemical equipment. 
+A standalone custom Frappe application designed to catalog heavy engineering, laboratory, construction, electrical, IT, and chemical equipment.
 
 ## Features
 
@@ -15,9 +15,14 @@ A standalone custom Frappe application designed to catalog heavy engineering, la
    - All HSN records are normalized to exactly 8 digits.
    - Excludes "General" category items, leaving only specific equipment groups (Mining, Laboratory, Construction, Electrical, IT, and Chemicals).
 
-3. **Workspace Dashboard & Sidebar**
-   - Configured with a clean, single-purpose sidebar workspace linking directly to the Equipment list.
-   - Includes a visual "Equipment by Category" dashboard chart.
+3. **Workspace & Sidebar**
+   - Clean, minimal sidebar with a single **Equipment** link — no clutter.
+   - Home workspace shows a **Quick Access** shortcut directly to the Equipment list (no dashboard charts).
+
+4. **Equipment Name Search Bar**
+   - A real-time search bar is rendered at the top of the Equipment list view.
+   - Type any part of an equipment name to instantly filter the list.
+   - Includes a `×` clear button to reset the search.
 
 ---
 
@@ -43,7 +48,13 @@ A standalone custom Frappe application designed to catalog heavy engineering, la
 
 ## Technical Architecture
 
-* **Database Table:** `tabEquipment`
-* **DocType Definition:** `equipment_management/doctype/equipment/`
-* **Data Fixtures:** `equipment_management/fixtures/equipment.json`
-* **Autonaming Hook:** Handled via custom `autoname` method in `equipment.py`.
+| Component | Path |
+|---|---|
+| Database Table | `tabEquipment` |
+| DocType Definition | `equipment_management/doctype/equipment/` |
+| List View Controller | `equipment_management/doctype/equipment/equipment.js` |
+| Data Fixtures | `equipment_management/fixtures/equipment.json` |
+| Workspace Definition | `equipment_management/workspace/equipment_management/` |
+| Sidebar Definition | `equipment_management/workspace_sidebar/equipment_management.json` |
+| Autonaming | Custom `autoname` method in `equipment.py` |
+
