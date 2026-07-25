@@ -7,7 +7,7 @@
  "docstatus": 0,
  "doctype": "Workspace",
  "hide_custom": 0,
- "icon": "settings",
+ "icon": "setting",
  "idx": 0,
  "indicator_color": "green",
  "is_hidden": 0,
@@ -38,7 +38,7 @@
  "shortcuts": [
   {
    "doc_view": "",
-   "icon": "settings",
+   "icon": "setting",
    "label": "Equipment",
    "link_to": "Equipment",
    "type": "DocType"

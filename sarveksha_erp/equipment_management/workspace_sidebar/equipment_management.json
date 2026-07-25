@@ -3,7 +3,7 @@
  "creation": "2026-07-25 10:15:00.000000",
  "docstatus": 0,
  "doctype": "Workspace Sidebar",
- "header_icon": "settings",
+ "header_icon": "setting",
  "idx": 0,
  "items": [
   {
@@ -21,7 +21,7 @@
   {
    "child": 0,
    "collapsible": 1,
-   "icon": "settings",
+   "icon": "setting",
    "indent": 0,
    "keep_closed": 0,
    "label": "Equipment",
