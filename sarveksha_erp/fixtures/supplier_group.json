@@ -6,8 +6,8 @@
   "is_group": 1,
   "modified": "2026-07-20 23:50:04.695715",
   "name": "All Supplier Groups",
-  "old_parent": "",
-  "parent_supplier_group": null,
+  "old_parent": "Agriculture & Food",
+  "parent_supplier_group": "Agriculture & Food",
   "payment_terms": null,
   "supplier_group_name": "All Supplier Groups"
  },
