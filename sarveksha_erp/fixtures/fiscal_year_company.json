@@ -458,5 +458,465 @@
   "parent": "2027",
   "parentfield": "companies",
   "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Realty and Inframine LLP",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.558834",
+  "name": "mvlgtcuu23",
+  "parent": "2026-2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Realty and Inframine LLP",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.577361",
+  "name": "mvlgum37fh",
+  "parent": "2025-2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Odhav Holdings",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.593590",
+  "name": "mvl9foeb0u",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Globe Multitrade and Service LLC",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.604330",
+  "name": "mvmmkp9jrm",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha SL Limited",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.615181",
+  "name": "mvmkp6qgr2",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Realty and Inframine LLP",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.559115",
+  "name": "mvlu312k12",
+  "parent": "2026-2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Realty and Inframine LLP",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.577571",
+  "name": "mvlcocgdbr",
+  "parent": "2025-2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha SL Limited",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.593844",
+  "name": "mvl4qq1cn8",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha BSTP SAS",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.604543",
+  "name": "mvmebmdfsg",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Odhav Holdings",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.615412",
+  "name": "mvmatausd8",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Mining SARL",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.594082",
+  "name": "mvln9hhgqf",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha SL Limited",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.604735",
+  "name": "mvmamsa4uh",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Globe Multitrade and Service LLC",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.615614",
+  "name": "mvmk7evt5j",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Globe Multitrade and Service LLC",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.594312",
+  "name": "mvlrugki38",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Baani Minerals",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.605050",
+  "name": "mvm9ccdte2",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha BSTP SAS",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.615805",
+  "name": "mvmve7kko1",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha BSTP SAS",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.594512",
+  "name": "mvlan2eriv",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Odhav Holdings",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.605337",
+  "name": "mvmu0blcpk",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Baani Minerals",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.615995",
+  "name": "mvmc4u57dv",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Botswana Proprietary Limited",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.594701",
+  "name": "mvl52sk0m2",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Botswana Proprietary Limited",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.605573",
+  "name": "mvmrp1os61",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Mining SARL",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.616178",
+  "name": "mvmraaaa34",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Baani Minerals",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.594914",
+  "name": "mvl2orfrsb",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Mining SARL",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.605782",
+  "name": "mvmn5l2uhc",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Botswana Proprietary Limited",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.616350",
+  "name": "mvm038f4ls",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Globe Multitrade and Service LLC",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.595094",
+  "name": "mvl5qhm7vv",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Globe Multitrade and Service LLC",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.605974",
+  "name": "mvmk0lcst1",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Globe Multitrade and Service LLC",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.616531",
+  "name": "mvmh1154d6",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha BSTP SAS",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.595270",
+  "name": "mvl15rg4fc",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha BSTP SAS",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.606160",
+  "name": "mvmvqikl7u",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha BSTP SAS",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.616749",
+  "name": "mvm6buleq7",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Mining SARL",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.595444",
+  "name": "mvl18u1oqs",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Mining SARL",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.606339",
+  "name": "mvmnuv215t",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Mining SARL",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.617078",
+  "name": "mvmlq577k1",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Botswana Proprietary Limited",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.595649",
+  "name": "mvl9gvemac",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Botswana Proprietary Limited",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.606524",
+  "name": "mvmcdo8f4r",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha Botswana Proprietary Limited",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.617342",
+  "name": "mvma1p7hpu",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Odhav Holdings",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.595832",
+  "name": "mvlq5pjff1",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Odhav Holdings",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.606696",
+  "name": "mvm2iis7pv",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Odhav Holdings",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.617610",
+  "name": "mvmrp3gogh",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha SL Limited",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.596007",
+  "name": "mvlofu6a1a",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha SL Limited",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.606866",
+  "name": "mvmml0cj5f",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Sarveksha SL Limited",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.617831",
+  "name": "mvmeh29uhj",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Baani Minerals",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.596180",
+  "name": "mvl61ec79n",
+  "parent": "2025",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Baani Minerals",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.607042",
+  "name": "mvma761d07",
+  "parent": "2026",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
+ },
+ {
+  "company": "Baani Minerals",
+  "docstatus": 0,
+  "doctype": "Fiscal Year Company",
+  "modified": "2026-07-25 18:14:08.618021",
+  "name": "mvmvo8t18l",
+  "parent": "2027",
+  "parentfield": "companies",
+  "parenttype": "Fiscal Year"
  }
 ]
