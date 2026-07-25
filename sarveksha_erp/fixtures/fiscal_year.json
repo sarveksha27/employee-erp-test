@@ -1,15 +1,124 @@
 [
  {
   "auto_created": 0,
-  "companies": [],
+  "companies": [
+   {
+    "company": "Sarveksha Realty and Inframine LLP"
+   }
+  ],
   "disabled": 0,
   "docstatus": 0,
   "doctype": "Fiscal Year",
   "is_short_year": 0,
-  "modified": "2026-07-20 23:50:31.173952",
+  "modified": "2026-07-24 22:07:45.058172",
   "name": "2026-2027",
   "year": "2026-2027",
   "year_end_date": "2027-03-31",
   "year_start_date": "2026-04-01"
+ },
+ {
+  "auto_created": 0,
+  "companies": [
+   {
+    "company": "Globe Multitrade and Service LLC"
+   },
+   {
+    "company": "Sarveksha BSTP SAS"
+   },
+   {
+    "company": "Sarveksha Mining SARL"
+   },
+   {
+    "company": "Sarveksha Botswana Proprietary Limited"
+   },
+   {
+    "company": "Odhav Holdings"
+   },
+   {
+    "company": "Sarveksha SL Limited"
+   },
+   {
+    "company": "Baani Minerals"
+   }
+  ],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Fiscal Year",
+  "is_short_year": 0,
+  "modified": "2026-07-24 22:07:44.804095",
+  "name": "2025",
+  "year": "2025",
+  "year_end_date": "2025-12-31",
+  "year_start_date": "2025-01-01"
+ },
+ {
+  "auto_created": 0,
+  "companies": [
+   {
+    "company": "Globe Multitrade and Service LLC"
+   },
+   {
+    "company": "Sarveksha BSTP SAS"
+   },
+   {
+    "company": "Sarveksha Mining SARL"
+   },
+   {
+    "company": "Sarveksha Botswana Proprietary Limited"
+   },
+   {
+    "company": "Odhav Holdings"
+   },
+   {
+    "company": "Sarveksha SL Limited"
+   },
+   {
+    "company": "Baani Minerals"
+   }
+  ],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Fiscal Year",
+  "is_short_year": 0,
+  "modified": "2026-07-24 22:07:44.964328",
+  "name": "2026",
+  "year": "2026",
+  "year_end_date": "2026-12-31",
+  "year_start_date": "2026-01-01"
+ },
+ {
+  "auto_created": 0,
+  "companies": [
+   {
+    "company": "Globe Multitrade and Service LLC"
+   },
+   {
+    "company": "Sarveksha BSTP SAS"
+   },
+   {
+    "company": "Sarveksha Mining SARL"
+   },
+   {
+    "company": "Sarveksha Botswana Proprietary Limited"
+   },
+   {
+    "company": "Odhav Holdings"
+   },
+   {
+    "company": "Sarveksha SL Limited"
+   },
+   {
+    "company": "Baani Minerals"
+   }
+  ],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Fiscal Year",
+  "is_short_year": 0,
+  "modified": "2026-07-24 22:07:44.983940",
+  "name": "2027",
+  "year": "2027",
+  "year_end_date": "2027-12-31",
+  "year_start_date": "2027-01-01"
  }
 ]
