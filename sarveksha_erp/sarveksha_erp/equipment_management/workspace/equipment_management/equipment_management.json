@@ -2,7 +2,7 @@
  "app": "sarveksha_erp",
  "charts": [],
  "content": "[{\"id\":\"h1_shortcuts\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"sc_equipment\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Equipment\",\"col\":4}}]",
- "creation": "2026-07-25 21:17:07.410722",
+ "creation": "2026-07-25 20:21:38.485076",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -34,7 +34,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-07-25 21:17:07.410722",
+ "modified": "2026-07-25 20:21:38.485076",
  "modified_by": "Administrator",
  "module": "Equipment Management",
  "name": "Equipment Management",
