@@ -1,12 +1,7 @@
 {
  "app": "equipment_management",
- "charts": [
-  {
-   "chart_name": "Equipment by Category",
-   "label": "Equipment by Category"
-  }
- ],
- "content": "[{\"id\":\"eq_chart\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Equipment by Category\",\"col\":12}},{\"id\":\"h1_shortcuts\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"sc_equipment\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Equipment\",\"col\":4}}]",
+ "charts": [],
+ "content": "[{\"id\":\"h1_shortcuts\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"sc_equipment\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Equipment\",\"col\":4}}]",
  "creation": "2026-07-25 10:15:00.000000",
  "custom_blocks": [],
  "docstatus": 0,
