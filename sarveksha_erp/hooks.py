@@ -35,7 +35,13 @@ fixtures = [
     {"dt": "Supplier Group"},
     {"dt": "Supplier"},
     {"dt": "Custom Field"},
-    {"dt": "Equipment"}
+    {"dt": "Equipment"},
+    {"dt": "Contact"},
+    {"dt": "Bank"},
+    {"dt": "Bank Account"},
+    {"dt": "Letter Head"},
+    {"dt": "Print Format"},
+    {"dt": "Property Setter"}
 ]
 
 # include js, css files in header of web template

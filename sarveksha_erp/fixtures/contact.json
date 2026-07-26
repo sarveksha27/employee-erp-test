@@ -1,0 +1,187 @@
+[
+ {
+  "address": null,
+  "company_name": null,
+  "department": null,
+  "designation": null,
+  "docstatus": 0,
+  "doctype": "Contact",
+  "email_id": "mkt.energycompressor@gmail.com",
+  "email_ids": [
+   {
+    "email_id": "mkt.energycompressor@gmail.com",
+    "is_primary": 1
+   }
+  ],
+  "first_name": "Mr. Rajesh Goswami",
+  "full_name": "Mr. Rajesh Goswami Goswami",
+  "gender": null,
+  "google_contacts": null,
+  "google_contacts_id": null,
+  "image": null,
+  "is_billing_contact": 0,
+  "is_primary_contact": 0,
+  "last_name": "Goswami",
+  "links": [
+   {
+    "link_doctype": "Supplier",
+    "link_name": "Energy Compressor",
+    "link_title": "Energy Compressor"
+   }
+  ],
+  "middle_name": null,
+  "mobile_no": "",
+  "modified": "2026-07-26 23:33:36.595330",
+  "name": "Rajesh Goswami-Energy Compressor",
+  "phone": "+91 8401656253",
+  "phone_nos": [
+   {
+    "is_primary_mobile_no": 0,
+    "is_primary_phone": 1,
+    "phone": "+91 8401656253"
+   }
+  ],
+  "pulled_from_google_contacts": 0,
+  "salutation": null,
+  "status": "Passive",
+  "sync_with_google_contacts": 0,
+  "unsubscribed": 0,
+  "user": null
+ },
+ {
+  "address": null,
+  "company_name": null,
+  "department": null,
+  "designation": null,
+  "docstatus": 0,
+  "doctype": "Contact",
+  "email_id": "chopraenterprise21@gmail.com",
+  "email_ids": [
+   {
+    "email_id": "chopraenterprise21@gmail.com",
+    "is_primary": 1
+   }
+  ],
+  "first_name": "Sunil Chopra",
+  "full_name": "Sunil Chopra Chopra",
+  "gender": null,
+  "google_contacts": null,
+  "google_contacts_id": null,
+  "image": null,
+  "is_billing_contact": 0,
+  "is_primary_contact": 0,
+  "last_name": "Chopra",
+  "links": [
+   {
+    "link_doctype": "Supplier",
+    "link_name": "Chopra Enterprises",
+    "link_title": "Chopra Enterprises"
+   }
+  ],
+  "middle_name": null,
+  "mobile_no": "",
+  "modified": "2026-07-26 23:33:37.040619",
+  "name": "Sunil Chopra-Chopra Enterprises",
+  "phone": "9925017940",
+  "phone_nos": [
+   {
+    "is_primary_mobile_no": 0,
+    "is_primary_phone": 1,
+    "phone": "9925017940"
+   }
+  ],
+  "pulled_from_google_contacts": 0,
+  "salutation": null,
+  "status": "Passive",
+  "sync_with_google_contacts": 0,
+  "unsubscribed": 0,
+  "user": null
+ },
+ {
+  "address": null,
+  "company_name": null,
+  "department": null,
+  "designation": null,
+  "docstatus": 0,
+  "doctype": "Contact",
+  "email_id": "info@aavyalogistics.com",
+  "email_ids": [
+   {
+    "email_id": "info@aavyalogistics.com",
+    "is_primary": 1
+   }
+  ],
+  "first_name": "Mr. Deepak",
+  "full_name": "Mr. Deepak",
+  "gender": null,
+  "google_contacts": null,
+  "google_contacts_id": null,
+  "image": null,
+  "is_billing_contact": 0,
+  "is_primary_contact": 0,
+  "last_name": null,
+  "links": [
+   {
+    "link_doctype": "Supplier",
+    "link_name": "Aavya Logistics",
+    "link_title": "Aavya Logistics"
+   }
+  ],
+  "middle_name": null,
+  "mobile_no": "",
+  "modified": "2026-07-26 23:33:37.051022",
+  "name": "Deepak-Aavya Logistics",
+  "phone": "",
+  "phone_nos": [],
+  "pulled_from_google_contacts": 0,
+  "salutation": null,
+  "status": "Passive",
+  "sync_with_google_contacts": 0,
+  "unsubscribed": 0,
+  "user": null
+ },
+ {
+  "address": null,
+  "company_name": null,
+  "department": null,
+  "designation": null,
+  "docstatus": 0,
+  "doctype": "Contact",
+  "email_id": "",
+  "email_ids": [],
+  "first_name": "Pratyushraj",
+  "full_name": "Pratyushraj",
+  "gender": null,
+  "google_contacts": null,
+  "google_contacts_id": null,
+  "image": null,
+  "is_billing_contact": 0,
+  "is_primary_contact": 0,
+  "last_name": null,
+  "links": [
+   {
+    "link_doctype": "Supplier",
+    "link_name": "Bipun Consultancy",
+    "link_title": "Bipun Consultancy"
+   }
+  ],
+  "middle_name": null,
+  "mobile_no": "",
+  "modified": "2026-07-18 02:22:20.913544",
+  "name": "Pratyushraj-Bipun Consultancy",
+  "phone": "91-7979784728",
+  "phone_nos": [
+   {
+    "is_primary_mobile_no": 0,
+    "is_primary_phone": 1,
+    "phone": "91-7979784728"
+   }
+  ],
+  "pulled_from_google_contacts": 0,
+  "salutation": null,
+  "status": "Passive",
+  "sync_with_google_contacts": 0,
+  "unsubscribed": 0,
+  "user": null
+ }
+]
