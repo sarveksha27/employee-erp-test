@@ -136,7 +136,6 @@
    "reqd": 1
   },
   {
-   "description": "Auto-fetched from Company once Member 1 adds custom_default_port field",
    "fieldname": "default_port",
    "fieldtype": "Data",
    "label": "Default Port",
@@ -173,7 +172,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "Auto-fetched from Supplier once Member 2 adds custom_bank_name",
    "fieldname": "vendor_bank_name",
    "fieldtype": "Data",
    "label": "Vendor Bank",
@@ -197,12 +195,13 @@
    "label": "Equipment Details"
   },
   {
-   "description": "\u26a0\ufe0f TEMP: Will become Link(Equipment) once Member 3 pushes the Equipment DocType",
    "fieldname": "equipment",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Equipment",
-   "reqd": 1
+   "options": "Equipment",
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fieldname": "equipment_name",

@@ -1,0 +1,299 @@
+{% set company = frappe.get_doc("Company", doc.company) %}
+{% set vendor = frappe.get_doc("Supplier", doc.vendor) %}
+
+<style>
+    .print-format {
+        font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        font-size: 13px;
+        color: #333;
+        line-height: 1.5;
+    }
+    .header-table, .info-table, .item-table, .total-table, .footer-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+    .header-table td {
+        vertical-align: top;
+    }
+    .company-logo {
+        max-width: 150px;
+        max-height: 80px;
+    }
+    .company-name {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin: 0 0 5px 0;
+    }
+    .company-details {
+        font-size: 12px;
+        color: #666;
+    }
+    .doc-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #2c3e50;
+        text-align: right;
+        margin: 0 0 10px 0;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .po-details {
+        text-align: right;
+        font-size: 12px;
+    }
+    
+    .section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #fff;
+        background-color: #2c3e50;
+        padding: 5px 10px;
+        margin: 0 0 10px 0;
+    }
+    
+    .info-box {
+        border: 1px solid #ddd;
+        padding: 10px;
+        height: 100%;
+    }
+    
+    .item-table th {
+        background-color: #f8f9fa;
+        color: #333;
+        font-weight: 600;
+        text-align: left;
+        padding: 10px;
+        border: 1px solid #ddd;
+        font-size: 12px;
+    }
+    .item-table td {
+        padding: 10px;
+        border: 1px solid #ddd;
+        vertical-align: top;
+        font-size: 12px;
+    }
+    
+    .total-table td {
+        padding: 8px 10px;
+        border: 1px solid #ddd;
+    }
+    .total-label {
+        font-weight: 600;
+        text-align: right;
+    }
+    .total-value {
+        text-align: right;
+        width: 150px;
+    }
+    .grand-total {
+        font-weight: 700;
+        font-size: 14px;
+        background-color: #f8f9fa;
+    }
+    
+    .terms-box {
+        font-size: 11px;
+        color: #555;
+        border: 1px solid #ddd;
+        padding: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .sign-box {
+        margin-top: 50px;
+        text-align: center;
+    }
+    .sign-line {
+        border-top: 1px solid #333;
+        width: 200px;
+        margin: 10px auto 5px auto;
+    }
+    
+    .footer {
+        font-size: 10px;
+        color: #999;
+        text-align: center;
+        border-top: 1px solid #eee;
+        padding-top: 10px;
+        margin-top: 30px;
+    }
+</style>
+
+<div class="print-format">
+    <!-- Header -->
+    <table class="header-table">
+        <tr>
+            <td style="width: 60%;">
+                {% if company.company_logo %}
+                    <img src="{{ company.company_logo }}" class="company-logo" alt="Company Logo">
+                {% endif %}
+                <h2 class="company-name">{{ company.company_name }}</h2>
+                <div class="company-details">
+                    {% if company.primary_address %}
+                        {{ frappe.db.get_value('Address', company.primary_address, 'address_line1') }}<br>
+                        {{ frappe.db.get_value('Address', company.primary_address, 'city') }}
+                    {% endif %}
+                    <br>
+                    {% if company.custom_pan %}<b>PAN:</b> {{ company.custom_pan }} | {% endif %}
+                    {% if company.custom_gstin %}<b>GSTIN:</b> {{ company.custom_gstin }}<br>{% endif %}
+                    {% if company.custom_import_export_code %}<b>IEC:</b> {{ company.custom_import_export_code }}{% endif %}
+                </div>
+            </td>
+            <td style="width: 40%;">
+                <h1 class="doc-title">Purchase Order</h1>
+                <div class="po-details">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="text-align: right; padding-right: 10px;"><b>PO No:</b></td><td style="text-align: left;">{{ doc.name }}</td></tr>
+                        <tr><td style="text-align: right; padding-right: 10px;"><b>Date:</b></td><td style="text-align: left;">{{ doc.get_formatted('date') }}</td></tr>
+                        <tr><td style="text-align: right; padding-right: 10px;"><b>Status:</b></td><td style="text-align: left;">{{ doc.status }}</td></tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Vendor & Shipping Info -->
+    <table class="info-table">
+        <tr>
+            <td style="width: 50%; padding-right: 10px;">
+                <div class="section-title">Vendor Details</div>
+                <div class="info-box">
+                    <b>{{ vendor.supplier_name }}</b><br>
+                    {% if vendor.custom_pan %}<b>PAN:</b> {{ vendor.custom_pan }}<br>{% endif %}
+                    {% if doc.vendor_gstin %}<b>GSTIN:</b> {{ doc.vendor_gstin }}<br>{% endif %}
+                    {% if vendor.custom_tin %}<b>TIN:</b> {{ vendor.custom_tin }}<br>{% endif %}
+                    {% if vendor.custom_vendor_code %}<b>Vendor Code:</b> {{ vendor.custom_vendor_code }}<br>{% endif %}
+                </div>
+            </td>
+            <td style="width: 50%; padding-left: 10px;">
+                <div class="section-title">Shipping & Logistics</div>
+                <div class="info-box">
+                    <b>Default Port:</b> {{ doc.default_port or company.custom_default_port or 'N/A' }}<br>
+                    <b>Shipping Method:</b> {{ doc.shipping_method or 'Standard' }}<br>
+                    <b>Expected Delivery:</b> {{ doc.get_formatted('expected_delivery_date') or 'N/A' }}<br>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Item Details -->
+    <div class="section-title">Equipment & Specifications</div>
+    <table class="item-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 45%;">Description</th>
+                <th style="width: 10%; text-align: right;">Qty</th>
+                <th style="width: 10%; text-align: left;">Unit</th>
+                <th style="width: 15%; text-align: right;">Rate ({{ doc.currency }})</th>
+                <th style="width: 15%; text-align: right;">Amount ({{ doc.currency }})</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td>
+                    <b>{{ doc.equipment_name }}</b><br>
+                    {% if doc.brand %}Brand: {{ doc.brand }}<br>{% endif %}
+                    {% if doc.hsn_code %}HSN: {{ doc.hsn_code }}<br>{% endif %}
+                    <div style="font-size: 11px; color: #555; margin-top: 5px;">{{ doc.specification | replace('\n', '<br>') }}</div>
+                </td>
+                <td style="text-align: right;">{{ doc.quantity }}</td>
+                <td style="text-align: left;">{{ doc.unit }}</td>
+                <td style="text-align: right;">{{ doc.get_formatted('rate') }}</td>
+                <td style="text-align: right;">{{ frappe.utils.fmt_money(doc.quantity * doc.rate, currency=doc.currency) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Totals -->
+    <table class="total-table" style="width: 50%; float: right; margin-bottom: 30px;">
+        <tr>
+            <td class="total-label">Subtotal</td>
+            <td class="total-value">{{ frappe.utils.fmt_money(doc.quantity * doc.rate, currency=doc.currency) }}</td>
+        </tr>
+        {% if doc.discount_amount > 0 %}
+        <tr>
+            <td class="total-label">Discount {% if doc.discount_percent %}({{ doc.discount_percent }}%){% endif %}</td>
+            <td class="total-value">- {{ doc.get_formatted('discount_amount') }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td class="total-label">Net Total</td>
+            <td class="total-value">{{ frappe.utils.fmt_money((doc.quantity * doc.rate) - doc.discount_amount, currency=doc.currency) }}</td>
+        </tr>
+        {% if doc.tax_amount > 0 %}
+        <tr>
+            <td class="total-label">Taxes</td>
+            <td class="total-value">{{ doc.get_formatted('tax_amount') }}</td>
+        </tr>
+        {% endif %}
+        {% if doc.freight_and_handling > 0 %}
+        <tr>
+            <td class="total-label">Freight & Handling</td>
+            <td class="total-value">{{ doc.get_formatted('freight_and_handling') }}</td>
+        </tr>
+        {% endif %}
+        <tr class="grand-total">
+            <td class="total-label">Grand Total</td>
+            <td class="total-value">{{ doc.get_formatted('grand_total') }}</td>
+        </tr>
+        {% if doc.advance_paid > 0 %}
+        <tr>
+            <td class="total-label" style="color: #27ae60;">Advance Paid</td>
+            <td class="total-value" style="color: #27ae60;">- {{ doc.get_formatted('advance_paid') }}</td>
+        </tr>
+        <tr>
+            <td class="total-label">Balance Due</td>
+            <td class="total-value"><b>{{ frappe.utils.fmt_money(doc.grand_total - doc.advance_paid, currency=doc.currency) }}</b></td>
+        </tr>
+        {% endif %}
+    </table>
+    <div style="clear: both;"></div>
+
+    <!-- Payment & Terms -->
+    <table class="info-table" style="margin-top: 10px;">
+        <tr>
+            <td style="width: 50%; padding-right: 10px;">
+                <div class="section-title">Vendor Bank Details</div>
+                <div class="info-box" style="font-size: 11px;">
+                    <b>Bank Name:</b> {{ doc.vendor_bank_name or vendor.custom_bank_name or 'N/A' }}<br>
+                    <b>Account No:</b> {{ doc.vendor_account_number or vendor.custom_account_number or 'N/A' }}<br>
+                    <b>IFSC Code:</b> {{ doc.vendor_ifsc or vendor.custom_ifsc or 'N/A' }}<br>
+                    {% if vendor.custom_swift_code %}<b>SWIFT:</b> {{ vendor.custom_swift_code }}<br>{% endif %}
+                </div>
+            </td>
+            <td style="width: 50%; padding-left: 10px;">
+                <div class="section-title">Terms & Conditions</div>
+                <div class="terms-box">
+                    {{ doc.terms_and_conditions | default('1. Supply strictly as per PO specifications.<br>2. Delivery must meet the expected schedule.<br>3. Subject to jurisdiction of standard company policies.', true) }}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Signatory -->
+    <table style="width: 100%; margin-top: 30px;">
+        <tr>
+            <td style="width: 50%;">
+                
+            </td>
+            <td style="width: 50%;" class="sign-box">
+                {% if company.custom_company_seal %}
+                    <img src="{{ company.custom_company_seal }}" style="max-height: 80px; margin-bottom: 5px;"><br>
+                {% else %}
+                    <div style="height: 60px;"></div>
+                {% endif %}
+                <div class="sign-line"></div>
+                <b>For {{ company.company_name }}</b><br>
+                {{ company.custom_authorized_signatory or 'Authorized Signatory' }}
+            </td>
+        </tr>
+    </table>
+
+    <div class="footer">
+        This is a computer generated Purchase Order and does not require a physical signature if transmitted electronically.
+    </div>
+</div>

@@ -34,7 +34,8 @@ fixtures = [
     {"dt": "Fiscal Year Company"},
     {"dt": "Supplier Group"},
     {"dt": "Supplier"},
-    {"dt": "Custom Field"}
+    {"dt": "Custom Field"},
+    {"dt": "Equipment"}
 ]
 
 # include js, css files in header of web template
