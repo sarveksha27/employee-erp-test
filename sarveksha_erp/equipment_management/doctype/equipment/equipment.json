@@ -215,6 +215,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
+ "search_fields": "equipment_name",
  "modified": "2026-07-25 10:15:00.000000",
  "modified_by": "Administrator",
  "module": "Equipment Management",
