@@ -29,13 +29,13 @@ app_license = "mit"
 # app_include_js = "/assets/sarveksha_erp/js/sarveksha_erp.js"
 
 fixtures = [
-    "Company",
-    "Custom Field",
-    "Letter Head",
-    "Supplier",
-    "Supplier Group",
-    "Fiscal Year",
-    "Fiscal Year Company",
+    {"dt": "Company"},
+    {"dt": "Fiscal Year"},
+    {"dt": "Fiscal Year Company"},
+    {"dt": "Supplier Group"},
+    {"dt": "Supplier"},
+    {"dt": "Custom Field"},
+    {"dt": "Equipment"}
 ]
 
 # include js, css files in header of web template

@@ -42,9 +42,29 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Vendor Purchase Orders",
+   "link_count": 0,
+   "link_to": "Vendor Purchase Order",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Equipment",
+   "link_count": 0,
+   "link_to": "Equipment",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-07-18 12:01:30.851206",
+ "modified": "2026-07-26 11:53:31.064781",
  "modified_by": "Administrator",
  "module": "Vendor Management",
  "name": "Vendor Management",
@@ -79,6 +99,20 @@
    "icon": "accounting",
    "label": "Company",
    "link_to": "Company",
+   "type": "DocType"
+  },
+  {
+   "color": "gray",
+   "doc_view": "",
+   "label": "Vendor Purchase Order",
+   "link_to": "Vendor Purchase Order",
+   "type": "DocType"
+  },
+  {
+   "color": "gray",
+   "doc_view": "",
+   "label": "Equipment",
+   "link_to": "Equipment",
    "type": "DocType"
   }
  ],

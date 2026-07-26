@@ -82,23 +82,46 @@ frappe.ui.form.on('Vendor Purchase Order', {
         );
     },
 
-    // ─── EQUIPMENT TRIGGER ────────────────────────────────────
-    // TODO: This will be enabled when Member 3 pushes the Equipment DocType
-    // For now it's a no-op since the equipment field is Data type (not Link)
+    // ─── EQUIPMENT TRIGGER ────────────────────────────────────────
+    // Fetches all details from the Equipment Master when equipment is selected
     equipment: function(frm) {
-        // When Member 3 is done, uncomment this block and change equipment field to Link(Equipment):
-        /*
-        if (!frm.doc.equipment) return;
+        if (!frm.doc.equipment) {
+            // Clear all equipment-fetched fields when field is cleared
+            frm.set_value('equipment_name', '');
+            frm.set_value('hsn_code', '');
+            frm.set_value('brand', '');
+            frm.set_value('manufacturer', '');
+            frm.set_value('unit', '');
+            frm.set_value('specification', '');
+            frm.set_value('country_of_origin', '');
+            return;
+        }
         frappe.db.get_doc('Equipment', frm.doc.equipment).then(doc => {
-            frm.set_value('equipment_name', doc.equipment_name);
-            frm.set_value('hsn_code', doc.hsn_code);
-            frm.set_value('brand', doc.brand);
-            frm.set_value('manufacturer', doc.manufacturer);
-            frm.set_value('unit', doc.unit);
-            frm.set_value('specification', doc.specification);
-            frm.set_value('country_of_origin', doc.country_of_origin);
+            frm.set_value('equipment_name', doc.equipment_name || '');
+            frm.set_value('hsn_code', doc.hsn_code || '');
+            frm.set_value('brand', doc.brand || '');
+            frm.set_value('manufacturer', doc.manufacturer || '');
+            frm.set_value('unit', doc.unit || '');
+            frm.set_value('specification', doc.specification || '');
+            frm.set_value('country_of_origin', doc.country_of_origin || '');
+            // Auto-set GST amount hint if gst_percentage is set on equipment
+            if (doc.gst_percentage && frm.doc.rate && frm.doc.quantity) {
+                const base = flt(frm.doc.rate) * flt(frm.doc.quantity);
+                const discount = base * (flt(frm.doc.discount_percent) / 100);
+                const net = base - discount;
+                const gst = net * (doc.gst_percentage / 100);
+                frm.set_value('tax_amount', gst);
+            }
+            frappe.show_alert({
+                message: `Equipment details loaded for "${doc.equipment_name}"`,
+                indicator: 'green'
+            }, 3);
+        }).catch(err => {
+            frappe.show_alert({
+                message: 'Could not fetch equipment details. Check if the record exists.',
+                indicator: 'orange'
+            }, 4);
         });
-        */
     },
 
     // ─── GRAND TOTAL AUTO-CALCULATION ─────────────────────────
