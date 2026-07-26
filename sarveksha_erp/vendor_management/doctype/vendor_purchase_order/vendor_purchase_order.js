@@ -5,7 +5,6 @@ frappe.ui.form.on('Vendor Purchase Order', {
 
     // ─── ON FORM LOAD ─────────────────────────────────────────
     refresh: function(frm) {
-        // Colour the status badge
         const colors = {
             'Draft': 'gray',
             'Submitted': 'blue',
@@ -22,71 +21,73 @@ frappe.ui.form.on('Vendor Purchase Order', {
             });
         }
 
-        // Show print button when submitted
         if (frm.doc.docstatus === 1) {
             frm.add_custom_button(__('Print PO'), function() {
                 frappe.set_route('print', 'Vendor Purchase Order', frm.doc.name);
             }, __('Actions'));
         }
+
+        // Recalculate on every refresh to keep values consistent
+        calculate_gst_and_totals(frm);
     },
 
     // ─── COMPANY TRIGGER ──────────────────────────────────────
-    // Fetches default port from Company (works once Member 1 adds custom_default_port)
     company: function(frm) {
         if (!frm.doc.company) return;
 
         frappe.db.get_value('Company', frm.doc.company,
-            ['custom_default_port', 'default_currency'],
+            ['custom_default_port', 'default_currency', 'tax_id', 'country'],
             function(r) {
                 if (r) {
-                    // Set default port if the field exists on Company
                     if (r.custom_default_port) {
                         frm.set_value('port', r.custom_default_port);
                         frm.set_value('default_port', r.custom_default_port);
                     }
-                    // Set default currency from company
                     if (r.default_currency) {
                         frm.set_value('currency', r.default_currency);
                     }
+                    // Store company GSTIN for intra/inter-state GST determination
+                    frm._company_gstin = r.tax_id || '';
+
+                    // ── AUTO-SET LETTER HEAD BASED ON COUNTRY ──────────
+                    const country = (r.country || '').toLowerCase();
+                    let lh = 'India'; // default fallback
+                    if (country.includes('india'))    lh = 'India';
+                    else if (country.includes('cameroon')) lh = 'Cameroon \u2013 Sarveksha Mining';
+                    else if (country.includes('botswana')) lh = 'Botswana';
+                    // Sierra Leone, Guinea, UAE → fallback to India letterhead
+                    frm.set_value('letter_head', lh);
                 }
+                // Recalculate GST type after company change
+                calculate_gst_and_totals(frm);
             }
         );
     },
 
     // ─── VENDOR TRIGGER ───────────────────────────────────────
-    // Fetches bank details and tax info from Supplier
-    // Works once Member 2 adds custom fields to Supplier DocType
     vendor: function(frm) {
         if (!frm.doc.vendor) return;
 
         frappe.db.get_value('Supplier', frm.doc.vendor,
-            [
-                'tax_id',                    // GSTIN (standard ERPNext field)
-                'custom_pan',                // PAN (Member 2 will add)
-                'custom_bank_name',          // Bank Name (Member 2 will add)
-                'custom_account_number',     // Account No (Member 2 will add)
-                'custom_ifsc',               // IFSC (Member 2 will add)
-            ],
+            ['tax_id', 'custom_pan', 'custom_bank_name', 'custom_account_number', 'custom_ifsc'],
             function(r) {
                 if (!r) return;
-
-                // Standard field - always works
                 if (r.tax_id) frm.set_value('vendor_gstin', r.tax_id);
-
-                // Custom fields - gracefully handles if not yet added by Member 2
                 if (r.custom_pan) frm.set_value('vendor_pan', r.custom_pan);
                 if (r.custom_bank_name) frm.set_value('vendor_bank_name', r.custom_bank_name);
                 if (r.custom_account_number) frm.set_value('vendor_account_number', r.custom_account_number);
                 if (r.custom_ifsc) frm.set_value('vendor_ifsc', r.custom_ifsc);
+
+                // Store vendor GSTIN for intra/inter-state determination
+                frm._vendor_gstin = r.tax_id || '';
+                calculate_gst_and_totals(frm);
             }
         );
     },
 
     // ─── EQUIPMENT TRIGGER ────────────────────────────────────────
-    // Fetches all details from the Equipment Master when equipment is selected
     equipment: function(frm) {
         if (!frm.doc.equipment) {
-            // Clear all equipment-fetched fields when field is cleared
             frm.set_value('equipment_name', '');
             frm.set_value('hsn_code', '');
             frm.set_value('brand', '');
@@ -94,6 +95,8 @@ frappe.ui.form.on('Vendor Purchase Order', {
             frm.set_value('unit', '');
             frm.set_value('specification', '');
             frm.set_value('country_of_origin', '');
+            frm.set_value('gst_percentage', 0);
+            calculate_gst_and_totals(frm);
             return;
         }
         frappe.db.get_doc('Equipment', frm.doc.equipment).then(doc => {
@@ -104,67 +107,113 @@ frappe.ui.form.on('Vendor Purchase Order', {
             frm.set_value('unit', doc.unit || '');
             frm.set_value('specification', doc.specification || '');
             frm.set_value('country_of_origin', doc.country_of_origin || '');
-            // Auto-set GST amount hint if gst_percentage is set on equipment
-            if (doc.gst_percentage && frm.doc.rate && frm.doc.quantity) {
-                const base = flt(frm.doc.rate) * flt(frm.doc.quantity);
-                const discount = base * (flt(frm.doc.discount_percent) / 100);
-                const net = base - discount;
-                const gst = net * (doc.gst_percentage / 100);
-                frm.set_value('tax_amount', gst);
-            }
+
+            // ─── KEY STEP: Pull GST % from Equipment master ───
+            const gst_pct = flt(doc.gst_percentage) || 18; // Default 18% if not set
+            frm.set_value('gst_percentage', gst_pct);
+
+            calculate_gst_and_totals(frm);
+
             frappe.show_alert({
-                message: `Equipment details loaded for "${doc.equipment_name}"`,
+                message: `Equipment details loaded for "${doc.equipment_name}" | GST: ${gst_pct}%`,
                 indicator: 'green'
-            }, 3);
+            }, 4);
         }).catch(err => {
             frappe.show_alert({
-                message: 'Could not fetch equipment details. Check if the record exists.',
+                message: 'Could not fetch equipment details.',
                 indicator: 'orange'
             }, 4);
         });
     },
 
-    // ─── GRAND TOTAL AUTO-CALCULATION ─────────────────────────
-    // Triggers on any pricing field change
-    rate: function(frm) { calculate_grand_total(frm); },
-    quantity: function(frm) { calculate_grand_total(frm); },
-    discount_percent: function(frm) { calculate_grand_total(frm); },
-    tax_amount: function(frm) { calculate_grand_total(frm); },
-    freight: function(frm) { calculate_grand_total(frm); },
-    insurance: function(frm) { calculate_grand_total(frm); },
-    packing_charges: function(frm) { calculate_grand_total(frm); },
-    other_charges: function(frm) { calculate_grand_total(frm); },
-
-    // ─── ADVANCE AMOUNT AUTO-CALCULATION ──────────────────────
-    advance_percentage: function(frm) { calculate_advance(frm); },
-    grand_total: function(frm) { calculate_advance(frm); },
+    // ─── PRICING TRIGGERS ─────────────────────────────────────
+    rate: function(frm) { calculate_gst_and_totals(frm); },
+    quantity: function(frm) { calculate_gst_and_totals(frm); },
+    discount_percent: function(frm) { calculate_gst_and_totals(frm); },
+    gst_percentage: function(frm) { calculate_gst_and_totals(frm); },
+    freight: function(frm) { calculate_gst_and_totals(frm); },
+    insurance: function(frm) { calculate_gst_and_totals(frm); },
+    packing_charges: function(frm) { calculate_gst_and_totals(frm); },
+    other_charges: function(frm) { calculate_gst_and_totals(frm); },
+    advance_percentage: function(frm) { calculate_gst_and_totals(frm); },
+    vendor_gstin: function(frm) { calculate_gst_and_totals(frm); },
 
 });
 
-// ─── HELPER FUNCTIONS ─────────────────────────────────────────
-
-function calculate_grand_total(frm) {
+// ─── MASTER CALCULATION ENGINE ────────────────────────────────
+/**
+ * Full Indian GST Calculation Engine:
+ *
+ * 1. Determine Taxable Value = (Rate × Qty) − Discount
+ * 2. Determine GST Type:
+ *    - Extract first 2 digits of Vendor GSTIN (state code)
+ *    - Extract first 2 digits of Company GSTIN (state code)
+ *    - If SAME STATE → CGST + SGST (each = GST% / 2)
+ *    - If DIFFERENT STATE or export → IGST (= GST%)
+ * 3. Grand Total = Taxable Value + Total Tax + Freight + Insurance + Packing + Other
+ * 4. Advance Amount = Grand Total × (Advance% / 100)
+ * 5. Balance Due = Grand Total − Advance Amount
+ */
+function calculate_gst_and_totals(frm) {
     const rate = flt(frm.doc.rate) || 0;
     const qty = flt(frm.doc.quantity) || 1;
-    const discount = flt(frm.doc.discount_percent) || 0;
-    const tax = flt(frm.doc.tax_amount) || 0;
+    const discount_pct = flt(frm.doc.discount_percent) || 0;
+    const gst_pct = flt(frm.doc.gst_percentage) || 0;
     const freight = flt(frm.doc.freight) || 0;
     const insurance = flt(frm.doc.insurance) || 0;
     const packing = flt(frm.doc.packing_charges) || 0;
     const other = flt(frm.doc.other_charges) || 0;
-
-    const base_amount = rate * qty;
-    const discount_amount = base_amount * (discount / 100);
-    const net_amount = base_amount - discount_amount;
-    const grand_total = net_amount + tax + freight + insurance + packing + other;
-
-    frm.set_value('grand_total', grand_total);
-    calculate_advance(frm);
-}
-
-function calculate_advance(frm) {
-    const grand_total = flt(frm.doc.grand_total) || 0;
     const advance_pct = flt(frm.doc.advance_percentage) || 0;
-    const advance = grand_total * (advance_pct / 100);
-    frm.set_value('advance_amount', advance);
+
+    // Step 1: Taxable Value
+    const base_amount = rate * qty;
+    const discount_amount = base_amount * (discount_pct / 100);
+    const taxable_value = base_amount - discount_amount;
+
+    // Step 2: GST Type Determination (Intra-state vs Inter-state)
+    const vendor_gstin = (frm.doc.vendor_gstin || frm._vendor_gstin || '');
+    const company_gstin = (frm._company_gstin || '');
+
+    let gst_type = 'IGST'; // Default: IGST for inter-state or unknown
+    let cgst = 0, sgst = 0, igst = 0, total_tax = 0;
+
+    if (vendor_gstin.length >= 2 && company_gstin.length >= 2) {
+        const vendor_state_code = vendor_gstin.substring(0, 2);
+        const company_state_code = company_gstin.substring(0, 2);
+        gst_type = (vendor_state_code === company_state_code) ? 'CGST + SGST' : 'IGST';
+    } else if (vendor_gstin.length >= 2) {
+        // If company GSTIN not set, default to IGST (safer for exports)
+        gst_type = 'IGST';
+    }
+
+    // Step 3: Calculate GST components
+    if (gst_type === 'CGST + SGST') {
+        cgst = taxable_value * (gst_pct / 200); // half of GST%
+        sgst = taxable_value * (gst_pct / 200); // half of GST%
+        igst = 0;
+        total_tax = cgst + sgst;
+    } else {
+        igst = taxable_value * (gst_pct / 100);
+        cgst = 0;
+        sgst = 0;
+        total_tax = igst;
+    }
+
+    // Step 4: Grand Total
+    const grand_total = taxable_value + total_tax + freight + insurance + packing + other;
+
+    // Step 5: Advance & Balance
+    const advance_amount = grand_total * (advance_pct / 100);
+    const balance_due = grand_total - advance_amount;
+
+    // ─── SET ALL VALUES ───────────────────────────────────────
+    frm.set_value('taxable_value', flt(taxable_value, 2));
+    frm.set_value('gst_type', gst_type);
+    frm.set_value('cgst_amount', flt(cgst, 2));
+    frm.set_value('sgst_amount', flt(sgst, 2));
+    frm.set_value('igst_amount', flt(igst, 2));
+    frm.set_value('tax_amount', flt(total_tax, 2));
+    frm.set_value('grand_total', flt(grand_total, 2));
+    frm.set_value('advance_amount', flt(advance_amount, 2));
+    frm.set_value('balance_due', flt(balance_due, 2));
 }

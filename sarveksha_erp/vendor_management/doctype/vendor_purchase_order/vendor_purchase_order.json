@@ -6,6 +6,7 @@
  "creation": "2026-07-25 00:38:15.156674",
  "description": "Purchase Order raised by Sarveksha to a Vendor for equipment procurement",
  "doctype": "DocType",
+ "default_print_format": "Vendor Purchase Order Format",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -40,10 +41,18 @@
   "exchange_rate",
   "rate",
   "discount_percent",
+  "taxable_value",
   "col_break_pricing",
+  "gst_percentage",
+  "gst_type",
+  "cgst_amount",
+  "sgst_amount",
+  "igst_amount",
   "tax_amount",
+  "sec_other_charges",
   "freight",
   "insurance",
+  "col_break_other_charges",
   "packing_charges",
   "other_charges",
   "grand_total",
@@ -75,6 +84,7 @@
   "advance_percentage",
   "advance_amount",
   "payment_status",
+  "balance_due",
   "col_break_payment",
   "second_payment",
   "final_payment",
@@ -88,6 +98,7 @@
   "sec_remarks",
   "remarks",
   "attachments",
+  "letter_head",
   "amended_from"
  ],
  "fields": [
@@ -285,14 +296,67 @@
    "label": "Discount %"
   },
   {
+   "fieldname": "taxable_value",
+   "fieldtype": "Currency",
+   "label": "Taxable Value (after discount)",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
    "fieldname": "col_break_pricing",
    "fieldtype": "Column Break"
   },
   {
+   "description": "Auto-fetched from Equipment master",
+   "fieldname": "gst_percentage",
+   "fieldtype": "Percent",
+   "label": "GST %",
+   "read_only": 1
+  },
+  {
+   "description": "Auto-determined: IGST if inter-state, CGST+SGST if intra-state",
+   "fieldname": "gst_type",
+   "fieldtype": "Select",
+   "label": "GST Type",
+   "options": "\nIGST\nCGST + SGST",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.gst_type==='CGST + SGST'",
+   "fieldname": "cgst_amount",
+   "fieldtype": "Currency",
+   "label": "CGST Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.gst_type==='CGST + SGST'",
+   "fieldname": "sgst_amount",
+   "fieldtype": "Currency",
+   "label": "SGST Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.gst_type==='IGST'",
+   "fieldname": "igst_amount",
+   "fieldtype": "Currency",
+   "label": "IGST Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
    "fieldname": "tax_amount",
    "fieldtype": "Currency",
-   "label": "Tax / GST Amount",
-   "options": "currency"
+   "label": "Total Tax Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_other_charges",
+   "fieldtype": "Section Break",
+   "label": "Other Charges"
   },
   {
    "fieldname": "freight",
@@ -305,6 +369,10 @@
    "fieldtype": "Currency",
    "label": "Insurance",
    "options": "currency"
+  },
+  {
+   "fieldname": "col_break_other_charges",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "packing_charges",
@@ -468,6 +536,15 @@
    "read_only": 1
   },
   {
+   "bold": 1,
+   "fieldname": "balance_due",
+   "fieldtype": "Currency",
+   "label": "Balance Due",
+   "options": "currency",
+   "read_only": 1,
+   "description": "Grand Total minus Advance Amount"
+  },
+  {
    "default": "Pending",
    "fieldname": "payment_status",
    "fieldtype": "Select",
@@ -543,6 +620,14 @@
    "fieldname": "attachments",
    "fieldtype": "Attach",
    "label": "Additional Attachments"
+  },
+  {
+   "fieldname": "letter_head",
+   "fieldtype": "Link",
+   "label": "Letter Head",
+   "options": "Letter Head",
+   "print_hide": 1,
+   "hidden": 1
   },
   {
    "fieldname": "amended_from",
