@@ -1,4 +1,4 @@
-app_name = "sarveksha_erp"
+.app_name = "sarveksha_erp"
 app_title = "Sarveksha ERP"
 app_publisher = "Sarveksha"
 app_description = "Vendor Management and ERP for Sarveksha"
@@ -35,7 +35,13 @@ fixtures = [
     {"dt": "Supplier Group"},
     {"dt": "Supplier"},
     {"dt": "Custom Field"},
-    {"dt": "Equipment"}
+    {"dt": "Equipment"},
+    {"dt": "Contact"},
+    {"dt": "Bank"},
+    {"dt": "Bank Account"},
+    {"dt": "Letter Head"},
+    {"dt": "Print Format"},
+    {"dt": "Property Setter"}
 ]
 
 # include js, css files in header of web template
