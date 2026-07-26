@@ -3,17 +3,15 @@
 {% set vendor_address_name = frappe.db.get_value("Dynamic Link", {"link_doctype": "Supplier", "link_name": doc.vendor, "parenttype": "Address"}, "parent") %}
 {% set addr = frappe.get_doc("Address", vendor_address_name) if vendor_address_name else None %}
 
-{# ── AUTO-SELECT LETTERHEAD BASED ON COMPANY COUNTRY ── #}
-{% set country = company.country | lower %}
-{% if "india" in country %}
-  {% set letterhead_img = "/files/LETTER HEAD-SRI-India.jpg" %}
-{% elif "cameroon" in country %}
-  {% set letterhead_img = "/files/LETTER HEAD-camerron.jpg" %}
-{% elif "botswana" in country %}
-  {% set letterhead_img = "/files/LETTER HEAD-Botswana-1.jpg" %}
+{# ── AUTO-SELECT LETTERHEAD ── #}
+{% if doc.letter_head and frappe.db.exists("Letter Head", doc.letter_head) %}
+  {% set lh_doc = frappe.get_doc("Letter Head", doc.letter_head) %}
+{% elif company.default_letter_head and frappe.db.exists("Letter Head", company.default_letter_head) %}
+  {% set lh_doc = frappe.get_doc("Letter Head", company.default_letter_head) %}
 {% else %}
-  {% set letterhead_img = "/files/sarveksha-header-logo.png" %}
+  {% set lh_doc = None %}
 {% endif %}
+{% set letterhead_img = lh_doc.image if lh_doc else "" %}
 
 
 
@@ -103,7 +101,15 @@
     <tr><td style="height:150px; border:none; padding:0;"></td></tr>
   </thead>
   <tfoot style="display:table-footer-group;">
-    <tr><td style="height:50px; border:none; padding:0;"></td></tr>
+    <tr>
+      <td style="border:none; padding:0 25px; vertical-align:bottom; text-align:center;">
+        {% if lh_doc and lh_doc.footer %}
+          {{ lh_doc.footer }}
+        {% else %}
+          <div style="height:40px;"></div>
+        {% endif %}
+      </td>
+    </tr>
   </tfoot>
   <tbody>
     <tr>
@@ -138,11 +144,11 @@
           {% if doc.vendor_gstin %}<br><span class="lbl">GSTIN:</span> {{ doc.vendor_gstin }}{% endif %}
           {% if doc.vendor_pan %}<br><span class="lbl">PAN:</span> {{ doc.vendor_pan }}{% endif %}
         </td>
-        <td class="lbl" style="border-bottom:none;">Purchase Order No. :-</td>
+        <td class="lbl" style="border-bottom:none;">Ref No. :-</td>
         <td style="border-bottom:none; border-left:1px solid #000;">{{ doc.name }}</td>
       </tr>
       <tr>
-        <td class="lbl" style="border-top:1px solid #000; border-bottom:none;">Purchase Order Date :-</td>
+        <td class="lbl" style="border-top:1px solid #000; border-bottom:none;">Date :-</td>
         <td style="border-top:1px solid #000; border-bottom:none; border-left:1px solid #000;">{{ doc.get_formatted("po_date") }}</td>
       </tr>
       <tr>
