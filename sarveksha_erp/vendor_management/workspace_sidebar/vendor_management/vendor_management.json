@@ -11,7 +11,7 @@
    "icon": "file-text",
    "indent": 0,
    "keep_closed": 0,
-   "label": "Purchase Orders",
+   "label": "Vendor Purchase Orders",
    "link_to": "Vendor Purchase Order",
    "link_type": "DocType",
    "show_arrow": 0,
@@ -52,9 +52,21 @@
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "settings",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Equipment",
+   "link_to": "Equipment",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-07-18 12:00:44.386029",
+ "modified": "2026-07-26 19:57:56.363547",
  "modified_by": "Administrator",
  "module": "Vendor Management",
  "name": "Vendor Management",

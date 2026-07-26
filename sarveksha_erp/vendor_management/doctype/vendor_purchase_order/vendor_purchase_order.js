@@ -51,10 +51,10 @@ frappe.ui.form.on('Vendor Purchase Order', {
 
                     // ── AUTO-SET LETTER HEAD BASED ON COUNTRY ──────────
                     const country = (r.country || '').toLowerCase();
-                    let lh = 'India'; // default fallback
-                    if (country.includes('india'))    lh = 'India';
-                    else if (country.includes('cameroon')) lh = 'Cameroon \u2013 Sarveksha Mining';
-                    else if (country.includes('botswana')) lh = 'Botswana';
+                    let lh = 'India (Sarveksha Realty)'; // default fallback
+                    if (country.includes('india'))    lh = 'India (Sarveksha Realty)';
+                    else if (country.includes('cameroon')) lh = 'Cameroon (Sarveksha Mining SARL)';
+                    else if (country.includes('botswana')) lh = 'Botswana (Sarveksha Botswana)';
                     // Sierra Leone, Guinea, UAE → fallback to India letterhead
                     frm.set_value('letter_head', lh);
                 }
