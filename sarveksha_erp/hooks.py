@@ -1,4 +1,4 @@
-.app_name = "sarveksha_erp"
+app_name = "sarveksha_erp"
 app_title = "Sarveksha ERP"
 app_publisher = "Sarveksha"
 app_description = "Vendor Management and ERP for Sarveksha"
