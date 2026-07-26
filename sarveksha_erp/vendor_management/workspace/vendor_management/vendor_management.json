@@ -1,7 +1,7 @@
 {
  "app": "sarveksha_erp",
  "charts": [],
- "content": "[{\"id\":\"h1_shortcuts\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"sc_vendor_payment\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vendor Payment\",\"col\":4}},{\"id\":\"sc_supplier\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Supplier\",\"col\":4}},{\"id\":\"sc_company\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company\",\"col\":4}}]",
+ "content": "[{\"id\": \"h1_shortcuts\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Quick Access</b></span>\", \"col\": 12}}, {\"id\": \"sc_vendor_payment\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Vendor Payment\", \"col\": 4}}, {\"id\": \"sc_supplier\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Supplier\", \"col\": 4}}, {\"id\": \"sc_company\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Company\", \"col\": 4}}, {\"id\": \"sc_vendor_purchase_order\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Vendor Purchase Order\", \"col\": 4}}, {\"id\": \"sc_equipment\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Equipment\", \"col\": 4}}, {\"id\": \"cd_vendor_portal\", \"type\": \"card\", \"data\": {\"card_name\": \"Vendor Portal\", \"col\": 4}}]",
  "creation": "2026-07-18 02:51:07.906210",
  "custom_blocks": [],
  "docstatus": 0,
