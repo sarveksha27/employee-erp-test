@@ -6,3 +6,35 @@ __pycache__/
 .DS_Store
 *.swp
 *.swo
+
+# ─── SECURITY: Environment & Secrets ────────────────────
+.env
+*.env
+.env.*
+.flaskenv
+
+# ─── SECURITY: Database Dumps ───────────────────────────
+*.sql
+*.sql.gz
+*.dump
+
+# ─── SECURITY: Log Files ────────────────────────────────
+*.log
+logs/
+
+# ─── SECURITY: Temporary & Backup Files ─────────────────
+*.bak
+*.tmp
+*.orig
+*~
+
+# ─── Build Artifacts ────────────────────────────────────
+node_modules/
+dist/
+build/
+*.egg-info/
+
+# ─── IDE / Editor Files ─────────────────────────────────
+.vscode/
+.idea/
+*.sublime-*

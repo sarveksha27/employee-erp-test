@@ -1,7 +1,7 @@
 {
  "actions": [],
- "allow_bulk_edit": 1,
- "allow_rename": 1,
+ "allow_bulk_edit": 0,
+ "allow_rename": 0,
  "autoname": "naming_series:",
  "creation": "2026-07-25 00:38:15.156674",
  "description": "Purchase Order raised by Sarveksha to a Vendor for equipment procurement",
@@ -641,8 +641,9 @@
   }
  ],
  "grid_page_length": 50,
- "index_web_pages_for_search": 1,
+ "index_web_pages_for_search": 0,
  "is_submittable": 1,
+ "track_changes": 1,
  "links": [],
  "modified": "2026-07-25 00:38:15.156674",
  "modified_by": "Administrator",
@@ -667,6 +668,15 @@
    "write": 1
   },
   {
+   "read": 1,
+   "role": "Accounts User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager"
+  },
+  {
    "create": 1,
    "email": 1,
    "export": 1,
@@ -681,12 +691,10 @@
   {
    "create": 1,
    "email": 1,
-   "export": 1,
    "print": 1,
    "read": 1,
    "report": 1,
    "role": "Purchase User",
-   "share": 1,
    "write": 1
   }
  ],
