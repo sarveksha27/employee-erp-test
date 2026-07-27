@@ -2,13 +2,17 @@
 # For license information, please see license.txt
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
+from frappe.utils import flt, getdate, nowdate
 
 
 class VendorPurchaseOrder(Document):
 
     def validate(self):
         """Called on every Save. Validates data and recalculates totals."""
+        self.sanitize_text_fields()
+        self.validate_non_negative_values()
         self.calculate_grand_total()
         self.calculate_advance()
         self.validate_required_fields()
@@ -18,8 +22,8 @@ class VendorPurchaseOrder(Document):
         # Enforce that a PO cannot be submitted without a grand total
         if not self.grand_total or self.grand_total <= 0:
             frappe.throw(
-                "Cannot submit a Purchase Order with zero Grand Total. "
-                "Please fill in Rate and Quantity."
+                _("Cannot submit a Purchase Order with zero Grand Total. "
+                  "Please fill in Rate and Quantity.")
             )
         # Set status to Submitted automatically
         self.status = "Submitted"
@@ -30,9 +34,13 @@ class VendorPurchaseOrder(Document):
         if not self.payment_status:
             self.db_set("payment_status", "Pending")
         frappe.msgprint(
-            f"Purchase Order {self.name} submitted successfully. "
-            f"Grand Total: {self.currency} {self.grand_total:,.2f}",
-            title="PO Submitted",
+            _("Purchase Order {0} submitted successfully. "
+              "Grand Total: {1} {2}").format(
+                self.name,
+                self.currency,
+                frappe.utils.fmt_money(self.grand_total, currency=self.currency)
+            ),
+            title=_("PO Submitted"),
             indicator="green"
         )
 
@@ -41,70 +49,182 @@ class VendorPurchaseOrder(Document):
         self.db_set("status", "Cancelled")
         self.db_set("payment_status", "Pending")
 
-    # ─── CALCULATION METHODS ──────────────────────────────────
+    def on_update_after_submit(self):
+        """Validate that critical fields are not tampered with after submission."""
+        self._validate_immutable_fields_after_submit()
 
-    def calculate_grand_total(self):
-        """
-        Grand Total = (Rate × Quantity) - Discount + Tax + Freight + Insurance + Packing + Other
-        """
-        rate = self.rate or 0
-        qty = self.quantity or 1
-        discount_pct = self.discount_percent or 0
-        tax = self.tax_amount or 0
-        freight = self.freight or 0
-        insurance = self.insurance or 0
-        packing = self.packing_charges or 0
-        other = self.other_charges or 0
+    # ─── SANITIZATION METHODS ─────────────────────────────
 
-        base_amount = rate * qty
-        discount_amount = base_amount * (discount_pct / 100)
-        net_amount = base_amount - discount_amount
-        self.grand_total = net_amount + tax + freight + insurance + packing + other
+    def sanitize_text_fields(self):
+        """Strip potentially dangerous content from free-text fields."""
+        text_fields = ["remarks", "payment_terms", "delivery_location",
+                       "container_number", "quotation_ref", "pi_number",
+                       "signatory"]
+        for field in text_fields:
+            value = self.get(field)
+            if value and isinstance(value, str):
+                # Remove script tags and event handlers (XSS prevention)
+                import re
+                cleaned = re.sub(r'<script[^>]*>.*?</script>', '', value,
+                                 flags=re.IGNORECASE | re.DOTALL)
+                cleaned = re.sub(r'\bon\w+\s*=', '', cleaned,
+                                 flags=re.IGNORECASE)
+                if cleaned != value:
+                    self.set(field, cleaned)
 
-    def calculate_advance(self):
-        """
-        Advance Amount = Grand Total × (Advance % / 100)
-        """
-        grand_total = self.grand_total or 0
-        advance_pct = self.advance_percentage or 0
-        self.advance_amount = grand_total * (advance_pct / 100)
+    # ─── VALIDATION METHODS ───────────────────────────────
 
-    # ─── VALIDATION METHODS ───────────────────────────────────
+    def validate_non_negative_values(self):
+        """Reject any negative monetary or quantity values."""
+        currency_fields = [
+            ("rate", "Unit Rate"),
+            ("freight", "Freight Charges"),
+            ("insurance", "Insurance"),
+            ("packing_charges", "Packing Charges"),
+            ("other_charges", "Other Charges"),
+            ("second_payment", "Second Payment Amount"),
+            ("final_payment", "Final Payment Amount"),
+        ]
+        for field, label in currency_fields:
+            val = flt(self.get(field))
+            if val < 0:
+                frappe.throw(
+                    _("{0} cannot be negative. Current value: {1}").format(
+                        label, val
+                    )
+                )
+
+        if flt(self.quantity) <= 0:
+            frappe.throw(_("Quantity must be greater than zero."))
+
+        if flt(self.discount_percent) < 0 or flt(self.discount_percent) > 100:
+            frappe.throw(_("Discount % must be between 0 and 100."))
+
+        if flt(self.advance_percentage) < 0 or flt(self.advance_percentage) > 100:
+            frappe.throw(_("Advance % must be between 0 and 100."))
+
+        if flt(self.exchange_rate) <= 0:
+            frappe.throw(_("Exchange Rate must be greater than zero."))
 
     def validate_required_fields(self):
         """Validate business logic rules."""
         # Ensure PO date is not in the future by more than 7 days
         # (Allows backdating for reconciliation but not pre-dating by too much)
         if self.expected_delivery and self.po_date:
-            if self.expected_delivery < self.po_date:
+            if getdate(self.expected_delivery) < getdate(self.po_date):
                 frappe.throw(
-                    "Expected Delivery Date cannot be before the PO Date."
+                    _("Expected Delivery Date cannot be before the PO Date.")
                 )
 
         # Warn if quantity is unusual (not hard stop, just a warning)
         if self.quantity and self.quantity > 1000:
             frappe.msgprint(
-                f"Quantity is set to {self.quantity}. Please verify this is correct.",
-                title="High Quantity Warning",
+                _("Quantity is set to {0}. Please verify this is correct.").format(
+                    self.quantity
+                ),
+                title=_("High Quantity Warning"),
                 indicator="orange"
             )
 
-    # ─── UTILITY METHODS ─────────────────────────────────────
+    def _validate_immutable_fields_after_submit(self):
+        """Prevent critical fields from being changed after submission."""
+        if self.docstatus != 1:
+            return
+
+        previous = self.get_doc_before_save()
+        if not previous:
+            return
+
+        immutable_fields = [
+            ("vendor", "Vendor"),
+            ("company", "Company"),
+            ("equipment", "Equipment"),
+            ("rate", "Unit Rate"),
+            ("quantity", "Quantity"),
+            ("grand_total", "Grand Total"),
+        ]
+        for field, label in immutable_fields:
+            old_val = previous.get(field)
+            new_val = self.get(field)
+            if old_val and new_val and str(old_val) != str(new_val):
+                frappe.throw(
+                    _("{0} cannot be changed after submission. "
+                      "Please amend this Purchase Order instead.").format(label)
+                )
+
+    # ─── CALCULATION METHODS ──────────────────────────────
+
+    def calculate_grand_total(self):
+        """
+        Grand Total = (Rate × Quantity) - Discount + Tax + Freight + Insurance + Packing + Other
+        """
+        rate = flt(self.rate)
+        qty = flt(self.quantity) or 1
+        discount_pct = flt(self.discount_percent)
+        tax = flt(self.tax_amount)
+        freight = flt(self.freight)
+        insurance = flt(self.insurance)
+        packing = flt(self.packing_charges)
+        other = flt(self.other_charges)
+
+        base_amount = rate * qty
+        discount_amount = base_amount * (discount_pct / 100)
+        net_amount = base_amount - discount_amount
+        self.grand_total = flt(net_amount + tax + freight + insurance + packing + other, 2)
+
+    def calculate_advance(self):
+        """
+        Advance Amount = Grand Total × (Advance % / 100)
+        """
+        grand_total = flt(self.grand_total)
+        advance_pct = flt(self.advance_percentage)
+        self.advance_amount = flt(grand_total * (advance_pct / 100), 2)
+
+    # ─── UTILITY METHODS ─────────────────────────────────
 
     @frappe.whitelist()
     def mark_advance_paid(self):
         """API method to mark advance as paid. Can be called from JS button."""
+        self._check_payment_role()
         if self.docstatus != 1:
-            frappe.throw("Document must be submitted to mark payment.")
+            frappe.throw(_("Document must be submitted to mark payment."))
+        if self.payment_status == "Fully Paid":
+            frappe.throw(_("This PO is already fully paid."))
+
         self.db_set("payment_status", "Advance Paid")
         self.db_set("status", "Partially Paid")
-        frappe.msgprint("Advance payment marked successfully.", indicator="green")
+        self.add_comment("Info",
+            _("Advance payment marked by {0}").format(frappe.session.user)
+        )
+        frappe.msgprint(
+            _("Advance payment marked successfully."),
+            indicator="green"
+        )
 
     @frappe.whitelist()
     def mark_fully_paid(self):
         """API method to mark the PO as fully paid."""
+        self._check_payment_role()
         if self.docstatus != 1:
-            frappe.throw("Document must be submitted to mark payment.")
+            frappe.throw(_("Document must be submitted to mark payment."))
+
         self.db_set("payment_status", "Fully Paid")
         self.db_set("status", "Fully Paid")
-        frappe.msgprint("PO marked as Fully Paid.", indicator="green")
+        self.add_comment("Info",
+            _("Marked as Fully Paid by {0}").format(frappe.session.user)
+        )
+        frappe.msgprint(
+            _("PO marked as Fully Paid."),
+            indicator="green"
+        )
+
+    def _check_payment_role(self):
+        """Ensure only authorized roles can modify payment status."""
+        allowed_roles = {"System Manager", "Accounts Manager", "Purchase Manager"}
+        user_roles = set(frappe.get_roles(frappe.session.user))
+        if not allowed_roles.intersection(user_roles):
+            frappe.throw(
+                _("You do not have permission to modify payment status. "
+                  "Required role: Accounts Manager or Purchase Manager."),
+                frappe.PermissionError
+            )
