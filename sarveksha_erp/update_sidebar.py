@@ -1,45 +1,36 @@
-import frappe
+import json
+import datetime
 
-def execute():
-    try:
-        ws_sidebar = frappe.get_doc("Workspace Sidebar", "Vendor Management")
-        ws_sidebar.header_icon = "accounting"
-        ws_sidebar.standard = 1
-        ws_sidebar.set("items", [])
-        
-        ws_sidebar.append("items", {
-            "type": "Link",
-            "label": "Vendor Payments",
-            "link_type": "DocType",
-            "link_to": "Vendor Payment",
-            "icon": "accounting",
-            "child": 0,
-            "collapsible": 1
-        })
-        
-        ws_sidebar.append("items", {
-            "type": "Link",
-            "label": "Vendors",
-            "link_type": "DocType",
-            "link_to": "Supplier",
-            "icon": "users-round",
-            "child": 0,
-            "collapsible": 1
-        })
+path = "/workspace/development/frappe-bench/apps/sarveksha_erp/sarveksha_erp/vendor_management/workspace_sidebar/vendor_management/vendor_management.json"
 
-        ws_sidebar.append("items", {
-            "type": "Link",
-            "label": "Company",
-            "link_type": "DocType",
-            "link_to": "Company",
-            "icon": "home",
-            "child": 0,
-            "collapsible": 1
-        })
-        
-        ws_sidebar.save(ignore_permissions=True)
-        frappe.db.commit()
-        print("Successfully updated Workspace Sidebar!")
-        
-    except Exception as e:
-        print("Error:", e)
+with open(path, "r") as f:
+    data = json.load(f)
+
+# Add Equipment if it's missing
+has_equipment = any(item.get("link_to") == "Equipment" for item in data.get("items", []))
+if not has_equipment:
+    data["items"].append({
+        "child": 0,
+        "collapsible": 1,
+        "icon": "settings",
+        "indent": 0,
+        "keep_closed": 0,
+        "label": "Equipment",
+        "link_to": "Equipment",
+        "link_type": "DocType",
+        "show_arrow": 0,
+        "type": "Link"
+    })
+
+# Also rename 'Purchase Orders' to 'Vendor Purchase Order' to be clear for the user
+for item in data.get("items", []):
+    if item.get("link_to") == "Vendor Purchase Order":
+        item["label"] = "Vendor Purchase Orders"
+
+# Update modified timestamp to force sync
+data["modified"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+
+with open(path, "w") as f:
+    json.dump(data, f, indent=1)
+
+print("Workspace Sidebar updated successfully.")

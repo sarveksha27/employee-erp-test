@@ -1,7 +1,7 @@
 {
  "actions": [],
- "allow_bulk_edit": 1,
- "allow_rename": 1,
+ "allow_bulk_edit": 0,
+ "allow_rename": 0,
  "autoname": "field:equipment_code",
  "creation": "2026-07-25 10:15:00.000000",
  "doctype": "DocType",
@@ -213,7 +213,8 @@
    "label": "AMC Applicable"
   }
  ],
- "index_web_pages_for_search": 1,
+ "index_web_pages_for_search": 0,
+ "track_changes": 1,
  "links": [],
  "search_fields": "equipment_name",
  "modified": "2026-07-25 10:15:00.000000",
@@ -233,6 +234,16 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Purchase User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Purchase Manager"
   }
  ],
  "sort_field": "creation",
