@@ -41,7 +41,9 @@ fixtures = [
     {"dt": "Bank Account"},
     {"dt": "Letter Head"},
     {"dt": "Print Format"},
-    {"dt": "Property Setter"}
+    {"dt": "Property Setter"},
+    {"dt": "Port"},
+    {"dt": "Terms and Conditions"}
 ]
 
 # include js, css files in header of web template

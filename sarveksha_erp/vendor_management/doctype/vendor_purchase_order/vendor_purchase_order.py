@@ -158,10 +158,14 @@ class VendorPurchaseOrder(Document):
         """
         Grand Total = (Rate × Quantity) - Discount + Tax + Freight + Insurance + Packing + Other
         """
+        # Override GST percentage to 0.1% if LUT is applicable and company is "Sarveksha Realty"
+        if self.is_lut_applicable and self.company and "Sarveksha Realty" in self.company:
+            self.gst_percentage = 0.1
+
         rate = flt(self.rate)
         qty = flt(self.quantity) or 1
         discount_pct = flt(self.discount_percent)
-        tax = flt(self.tax_amount)
+        gst_pct = flt(self.gst_percentage)
         freight = flt(self.freight)
         insurance = flt(self.insurance)
         packing = flt(self.packing_charges)
@@ -169,8 +173,34 @@ class VendorPurchaseOrder(Document):
 
         base_amount = rate * qty
         discount_amount = base_amount * (discount_pct / 100)
-        net_amount = base_amount - discount_amount
-        self.grand_total = flt(net_amount + tax + freight + insurance + packing + other, 2)
+        taxable_value = base_amount - discount_amount
+        self.taxable_value = flt(taxable_value, 2)
+
+        # Determine GST Type (Intra-state vs Inter-state)
+        vendor_gstin = self.vendor_gstin or ""
+        company_gstin = self.company_gstin or ""
+        
+        gst_type = "IGST"
+        if len(vendor_gstin) >= 2 and len(company_gstin) >= 2:
+            if vendor_gstin[:2] == company_gstin[:2]:
+                gst_type = "CGST + SGST"
+        
+        self.gst_type = gst_type
+
+        # Calculate GST amounts
+        if gst_type == "CGST + SGST":
+            self.cgst_amount = flt(taxable_value * (gst_pct / 200.0), 2)
+            self.sgst_amount = flt(taxable_value * (gst_pct / 200.0), 2)
+            self.igst_amount = 0.0
+            self.tax_amount = flt(self.cgst_amount + self.sgst_amount, 2)
+        else:
+            self.cgst_amount = 0.0
+            self.sgst_amount = 0.0
+            self.igst_amount = flt(taxable_value * (gst_pct / 100.0), 2)
+            self.tax_amount = flt(self.igst_amount, 2)
+
+        # Grand Total
+        self.grand_total = flt(taxable_value + self.tax_amount + freight + insurance + packing + other, 2)
 
     def calculate_advance(self):
         """
@@ -179,6 +209,7 @@ class VendorPurchaseOrder(Document):
         grand_total = flt(self.grand_total)
         advance_pct = flt(self.advance_percentage)
         self.advance_amount = flt(grand_total * (advance_pct / 100), 2)
+        self.balance_due = flt(grand_total - self.advance_amount, 2)
 
     # ─── UTILITY METHODS ─────────────────────────────────
 

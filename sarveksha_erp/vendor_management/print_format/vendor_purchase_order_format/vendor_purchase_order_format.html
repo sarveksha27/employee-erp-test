@@ -177,7 +177,13 @@
   <!-- ── PRE-CONDITIONS ─────────────────────────────────── -->
   <table class="fixed" style="margin-bottom:12px;">
     <tbody>
-      <tr><td>The bill should be raised in the name of <strong>{{ company.company_name }}</strong>.</td></tr>
+      <tr>
+        <td>
+          The bill should be raised in the name of <strong>{{ company.company_name }}</strong>.
+          {% if doc.company_gstin %}<br><strong>GSTIN:</strong> {{ doc.company_gstin }}{% endif %}
+          {% if doc.company_pan %}<br><strong>PAN:</strong> {{ doc.company_pan }}{% endif %}
+        </td>
+      </tr>
       <tr><td style="border-top:none;">The bill and delivery challan must clearly mention the Purchase Order number.</td></tr>
       <tr><td style="border-top:none;">The bill must clearly mention the applicable HSN/SAC codes as required under GST law.</td></tr>
       <tr><td style="border-top:none;">Original signed invoice and relevant documents must be provided at the time of material delivery.</td></tr>
@@ -322,6 +328,26 @@
   </table>
 
   <!-- ── TERMS & CONDITIONS ─────────────────────────────── -->
+  {% if doc.standard_terms or doc.custom_terms %}
+  <p style="margin:10px 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
+  <table class="fixed">
+    <tbody>
+      <tr><td style="line-height:1.9;">
+        {% if doc.standard_terms %}
+          {% set st_doc = frappe.get_doc("Terms and Conditions", doc.standard_terms) %}
+          <div class="standard-terms-print">
+            {{ st_doc.terms }}
+          </div>
+        {% endif %}
+        {% if doc.custom_terms %}
+          <div class="custom-terms-print" style="margin-top: 10px;">
+            {{ doc.custom_terms }}
+          </div>
+        {% endif %}
+      </td></tr>
+    </tbody>
+  </table>
+  {% else %}
   <p style="margin:10px 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
   <table class="fixed">
     <tbody>
@@ -344,6 +370,7 @@
       </td></tr>
     </tbody>
   </table>
+  {% endif %}
 
   {% if doc.remarks %}
   <div class="section-head" style="margin-top:10px;">NOTE</div>

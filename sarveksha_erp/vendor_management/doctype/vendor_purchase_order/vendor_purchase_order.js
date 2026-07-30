@@ -29,6 +29,14 @@ frappe.ui.form.on('Vendor Purchase Order', {
 
         // Recalculate on every refresh to keep values consistent
         calculate_gst_and_totals(frm);
+        set_port_filter(frm);
+
+        // Display standard terms preview on load
+        if (frm.doc.standard_terms) {
+            frm.trigger('standard_terms');
+        } else {
+            frm.set_df_property('terms_preview', 'options', '');
+        }
     },
 
     // ─── COMPANY TRIGGER ──────────────────────────────────────
@@ -36,18 +44,43 @@ frappe.ui.form.on('Vendor Purchase Order', {
         if (!frm.doc.company) return;
 
         frappe.db.get_value('Company', frm.doc.company,
-            ['custom_default_port', 'default_currency', 'tax_id', 'country'],
+            ['custom_default_port', 'default_currency', 'tax_id', 'country', 'custom_pan'],
             function(r) {
                 if (r) {
                     if (r.custom_default_port) {
-                        frm.set_value('port', r.custom_default_port);
                         frm.set_value('default_port', r.custom_default_port);
+                        set_port_filter(frm);
+                        // Safely verify if the port exists or fallback to sub-parts (like "Mundra" from "Mumbai, Mundra")
+                        frappe.db.exists('Port', r.custom_default_port).then(exists => {
+                            if (exists) {
+                                frm.set_value('port', r.custom_default_port);
+                            } else {
+                                // Try splitting by comma
+                                const parts = r.custom_default_port.split(',').map(p => p.trim());
+                                let check_part = (idx) => {
+                                    if (idx >= parts.length) return;
+                                    frappe.db.exists('Port', parts[idx]).then(exists_part => {
+                                        if (exists_part) {
+                                            frm.set_value('port', parts[idx]);
+                                        } else {
+                                            check_part(idx + 1);
+                                        }
+                                    });
+                                };
+                                check_part(0);
+                            }
+                        });
+                    } else {
+                        frm.set_value('default_port', '');
+                        set_port_filter(frm);
                     }
                     if (r.default_currency) {
                         frm.set_value('currency', r.default_currency);
                     }
                     // Store company GSTIN for intra/inter-state GST determination
                     frm._company_gstin = r.tax_id || '';
+                    frm.set_value('company_gstin', r.tax_id || '');
+                    frm.set_value('company_pan', r.custom_pan || '');
 
                     // ── AUTO-SET LETTER HEAD BASED ON COUNTRY ──────────
                     const country = (r.country || '').toLowerCase();
@@ -137,6 +170,38 @@ frappe.ui.form.on('Vendor Purchase Order', {
     other_charges: function(frm) { calculate_gst_and_totals(frm); },
     advance_percentage: function(frm) { calculate_gst_and_totals(frm); },
     vendor_gstin: function(frm) { calculate_gst_and_totals(frm); },
+    is_lut_applicable: function(frm) {
+        if (frm.doc.is_lut_applicable) {
+            if (frm.doc.company && frm.doc.company.includes("Sarveksha Realty")) {
+                frm.set_value('gst_percentage', 0.1);
+            }
+        } else {
+            // Re-fetch GST % from equipment
+            if (frm.doc.equipment) {
+                frappe.db.get_value('Equipment', frm.doc.equipment, 'gst_percentage', (r) => {
+                    if (r) {
+                        frm.set_value('gst_percentage', flt(r.gst_percentage) || 18);
+                    }
+                });
+            } else {
+                frm.set_value('gst_percentage', 18);
+            }
+        }
+        calculate_gst_and_totals(frm);
+    },
+    standard_terms: function(frm) {
+        if (frm.doc.standard_terms) {
+            frappe.db.get_value('Terms and Conditions', frm.doc.standard_terms, 'terms', (r) => {
+                if (r && r.terms) {
+                    frm.set_df_property('terms_preview', 'options', r.terms);
+                } else {
+                    frm.set_df_property('terms_preview', 'options', '');
+                }
+            });
+        } else {
+            frm.set_df_property('terms_preview', 'options', '');
+        }
+    },
 
 });
 
@@ -158,7 +223,15 @@ function calculate_gst_and_totals(frm) {
     const rate = flt(frm.doc.rate) || 0;
     const qty = flt(frm.doc.quantity) || 1;
     const discount_pct = flt(frm.doc.discount_percent) || 0;
-    const gst_pct = flt(frm.doc.gst_percentage) || 0;
+    
+    let gst_pct = flt(frm.doc.gst_percentage) || 0;
+    if (frm.doc.is_lut_applicable && frm.doc.company && frm.doc.company.includes("Sarveksha Realty")) {
+        gst_pct = 0.1;
+        if (frm.doc.gst_percentage !== 0.1) {
+            frm.set_value('gst_percentage', 0.1);
+        }
+    }
+
     const freight = flt(frm.doc.freight) || 0;
     const insurance = flt(frm.doc.insurance) || 0;
     const packing = flt(frm.doc.packing_charges) || 0;
@@ -216,4 +289,17 @@ function calculate_gst_and_totals(frm) {
     frm.set_value('grand_total', flt(grand_total, 2));
     frm.set_value('advance_amount', flt(advance_amount, 2));
     frm.set_value('balance_due', flt(balance_due, 2));
+}
+
+function set_port_filter(frm) {
+    if (frm.doc.default_port) {
+        const ports = frm.doc.default_port.split(',').map(p => p.trim()).filter(Boolean);
+        if (ports.length > 0) {
+            const options = ['', ...ports];
+            frm.set_df_property('port', 'options', options);
+            return;
+        }
+    }
+    const default_options = ['', 'Mundra', 'JNPT', 'Mumbai', 'Conakry', 'Durban', 'Freetown', 'Douala'];
+    frm.set_df_property('port', 'options', default_options);
 }

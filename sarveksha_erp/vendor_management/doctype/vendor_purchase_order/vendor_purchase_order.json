@@ -4,9 +4,9 @@
  "allow_rename": 0,
  "autoname": "naming_series:",
  "creation": "2026-07-25 00:38:15.156674",
+ "default_print_format": "Vendor Purchase Order Format",
  "description": "Purchase Order raised by Sarveksha to a Vendor for equipment procurement",
  "doctype": "DocType",
- "default_print_format": "Vendor Purchase Order Format",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -16,6 +16,8 @@
   "col_break_header",
   "po_date",
   "company",
+  "company_gstin",
+  "company_pan",
   "default_port",
   "sec_vendor",
   "vendor",
@@ -43,6 +45,7 @@
   "discount_percent",
   "taxable_value",
   "col_break_pricing",
+  "is_lut_applicable",
   "gst_percentage",
   "gst_type",
   "cgst_amount",
@@ -95,6 +98,10 @@
   "col_break_approval",
   "approved_by",
   "signatory",
+  "sec_terms",
+  "standard_terms",
+  "terms_preview",
+  "custom_terms",
   "sec_remarks",
   "remarks",
   "attachments",
@@ -145,6 +152,18 @@
    "label": "Company",
    "options": "Company",
    "reqd": 1
+  },
+  {
+   "fieldname": "company_gstin",
+   "fieldtype": "Data",
+   "label": "Company GSTIN",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company_pan",
+   "fieldtype": "Data",
+   "label": "Company PAN",
+   "read_only": 1
   },
   {
    "fieldname": "default_port",
@@ -307,6 +326,11 @@
    "fieldtype": "Column Break"
   },
   {
+   "fieldname": "is_lut_applicable",
+   "fieldtype": "Check",
+   "label": "Is LUT Applicable"
+  },
+  {
    "description": "Auto-fetched from Equipment master",
    "fieldname": "gst_percentage",
    "fieldtype": "Percent",
@@ -441,16 +465,16 @@
    "options": "Warehouse"
   },
   {
-   "description": "e.g., Mundra, Conakry, Freetown, Douala",
    "fieldname": "port",
-   "fieldtype": "Data",
-   "label": "Port"
+   "fieldtype": "Select",
+   "label": "Port",
+   "options": "Mundra\nJNPT\nMumbai\nConakry\nDurban\nFreetown\nDouala"
   },
   {
    "fieldname": "shipment_type",
    "fieldtype": "Select",
    "label": "Shipment Type",
-   "options": "\nSea\nAir\nRoad\nCourier"
+   "options": "FCL\nLCL\nContainerized\nFlat Rack\nOversized\nHazardous Cargo\nPart Shipment\nHeight Cargo\nBreak Bulk\nRoRo\nAir Freight\nExpress Courier"
   },
   {
    "fieldname": "container_number",
@@ -537,12 +561,12 @@
   },
   {
    "bold": 1,
+   "description": "Grand Total minus Advance Amount",
    "fieldname": "balance_due",
    "fieldtype": "Currency",
    "label": "Balance Due",
    "options": "currency",
-   "read_only": 1,
-   "description": "Grand Total minus Advance Amount"
+   "read_only": 1
   },
   {
    "default": "Pending",
@@ -607,6 +631,27 @@
    "label": "Authorized Signatory"
   },
   {
+   "fieldname": "sec_terms",
+   "fieldtype": "Section Break",
+   "label": "Terms and Conditions"
+  },
+  {
+   "fieldname": "standard_terms",
+   "fieldtype": "Link",
+   "label": "Standard Terms",
+   "options": "Terms and Conditions"
+  },
+  {
+   "fieldname": "terms_preview",
+   "fieldtype": "HTML",
+   "label": "Standard Terms Preview"
+  },
+  {
+   "fieldname": "custom_terms",
+   "fieldtype": "Text Editor",
+   "label": "Custom Terms"
+  },
+  {
    "fieldname": "sec_remarks",
    "fieldtype": "Section Break",
    "label": "Remarks & Attachments"
@@ -624,10 +669,10 @@
   {
    "fieldname": "letter_head",
    "fieldtype": "Link",
+   "hidden": 1,
    "label": "Letter Head",
    "options": "Letter Head",
-   "print_hide": 1,
-   "hidden": 1
+   "print_hide": 1
   },
   {
    "fieldname": "amended_from",
@@ -643,7 +688,6 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 0,
  "is_submittable": 1,
- "track_changes": 1,
  "links": [],
  "modified": "2026-07-25 00:38:15.156674",
  "modified_by": "Administrator",
@@ -704,5 +748,6 @@
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [],
- "title_field": "vendor"
+ "title_field": "vendor",
+ "track_changes": 1
 }

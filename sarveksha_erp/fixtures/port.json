@@ -1,0 +1,72 @@
+[
+ {
+  "country": "India",
+  "docstatus": 0,
+  "doctype": "Port",
+  "is_active": 1,
+  "modified": "2026-07-30 19:17:12.448515",
+  "name": "Mundra",
+  "port_code": "INMUN",
+  "port_name": "Mundra"
+ },
+ {
+  "country": "India",
+  "docstatus": 0,
+  "doctype": "Port",
+  "is_active": 1,
+  "modified": "2026-07-30 19:17:12.610996",
+  "name": "JNPT",
+  "port_code": "INJNP",
+  "port_name": "JNPT"
+ },
+ {
+  "country": "Guinea",
+  "docstatus": 0,
+  "doctype": "Port",
+  "is_active": 1,
+  "modified": "2026-07-30 19:17:12.614451",
+  "name": "Conakry",
+  "port_code": "GNCKY",
+  "port_name": "Conakry"
+ },
+ {
+  "country": "South Africa",
+  "docstatus": 0,
+  "doctype": "Port",
+  "is_active": 1,
+  "modified": "2026-07-30 19:17:12.618477",
+  "name": "Durban",
+  "port_code": "ZADUR",
+  "port_name": "Durban"
+ },
+ {
+  "country": "Sierra Leone",
+  "docstatus": 0,
+  "doctype": "Port",
+  "is_active": 1,
+  "modified": "2026-07-30 19:17:12.628890",
+  "name": "Freetown",
+  "port_code": "SLFNA",
+  "port_name": "Freetown"
+ },
+ {
+  "country": "Cameroon",
+  "docstatus": 0,
+  "doctype": "Port",
+  "is_active": 1,
+  "modified": "2026-07-30 19:17:12.633806",
+  "name": "Douala",
+  "port_code": "CMDLA",
+  "port_name": "Douala"
+ },
+ {
+  "country": "India",
+  "docstatus": 0,
+  "doctype": "Port",
+  "is_active": 1,
+  "modified": "2026-07-30 19:25:25.605829",
+  "name": "Mumbai",
+  "port_code": "INBOM",
+  "port_name": "Mumbai"
+ }
+]
