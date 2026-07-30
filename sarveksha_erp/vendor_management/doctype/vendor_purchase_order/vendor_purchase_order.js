@@ -30,13 +30,6 @@ frappe.ui.form.on('Vendor Purchase Order', {
         // Recalculate on every refresh to keep values consistent
         calculate_gst_and_totals(frm);
         set_port_filter(frm);
-
-        // Display standard terms preview on load
-        if (frm.doc.standard_terms) {
-            frm.trigger('standard_terms');
-        } else {
-            frm.set_df_property('terms_preview', 'options', '');
-        }
     },
 
     // ─── COMPANY TRIGGER ──────────────────────────────────────
@@ -101,22 +94,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
     packing_charges: function(frm) { calculate_gst_and_totals(frm); },
     other_charges: function(frm) { calculate_gst_and_totals(frm); },
     advance_percentage: function(frm) { calculate_gst_and_totals(frm); },
-    vendor_gstin: function(frm) { calculate_gst_and_totals(frm); },
-    is_lut_applicable: function(frm) { calculate_gst_and_totals(frm); },
-    standard_terms: function(frm) {
-        if (frm.doc.standard_terms) {
-            frappe.db.get_value('Terms and Conditions', frm.doc.standard_terms, 'terms', (r) => {
-                if (r && r.terms) {
-                    frm.set_df_property('terms_preview', 'options', r.terms);
-                } else {
-                    frm.set_df_property('terms_preview', 'options', '');
-                }
-            });
-        } else {
-            frm.set_df_property('terms_preview', 'options', '');
-        }
-    },
-
+    vendor_gstin: function(frm) { calculate_gst_and_totals(frm); }
 });
 
 // ─── CHILD TABLE GRID TRIGGERS (Vendor Purchase Order Item) ───
@@ -152,16 +130,11 @@ frappe.ui.form.on('Vendor Purchase Order Item', {
 
 // ─── MASTER CALCULATION ENGINE ────────────────────────────────
 function calculate_gst_and_totals(frm) {
-    const is_lut = (frm.doc.is_lut_applicable && frm.doc.company && frm.doc.company.includes("Sarveksha Realty"));
-    
     let total_taxable_value = 0;
     let total_item_tax = 0;
 
     if (frm.doc.items && frm.doc.items.length > 0) {
         frm.doc.items.forEach(row => {
-            if (is_lut) {
-                row.gst_percentage = 0.1;
-            }
             const rate = flt(row.rate) || 0;
             const qty = flt(row.quantity) || 1;
             const discount_pct = flt(row.discount_percent) || 0;

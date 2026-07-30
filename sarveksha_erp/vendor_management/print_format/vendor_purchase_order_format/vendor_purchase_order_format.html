@@ -350,26 +350,6 @@
   </table>
 
   <!-- ── TERMS & CONDITIONS ─────────────────────────────── -->
-  {% if doc.standard_terms or doc.custom_terms %}
-  <p style="margin:10px 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
-  <table class="fixed">
-    <tbody>
-      <tr><td style="line-height:1.9;">
-        {% if doc.standard_terms %}
-          {% set st_doc = frappe.get_doc("Terms and Conditions", doc.standard_terms) %}
-          <div class="standard-terms-print">
-            {{ st_doc.terms }}
-          </div>
-        {% endif %}
-        {% if doc.custom_terms %}
-          <div class="custom-terms-print" style="margin-top: 10px;">
-            {{ doc.custom_terms }}
-          </div>
-        {% endif %}
-      </td></tr>
-    </tbody>
-  </table>
-  {% else %}
   <p style="margin:10px 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
   <table class="fixed">
     <tbody>
@@ -392,7 +372,6 @@
       </td></tr>
     </tbody>
   </table>
-  {% endif %}
 
   {% if doc.remarks %}
   <div class="section-head" style="margin-top:10px;">NOTE</div>

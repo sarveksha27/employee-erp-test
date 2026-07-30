@@ -43,7 +43,6 @@ fixtures = [
     {"dt": "Print Format"},
     {"dt": "Property Setter"},
     {"dt": "Port"},
-    {"dt": "Terms and Conditions"},
     {"dt": "Role"},
     {"dt": "Workflow"},
     {"dt": "Workflow State"},
