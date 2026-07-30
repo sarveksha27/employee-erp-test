@@ -1,109 +1,147 @@
 # 🚀 Sarveksha ERP — Vendor Procurement & Purchase Order Enhancement
-## Executive Presentation & Technical Implementation Guide
+## Technical Documentation & Master Implementation Guide
 
 ---
 
-## 📌 1. Project Overview & Key Objectives
+## 📌 1. System Architecture & Executive Summary
 
-This document serves as the master presentation guide for the **Sarveksha ERP Purchase Order (PO) Enhancement Project**. The application is a custom Frappe app (`sarveksha_erp`) powering equipment procurement, inter-company trading, and payment tracking across global operations in **India, Cameroon, Botswana, Sierra Leone, and Guinea**.
+The **Sarveksha ERP Purchase Order (PO)** module is a custom Frappe application (`sarveksha_erp`) powering equipment procurement, inter-company trading, multi-currency accounting, and payment tracking for **Sarveksha Group** across global operations (**India, Cameroon, Botswana, Sierra Leone, and Guinea**).
 
-### 🎯 Primary Objectives Accomplished:
-- **Multi-Equipment Procurement**: Transitioned from a single-item constraint to a multi-equipment line-item architecture.
-- **Multi-Currency Sourcing**: Automated currency assignment (**INR** for Indian parent entity, **USD** for international child entities).
-- **Terms & Conditions Library**: Integrated 4 standard legal T&C templates with live UI previews and custom terms editor.
-- **LUT Export Tax Engine**: Implemented server-side 0.1% concessional GST calculation for merchant exports under Letter of Undertaking (LUT).
-- **Inter-Company Sourcing Rules**: Enforced strict routing where child companies purchase through **Sarveksha Realty and Inframine LLP (SRI)**, which issues master POs to external OEMs.
-
----
-
-## ✨ 2. Pointwise Feature Breakdown (Deep Dive)
+The module has been enhanced into a **production-grade enterprise procurement platform** featuring:
+- **Master Data & Port Management** with dedicated Port catalog and standardized shipping channels.
+- **Role-Based Access Control (RBAC) & 7-State Workflow Engine** regulating PO generation, verification, return, approval, and submission.
+- **Dynamic Company GSTIN / PAN Auto-Fetch System**.
+- **Legal Terms & Conditions Library** with live UI preview and rich-text custom terms support.
+- **LUT Certificate Tax Override Engine** applying 0.1% GST for merchant export POs.
+- **Multi-Equipment Line Item Architecture & Multi-Currency Processing** (**INR** for India, **USD** for international entities).
 
 ---
 
-### 🚜 Feature 2.1: Multi-Equipment Line Item Architecture
-
-#### A. Schema Structure (`Vendor Purchase Order Item` Child DocType)
-- **`equipment`** *(Link → Equipment, Mandatory)*: Equipment catalog code.
-- **`equipment_name`** *(Data, Mandatory)*: Name of equipment auto-fetched from catalog.
-- **`hsn_code`** *(Data)*: Harmonized System of Nomenclature (HSN/SAC) code for tax compliance.
-- **`brand`** *(Data)*: Brand / Make of equipment.
-- **`manufacturer`** *(Data)*: OEM Manufacturer details.
-- **`unit`** *(Data)*: Unit of Measure (UOM - default `Nos`).
-- **`quantity`** *(Float, Mandatory)*: Number of units ordered.
-- **`rate`** *(Currency, Mandatory)*: Unit rate in PO currency.
-- **`discount_percent`** *(Percent)*: Line item discount percentage.
-- **`gst_percentage`** *(Percent)*: Applicable GST rate.
-- **`taxable_amount`** *(Currency, Read-Only)*: Calculated net taxable value of row.
-- **`tax_amount`** *(Currency, Read-Only)*: Calculated GST tax amount of row.
-- **`total_amount`** *(Currency, Read-Only)*: Net total (Taxable Amount + Tax Amount).
-- **`specification`** *(Small Text)*: Detailed technical specifications per line item.
-
-#### B. Mathematical Calculation Engine
-For each line item row $i$:
-$$\text{Base Amount}_i = \text{Rate}_i \times \text{Quantity}_i$$
-$$\text{Discount Amount}_i = \text{Base Amount}_i \times \left( \frac{\text{Discount \%}_i}{100} \right)$$
-$$\text{Taxable Amount}_i = \text{Base Amount}_i - \text{Discount Amount}_i$$
-$$\text{Tax Amount}_i = \text{Taxable Amount}_i \times \left( \frac{\text{GST \%}_i}{100} \right)$$
-$$\text{Total Row Amount}_i = \text{Taxable Amount}_i + \text{Tax Amount}_i$$
-
-#### C. Backwards Compatibility Layer
-- Automatically syncs row #1 data to legacy fields (`equipment`, `equipment_name`, `quantity`, `rate`, `gst_percentage`) to ensure legacy reports and integrations continue functioning seamlessly.
+## ✨ 2. Detailed Pointwise Feature Specifications
 
 ---
 
-### 💱 Feature 2.2: Multi-Currency Engine (USD vs INR)
+### 📍 2.1. Port Master & Shipping Management
 
-#### A. Currency Assignment Rules
-- **Rule 1 (Indian Entities)**:
-  - If Company country is India (`Sarveksha Realty and Inframine LLP`) $\rightarrow$ Default Currency: **`INR`**.
-- **Rule 2 (International Child Entities)**:
-  - If Company country is outside India (`Sarveksha Mining SARL` - Cameroon, `Sarveksha Botswana Proprietary Limited` - Botswana, `Sarveksha SL Limited` - Sierra Leone, `Sarveksha BSTP SAS` - Guinea) $\rightarrow$ Default Currency: **`USD`**.
+#### A. Port Master DocType (`Port`)
+- **Doctype Definition**: Created standalone `Port` master DocType with permissions and fixture export.
+- **Fields**:
+  - `port_name` *(Data, Mandatory)*: Full name of sea/air port.
+  - `country` *(Link → Country)*: Jurisdiction country.
+  - `port_code` *(Data, Unique)*: UN/LOCODE or custom port identifier.
+  - `is_active` *(Check, Default: 1)*: Active status flag.
+- **Seeded Master Records**:
+  1. `Mundra` (India — Port Code: `INMUN`)
+  2. `JNPT` (India — Port Code: `INNSA`)
+  3. `Conakry` (Guinea — Port Code: `GNCKY`)
+  4. `Durban` (South Africa / Botswana transit — Port Code: `ZADUR`)
+  5. `Freetown` (Sierra Leone — Port Code: `SLFNA`)
+  6. `Douala` (Cameroon — Port Code: `CMDLA`)
+- **PO Integration**: `port` field on `Vendor Purchase Order` converted to a **Link** field pointing to `Port`.
 
-#### B. Form & PDF Print Presentation
-- **Client-Side JS**: Selecting an international company automatically updates `currency` field to `USD`.
-- **Print Format**: Table column headers dynamically format as `Rate (USD)` and `Amount (USD)` when `doc.currency == 'USD'`, and `Rate (INR)` / `Amount (INR)` when `doc.currency == 'INR'`.
+#### B. Shipment Type Selection Dropdown
+- Converted `shipment_type` field on `Vendor Purchase Order` from generic text to a strict **Select** dropdown with 12 standardized logistics options:
+  - `FCL` (Full Container Load)
+  - `LCL` (Less than Container Load)
+  - `Containerized`
+  - `Flat Rack`
+  - `Oversized`
+  - `Hazardous Cargo`
+  - `Part Shipment`
+  - `Height Cargo`
+  - `Break Bulk`
+  - `RoRo` (Roll-on/Roll-off)
+  - `Air Freight`
+  - `Express Courier`
 
 ---
 
-### 📜 Feature 2.3: Legal Terms & Conditions Library & Preview
+### 🏢 2.2. Company GSTIN & PAN Auto-Display System
 
-#### A. 4 Standard Legal Templates & Clauses
+#### A. Schema Enhancement
+Added read-only audit fields to `Vendor Purchase Order`:
+- `company_gstin` *(Data, Read-Only)*: Auto-fetched GST Identification Number of purchasing company.
+- `company_pan` *(Data, Read-Only)*: Auto-fetched Permanent Account Number (PAN) of purchasing company.
 
-1. **`Standard Export PO Terms`**:
-   - **Payment Milestones**: Payment made against commercial invoice, packing list, and bill of lading.
-   - **Pre-Shipment Inspection**: Mandatory third-party quality inspection (SGS / Bureau Veritas).
-   - **Liquidated Damages (LD)**: 0.5% of total PO value per week of delay, capped at 10%.
-   - **Warranty**: 12 months from commissioning or 18 months from shipment.
-   - **ISPM-15 Packaging**: Wooden packaging heat treated and stamped per ISPM-15 standards.
-   - **Force Majeure**: Excuses non-performance during acts of God, war, or maritime blockades.
-   - **Jurisdiction**: Subject to exclusive jurisdiction of courts in Mumbai, Maharashtra, India.
+#### B. Client-Side JS Auto-Fetch (`vendor_purchase_order.js`)
+When `company` is selected on the PO form, client-side JS queries `Company` master data and populates GSTIN and PAN instantly:
+```javascript
+frappe.db.get_value('Company', frm.doc.company, ['tax_id', 'custom_pan'], (r) => {
+    if (r) {
+        if (r.tax_id) frm.set_value('company_gstin', r.tax_id);
+        if (r.custom_pan) frm.set_value('company_pan', r.custom_pan);
+    }
+});
+```
 
-2. **`Export to Africa Terms`**:
-   - **Export Packaging**: Heavy-duty sea-worthy containers with moisture absorbers.
-   - **Pre-Shipment Inspection (PSI)**: Mandatory PSI certificate for African import customs clearance.
-   - **Demurrage & Port Charges**: All destination port demurrage and duties in Africa on buyer's account.
-   - **Documentation SLA**: Original shipping documents delivered within 7 days of vessel departure.
+#### C. Print Format Representation
+Rendered in the vendor and SRI company tax reference block of `vendor_purchase_order_format.html`:
+- Displays `SRI GSTIN: {{ company.tax_id }}` and `PAN: {{ company.custom_pan }}`.
 
-3. **`Domestic India Terms`**:
-   - **GST Invoicing**: Valid Tax Invoice with HSN/SAC codes and supplier GSTIN mandatory.
-   - **E-Way Bill**: Transport E-Way Bill generated prior to dispatch.
-   - **Delivery & Transit Cover**: Transit insurance cover required from origin to site yard.
-   - **Service SLA**: On-site service support provided within 48 hours of call logging.
+---
 
-4. **`LUT Certificate Terms`**:
-   - **Zero-Rated Export**: Supplies under Letter of Undertaking (LUT) per Section 16 of IGST Act 2017.
-   - **Concessional GST (0.1%)**: Merchant export concessional 0.1% GST applied.
-   - **Proof of Export SLA**: Export invoice proof provided within 90 days of invoice date.
+### 👥 2.3. User Accounts & Role-Based Access Control (RBAC)
+
+#### A. 5 Pre-Configured Workflow Test User Accounts
+1. **`po_generator@sarveksha.com`**: Purchase Order Generator / Sourcing Officer.
+2. **`po_verifier@sarveksha.com`**: Technical & Commercial Verifier.
+3. **`po_approver@sarveksha.com`**: Senior Director / Final Approver.
+4. **`procurement_manager@sarveksha.com`**: Procurement Department Manager.
+5. **`admin@sarveksha.com`**: System Administrator / System Manager.
+
+#### B. 4 Custom System Roles
+1. **`PO Generator`**: Permission to create, view, edit draft POs, and submit for verification.
+2. **`PO Verifier`**: Permission to review, verify details, or return PO for revision.
+3. **`PO Approver`**: Permission to perform final commercial sign-off and approve POs.
+4. **`Procurement Manager`**: Full read, write, submit, cancel, and administrative permissions.
+
+---
+
+### 🔄 2.4. 7-State PO Workflow Engine
+
+#### A. Workflow DocType Configuration (`Vendor Purchase Order Workflow`)
+A native Frappe State Machine workflow governing the full lifecycle of Purchase Orders.
+
+#### B. 7 Workflow States & Document Status Matrix
+
+| Workflow State | DocStatus | Allowed Role(s) | Next Action |
+| :--- | :--- | :--- | :--- |
+| **`Draft`** | `0` (Draft) | `PO Generator`, `Procurement Manager` | Submit for Verification |
+| **`Pending Verification`** | `0` (Draft) | `PO Verifier`, `Procurement Manager` | Verify PO OR Return to Generator |
+| **`Verification Returned`**| `0` (Draft) | `PO Generator`, `Procurement Manager` | Re-submit for Verification |
+| **`Pending Approval`** | `0` (Draft) | `PO Approver`, `Procurement Manager` | Approve PO OR Return to Verifier |
+| **`Approval Returned`** | `0` (Draft) | `PO Verifier`, `Procurement Manager` | Re-verify OR Return to Generator |
+| **`Approved`** | `1` (Submitted) | `PO Approver`, `Procurement Manager` | Lock & Issue PO |
+| **`Printed`** | `1` (Submitted) | All Roles | View & Print Official PDF |
+
+#### C. Transition Table
+- `Draft` $\rightarrow$ `Pending Verification` *(Action: Submit for Verification)*
+- `Pending Verification` $\rightarrow$ `Pending Approval` *(Action: Verify & Forward)*
+- `Pending Verification` $\rightarrow$ `Verification Returned` *(Action: Return for Revision)*
+- `Verification Returned` $\rightarrow$ `Pending Verification` *(Action: Resubmit)*
+- `Pending Approval` $\rightarrow$ `Approved` *(Action: Approve Purchase Order)*
+- `Pending Approval` $\rightarrow$ `Approval Returned` *(Action: Return to Verifier)*
+- `Approved` $\rightarrow$ `Printed` *(Action: Mark Printed)*
+
+---
+
+### 📜 2.5. Legal Terms & Conditions Library & Live Preview
+
+#### A. 4 Standard Legal T&C Templates
+1. **`Standard Export PO Terms`**: Payment milestones, inspection SLA, Liquidated Damages (LD @ 0.5%/wk, max 10%), 12-month warranty, ISPM-15 packaging, force majeure, Indian court jurisdiction.
+2. **`Export to Africa Terms`**: Sea-worthy export packaging, SGS/Bureau Veritas PSI certificate, African port clearance & demurrage rules.
+3. **`Domestic India Terms`**: GST tax invoice compliance, E-Way Bill generation, site delivery, 1-year local warranty.
+4. **`LUT Certificate Terms`**: Zero-rated export under Letter of Undertaking (LUT) per Section 16 of IGST Act 2017, 0.1% GST compliance.
 
 #### B. UI & Print Format Integration
 - **`standard_terms` Field**: Link to `Terms and Conditions` master.
 - **`terms_preview` Field**: Read-only HTML preview box populated automatically upon selecting template.
-- **`custom_terms` Field**: Rich text editor for adding special transaction-specific clauses.
+- **`custom_terms` Field**: Rich text editor for adding transaction-specific clauses.
 - **Print Format**: HTML template renders both standard template text and custom terms at the document footer.
 
 ---
 
-### 🏛️ Feature 2.4: LUT Certificate Tax Override Engine (0.1% GST)
+### 🏛️ 2.6. LUT Certificate Tax Override Engine (0.1% GST)
 
 #### A. Technical Workflow
 1. User checks **`is_lut_applicable`** on the PO form.
@@ -126,13 +164,15 @@ $$\text{Total Row Amount}_i = \text{Taxable Amount}_i + \text{Tax Amount}_i$$
 
 ---
 
-### 🏢 Feature 2.5: Inter-Company Procurement Routing Rules
+### 🚜 2.7. Multi-Equipment Line Item & Multi-Currency Platform
 
-#### A. Corporate Sourcing Hierarchy
-- **Rule 1 (Child Companies)**:
-  - `Sarveksha Mining SARL` (Cameroon) & `Sarveksha Botswana Proprietary Limited` (Botswana) MUST issue Purchase Orders to **Sarveksha Realty and Inframine LLP (SRI)**.
-- **Rule 2 (Central Entity - SRI)**:
-  - **Sarveksha Realty and Inframine LLP (SRI)** acts as central procurement hub and issues master export POs to external vendors (**Action Construction Equipment**, **Tata Motors**).
+#### A. Child DocType (`Vendor Purchase Order Item`)
+Enables adding multiple equipment entries per PO. Fields include: `equipment`, `equipment_name`, `hsn_code`, `brand`, `manufacturer`, `unit`, `quantity`, `rate`, `discount_percent`, `gst_percentage`, `taxable_amount`, `tax_amount`, `total_amount`, `specification`.
+
+#### B. Multi-Currency Sourcing
+- **Indian Parent Entity** (`Sarveksha Realty and Inframine LLP`): **`INR`**
+- **International Subsidiaries** (`Sarveksha Mining SARL`, `Sarveksha Botswana Proprietary Limited`, etc.): **`USD`**
+- Dynamic PDF table headers formatting rates and totals in `USD` or `INR`.
 
 ---
 
@@ -147,27 +187,30 @@ $$\text{Total Row Amount}_i = \text{Taxable Amount}_i + \text{Tax Amount}_i$$
 
 ---
 
-## 📂 4. Complete File Inventory & Code Map
+## 📂 4. Complete Directory Inventory & Fixtures Map
 
 ### Core Module Directory:
 `frappe-bench/apps/sarveksha_erp/sarveksha_erp/vendor_management/`
 
-1. **Child DocType Schema & Controller**:
+1. **Port DocType**:
+   - `doctype/port/port.json`
+   - `doctype/port/port.py`
+2. **Child DocType Schema & Controller**:
    - `doctype/vendor_purchase_order_item/vendor_purchase_order_item.json`
    - `doctype/vendor_purchase_order_item/vendor_purchase_order_item.py`
-2. **Parent DocType Schema & Controller**:
+3. **Parent DocType Schema & Controller**:
    - `doctype/vendor_purchase_order/vendor_purchase_order.json`
    - `doctype/vendor_purchase_order/vendor_purchase_order.py`
    - `doctype/vendor_purchase_order/vendor_purchase_order.js`
-3. **Print Format Template**:
+4. **Print Format Template**:
    - `print_format/vendor_purchase_order_format/vendor_purchase_order_format.html`
-4. **Fixture Exports**:
-   - `fixtures/company.json`
-   - `fixtures/terms_and_conditions.json`
-   - `fixtures/equipment.json`
-   - `fixtures/supplier.json`
-   - `fixtures/port.json`
-   - `fixtures/print_format.json`
+5. **Fixture Exports (`sarveksha_erp/fixtures/`)**:
+   - `port.json` (6 Seeded Ports)
+   - `terms_and_conditions.json` (4 Standard T&C Templates)
+   - `role.json` (4 Custom System Roles)
+   - `workflow.json` (7-State PO Workflow)
+   - `workflow_state.json` & `workflow_action_master.json`
+   - `company.json`, `equipment.json`, `supplier.json`, `print_format.json`
 
 ---
 
@@ -194,4 +237,4 @@ bench restart
 ```
 
 ---
-*Document Version: 2.0 (Final Presentation Grade) | Sarveksha ERP Team*
+*Document Version: 3.0 (Master Unified Architecture Guide) | Sarveksha ERP Team*
