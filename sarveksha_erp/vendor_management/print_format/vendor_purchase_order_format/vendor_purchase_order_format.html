@@ -60,7 +60,7 @@
   /* ── WEB PREVIEW (Screen): Repeats on virtual paper ── */
   @media screen {
     .print-format {
-      background-image: url('{{ letterhead_img }}') !important;
+      background-image: url('{{ (frappe.utils.get_url() + letterhead_img) | replace(" ", "%20") }}') !important;
       background-size: 100% 297mm !important;
       background-repeat: repeat-y !important;
       background-position: top center !important;
@@ -74,21 +74,15 @@
     @page { margin: 0 !important; size: A4; }
     html, body { margin: 0 !important; padding: 0 !important; }
     tr, td, th, p { page-break-inside: avoid; }
-    .print-format { background: transparent !important; padding: 0 !important; }
-    
-    /* This fixed div natively stretches to fill 100% of every printed page */
-    .print-bg-fixed {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image: url('{{ letterhead_img }}') !important;
-      background-size: 100% 100% !important;
-      background-repeat: no-repeat !important;
-      z-index: -1;
-      display: block !important;
+    .print-format {
+      background-image: url('{{ (frappe.utils.get_url() + letterhead_img) | replace(" ", "%20") }}') !important;
+      background-size: 100% 297mm !important;
+      background-repeat: repeat-y !important;
+      background-position: top center !important;
+      background-color: transparent !important;
+      padding: 0 !important;
     }
+    .print-bg-fixed { display: none !important; }
   }
 </style>
 
@@ -98,7 +92,7 @@
 <!-- ── MASTER WRAPPER (Dodges header/footer graphics on all pages) ── -->
 <table style="width:100%; border:none; margin:0; padding:0; border-collapse:collapse;">
   <thead style="display:table-header-group;">
-    <tr><td style="height:150px; border:none; padding:0;"></td></tr>
+    <tr><td style="height:190px; border:none; padding:0;"></td></tr>
   </thead>
   <tfoot style="display:table-footer-group;">
     <tr>
