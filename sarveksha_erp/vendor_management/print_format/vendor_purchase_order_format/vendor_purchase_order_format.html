@@ -9,9 +9,15 @@
 {% elif company.default_letter_head and frappe.db.exists("Letter Head", company.default_letter_head) %}
   {% set lh_doc = frappe.get_doc("Letter Head", company.default_letter_head) %}
 {% else %}
-  {% set lh_doc = None %}
+  {# Fallback: search for any active Letter Head matching the company name #}
+  {% set _lh_name = frappe.db.get_value("Letter Head", {"disabled": 0, "is_default": 1}, "name") %}
+  {% if _lh_name %}
+    {% set lh_doc = frappe.get_doc("Letter Head", _lh_name) %}
+  {% else %}
+    {% set lh_doc = None %}
+  {% endif %}
 {% endif %}
-{% set letterhead_img = lh_doc.image if lh_doc else "" %}
+{% set letterhead_img = lh_doc.image if (lh_doc and lh_doc.image) else "" %}
 
 
 
@@ -45,6 +51,8 @@
   }
   table.fixed .right { text-align: right; }
   table.fixed .center { text-align: center; }
+  /* Bold label helper — used throughout the template */
+  .lbl { font-weight: bold; }
   .section-head {
     background: #f0f0f0;
     font-weight: bold;
@@ -86,14 +94,6 @@
   }
 </style>
 
-{% set current_roles = frappe.get_roles(frappe.session.user) %}
-{% if doc.workflow_state not in ["Approved", "Printed"] and "Procurement Manager" not in current_roles and "System Manager" not in current_roles and "PO Generator" in current_roles %}
-  <div style="text-align:center; font-size:14px; color:red; margin: 100px auto; padding: 40px; border: 2px dashed red; max-width: 500px; font-family: sans-serif; border-radius: 8px; background-color: #fff5f5;">
-    <h3 style="margin-top:0; color: #c53030;">Access Denied</h3>
-    <p>As a <strong>PO Generator</strong>, you are only allowed to print/view the PDF of the Purchase Order at the final stages (<strong>Approved</strong> or <strong>Printed</strong>).</p>
-    <p style="margin-bottom:0;">Current workflow state is: <strong>{{ doc.workflow_state or 'Draft' }}</strong></p>
-  </div>
-{% else %}
 <!-- ── PRINT BACKGROUND WRAPPER ── -->
 <div class="print-bg-fixed"></div>
 
@@ -174,7 +174,7 @@
 
   <!-- ── SALUTATION ─────────────────────────────────────── -->
   <p>Dear Sir/Ma'am,</p>
-  <p>We are pleased to release this Purchase Order for the supply of <strong>{{ doc.equipment_name }}</strong>. Details and specifications are as per below. Please send your acceptance confirmation via return email for further processing.</p>
+  <p>We are pleased to release this Purchase Order for the supply of <strong>{{ doc.equipment_name or doc.item_code or "the specified goods" }}</strong>. Details and specifications are as per below. Please send your acceptance confirmation via return email for further processing.</p>
 
   <!-- ── PRE-CONDITIONS ─────────────────────────────────── -->
   <table class="fixed" style="margin-bottom:12px;">
@@ -222,7 +222,7 @@
       <tr>
         <td class="center" style="border-top:none;">1</td>
         <td style="border-top:none;">
-          <strong>{{ doc.equipment_name }}</strong><br>
+          <strong>{{ doc.equipment_name or doc.item_code or "—" }}</strong><br>
           {% if doc.manufacturer %}Mfr: {{ doc.manufacturer }}<br>{% endif %}
           {% if doc.country_of_origin %}Origin: {{ doc.country_of_origin }}<br>{% endif %}
           {% if doc.specification %}<span style="font-size:10px;">{{ doc.specification }}</span>{% endif %}
@@ -403,4 +403,3 @@
     </tr>
   </tbody>
 </table>
-{% endif %}
