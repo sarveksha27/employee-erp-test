@@ -28,6 +28,7 @@
   "vendor_account_number",
   "vendor_ifsc",
   "sec_equipment",
+  "items",
   "equipment",
   "equipment_name",
   "hsn_code",
@@ -222,7 +223,13 @@
   {
    "fieldname": "sec_equipment",
    "fieldtype": "Section Break",
-   "label": "Equipment Details"
+   "label": "Equipment Line Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Equipment Line Items",
+   "options": "Vendor Purchase Order Item"
   },
   {
    "fieldname": "equipment",
@@ -230,7 +237,7 @@
    "in_list_view": 1,
    "label": "Equipment",
    "options": "Equipment",
-   "reqd": 1,
+   "reqd": 0,
    "search_index": 1
   },
   {
@@ -262,7 +269,7 @@
    "fieldname": "quantity",
    "fieldtype": "Float",
    "label": "Quantity",
-   "reqd": 1
+   "reqd": 0
   },
   {
    "fieldname": "unit",
@@ -306,7 +313,7 @@
    "fieldtype": "Currency",
    "label": "Unit Rate",
    "options": "currency",
-   "reqd": 1
+   "reqd": 0
   },
   {
    "default": "0",

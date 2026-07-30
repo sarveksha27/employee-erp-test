@@ -50,48 +50,26 @@ frappe.ui.form.on('Vendor Purchase Order', {
                     if (r.custom_default_port) {
                         frm.set_value('default_port', r.custom_default_port);
                         set_port_filter(frm);
-                        // Safely verify if the port exists or fallback to sub-parts (like "Mundra" from "Mumbai, Mundra")
                         frappe.db.exists('Port', r.custom_default_port).then(exists => {
                             if (exists) {
                                 frm.set_value('port', r.custom_default_port);
-                            } else {
-                                // Try splitting by comma
-                                const parts = r.custom_default_port.split(',').map(p => p.trim());
-                                let check_part = (idx) => {
-                                    if (idx >= parts.length) return;
-                                    frappe.db.exists('Port', parts[idx]).then(exists_part => {
-                                        if (exists_part) {
-                                            frm.set_value('port', parts[idx]);
-                                        } else {
-                                            check_part(idx + 1);
-                                        }
-                                    });
-                                };
-                                check_part(0);
                             }
                         });
-                    } else {
-                        frm.set_value('default_port', '');
-                        set_port_filter(frm);
                     }
                     if (r.default_currency) {
                         frm.set_value('currency', r.default_currency);
                     }
-                    // Store company GSTIN for intra/inter-state GST determination
                     frm._company_gstin = r.tax_id || '';
                     frm.set_value('company_gstin', r.tax_id || '');
                     frm.set_value('company_pan', r.custom_pan || '');
 
-                    // ── AUTO-SET LETTER HEAD BASED ON COUNTRY ──────────
                     const country = (r.country || '').toLowerCase();
-                    let lh = 'India (Sarveksha Realty)'; // default fallback
+                    let lh = 'India (Sarveksha Realty)';
                     if (country.includes('india'))    lh = 'India (Sarveksha Realty)';
                     else if (country.includes('cameroon')) lh = 'Cameroon (Sarveksha Mining SARL)';
                     else if (country.includes('botswana')) lh = 'Botswana (Sarveksha Botswana)';
-                    // Sierra Leone, Guinea, UAE → fallback to India letterhead
                     frm.set_value('letter_head', lh);
                 }
-                // Recalculate GST type after company change
                 calculate_gst_and_totals(frm);
             }
         );
@@ -111,84 +89,20 @@ frappe.ui.form.on('Vendor Purchase Order', {
                 if (r.custom_account_number) frm.set_value('vendor_account_number', r.custom_account_number);
                 if (r.custom_ifsc) frm.set_value('vendor_ifsc', r.custom_ifsc);
 
-                // Store vendor GSTIN for intra/inter-state determination
                 frm._vendor_gstin = r.tax_id || '';
                 calculate_gst_and_totals(frm);
             }
         );
     },
 
-    // ─── EQUIPMENT TRIGGER ────────────────────────────────────────
-    equipment: function(frm) {
-        if (!frm.doc.equipment) {
-            frm.set_value('equipment_name', '');
-            frm.set_value('hsn_code', '');
-            frm.set_value('brand', '');
-            frm.set_value('manufacturer', '');
-            frm.set_value('unit', '');
-            frm.set_value('specification', '');
-            frm.set_value('country_of_origin', '');
-            frm.set_value('gst_percentage', 0);
-            calculate_gst_and_totals(frm);
-            return;
-        }
-        frappe.db.get_doc('Equipment', frm.doc.equipment).then(doc => {
-            frm.set_value('equipment_name', doc.equipment_name || '');
-            frm.set_value('hsn_code', doc.hsn_code || '');
-            frm.set_value('brand', doc.brand || '');
-            frm.set_value('manufacturer', doc.manufacturer || '');
-            frm.set_value('unit', doc.unit || '');
-            frm.set_value('specification', doc.specification || '');
-            frm.set_value('country_of_origin', doc.country_of_origin || '');
-
-            // ─── KEY STEP: Pull GST % from Equipment master ───
-            const gst_pct = flt(doc.gst_percentage) || 18; // Default 18% if not set
-            frm.set_value('gst_percentage', gst_pct);
-
-            calculate_gst_and_totals(frm);
-
-            frappe.show_alert({
-                message: `Equipment details loaded for "${doc.equipment_name}" | GST: ${gst_pct}%`,
-                indicator: 'green'
-            }, 4);
-        }).catch(err => {
-            frappe.show_alert({
-                message: 'Could not fetch equipment details.',
-                indicator: 'orange'
-            }, 4);
-        });
-    },
-
     // ─── PRICING TRIGGERS ─────────────────────────────────────
-    rate: function(frm) { calculate_gst_and_totals(frm); },
-    quantity: function(frm) { calculate_gst_and_totals(frm); },
-    discount_percent: function(frm) { calculate_gst_and_totals(frm); },
-    gst_percentage: function(frm) { calculate_gst_and_totals(frm); },
     freight: function(frm) { calculate_gst_and_totals(frm); },
     insurance: function(frm) { calculate_gst_and_totals(frm); },
     packing_charges: function(frm) { calculate_gst_and_totals(frm); },
     other_charges: function(frm) { calculate_gst_and_totals(frm); },
     advance_percentage: function(frm) { calculate_gst_and_totals(frm); },
     vendor_gstin: function(frm) { calculate_gst_and_totals(frm); },
-    is_lut_applicable: function(frm) {
-        if (frm.doc.is_lut_applicable) {
-            if (frm.doc.company && frm.doc.company.includes("Sarveksha Realty")) {
-                frm.set_value('gst_percentage', 0.1);
-            }
-        } else {
-            // Re-fetch GST % from equipment
-            if (frm.doc.equipment) {
-                frappe.db.get_value('Equipment', frm.doc.equipment, 'gst_percentage', (r) => {
-                    if (r) {
-                        frm.set_value('gst_percentage', flt(r.gst_percentage) || 18);
-                    }
-                });
-            } else {
-                frm.set_value('gst_percentage', 18);
-            }
-        }
-        calculate_gst_and_totals(frm);
-    },
+    is_lut_applicable: function(frm) { calculate_gst_and_totals(frm); },
     standard_terms: function(frm) {
         if (frm.doc.standard_terms) {
             frappe.db.get_value('Terms and Conditions', frm.doc.standard_terms, 'terms', (r) => {
@@ -205,31 +119,68 @@ frappe.ui.form.on('Vendor Purchase Order', {
 
 });
 
+// ─── CHILD TABLE GRID TRIGGERS (Vendor Purchase Order Item) ───
+frappe.ui.form.on('Vendor Purchase Order Item', {
+    equipment: function(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (!row.equipment) return;
+
+        frappe.db.get_doc('Equipment', row.equipment).then(doc => {
+            frappe.model.set_value(cdt, cdn, 'equipment_name', doc.equipment_name || '');
+            frappe.model.set_value(cdt, cdn, 'hsn_code', doc.hsn_code || '');
+            frappe.model.set_value(cdt, cdn, 'brand', doc.brand || '');
+            frappe.model.set_value(cdt, cdn, 'manufacturer', doc.manufacturer || '');
+            frappe.model.set_value(cdt, cdn, 'unit', doc.unit || 'Nos');
+            frappe.model.set_value(cdt, cdn, 'specification', doc.specification || '');
+            
+            const cost = flt(doc.approx_cost_inr) || flt(doc.last_purchase_cost_inr) || 10000;
+            const gst_pct = flt(doc.gst_percentage) || 18;
+            
+            frappe.model.set_value(cdt, cdn, 'rate', cost);
+            frappe.model.set_value(cdt, cdn, 'gst_percentage', gst_pct);
+
+            calculate_gst_and_totals(frm);
+        });
+    },
+
+    quantity: function(frm, cdt, cdn) { calculate_gst_and_totals(frm); },
+    rate: function(frm, cdt, cdn) { calculate_gst_and_totals(frm); },
+    discount_percent: function(frm, cdt, cdn) { calculate_gst_and_totals(frm); },
+    gst_percentage: function(frm, cdt, cdn) { calculate_gst_and_totals(frm); },
+    items_remove: function(frm) { calculate_gst_and_totals(frm); }
+});
+
 // ─── MASTER CALCULATION ENGINE ────────────────────────────────
-/**
- * Full Indian GST Calculation Engine:
- *
- * 1. Determine Taxable Value = (Rate × Qty) − Discount
- * 2. Determine GST Type:
- *    - Extract first 2 digits of Vendor GSTIN (state code)
- *    - Extract first 2 digits of Company GSTIN (state code)
- *    - If SAME STATE → CGST + SGST (each = GST% / 2)
- *    - If DIFFERENT STATE or export → IGST (= GST%)
- * 3. Grand Total = Taxable Value + Total Tax + Freight + Insurance + Packing + Other
- * 4. Advance Amount = Grand Total × (Advance% / 100)
- * 5. Balance Due = Grand Total − Advance Amount
- */
 function calculate_gst_and_totals(frm) {
-    const rate = flt(frm.doc.rate) || 0;
-    const qty = flt(frm.doc.quantity) || 1;
-    const discount_pct = flt(frm.doc.discount_percent) || 0;
+    const is_lut = (frm.doc.is_lut_applicable && frm.doc.company && frm.doc.company.includes("Sarveksha Realty"));
     
-    let gst_pct = flt(frm.doc.gst_percentage) || 0;
-    if (frm.doc.is_lut_applicable && frm.doc.company && frm.doc.company.includes("Sarveksha Realty")) {
-        gst_pct = 0.1;
-        if (frm.doc.gst_percentage !== 0.1) {
-            frm.set_value('gst_percentage', 0.1);
-        }
+    let total_taxable_value = 0;
+    let total_item_tax = 0;
+
+    if (frm.doc.items && frm.doc.items.length > 0) {
+        frm.doc.items.forEach(row => {
+            if (is_lut) {
+                row.gst_percentage = 0.1;
+            }
+            const rate = flt(row.rate) || 0;
+            const qty = flt(row.quantity) || 1;
+            const discount_pct = flt(row.discount_percent) || 0;
+            const gst_pct = flt(row.gst_percentage) || 0;
+
+            const base_amount = rate * qty;
+            const discount_amount = base_amount * (discount_pct / 100);
+            const taxable_amount = base_amount - discount_amount;
+            const tax_amount = taxable_amount * (gst_pct / 100);
+            const total_amount = taxable_amount + tax_amount;
+
+            row.taxable_amount = flt(taxable_amount, 2);
+            row.tax_amount = flt(tax_amount, 2);
+            row.total_amount = flt(total_amount, 2);
+
+            total_taxable_value += row.taxable_amount;
+            total_item_tax += row.tax_amount;
+        });
+        frm.refresh_field('items');
     }
 
     const freight = flt(frm.doc.freight) || 0;
@@ -238,54 +189,35 @@ function calculate_gst_and_totals(frm) {
     const other = flt(frm.doc.other_charges) || 0;
     const advance_pct = flt(frm.doc.advance_percentage) || 0;
 
-    // Step 1: Taxable Value
-    const base_amount = rate * qty;
-    const discount_amount = base_amount * (discount_pct / 100);
-    const taxable_value = base_amount - discount_amount;
-
-    // Step 2: GST Type Determination (Intra-state vs Inter-state)
+    // GST Type Determination
     const vendor_gstin = (frm.doc.vendor_gstin || frm._vendor_gstin || '');
-    const company_gstin = (frm._company_gstin || '');
+    const company_gstin = (frm.doc.company_gstin || frm._company_gstin || '');
 
-    let gst_type = 'IGST'; // Default: IGST for inter-state or unknown
-    let cgst = 0, sgst = 0, igst = 0, total_tax = 0;
+    let gst_type = 'IGST';
+    let cgst = 0, sgst = 0, igst = 0;
 
-    if (vendor_gstin.length >= 2 && company_gstin.length >= 2) {
-        const vendor_state_code = vendor_gstin.substring(0, 2);
-        const company_state_code = company_gstin.substring(0, 2);
-        gst_type = (vendor_state_code === company_state_code) ? 'CGST + SGST' : 'IGST';
-    } else if (vendor_gstin.length >= 2) {
-        // If company GSTIN not set, default to IGST (safer for exports)
-        gst_type = 'IGST';
-    }
-
-    // Step 3: Calculate GST components
-    if (gst_type === 'CGST + SGST') {
-        cgst = taxable_value * (gst_pct / 200); // half of GST%
-        sgst = taxable_value * (gst_pct / 200); // half of GST%
+    if (vendor_gstin.length >= 2 && company_gstin.length >= 2 && vendor_gstin.substring(0, 2) === company_gstin.substring(0, 2)) {
+        gst_type = 'CGST + SGST';
+        cgst = total_item_tax / 2;
+        sgst = total_item_tax / 2;
         igst = 0;
-        total_tax = cgst + sgst;
     } else {
-        igst = taxable_value * (gst_pct / 100);
+        gst_type = 'IGST';
+        igst = total_item_tax;
         cgst = 0;
         sgst = 0;
-        total_tax = igst;
     }
 
-    // Step 4: Grand Total
-    const grand_total = taxable_value + total_tax + freight + insurance + packing + other;
-
-    // Step 5: Advance & Balance
+    const grand_total = total_taxable_value + total_item_tax + freight + insurance + packing + other;
     const advance_amount = grand_total * (advance_pct / 100);
     const balance_due = grand_total - advance_amount;
 
-    // ─── SET ALL VALUES ───────────────────────────────────────
-    frm.set_value('taxable_value', flt(taxable_value, 2));
+    frm.set_value('taxable_value', flt(total_taxable_value, 2));
     frm.set_value('gst_type', gst_type);
     frm.set_value('cgst_amount', flt(cgst, 2));
     frm.set_value('sgst_amount', flt(sgst, 2));
     frm.set_value('igst_amount', flt(igst, 2));
-    frm.set_value('tax_amount', flt(total_tax, 2));
+    frm.set_value('tax_amount', flt(total_item_tax, 2));
     frm.set_value('grand_total', flt(grand_total, 2));
     frm.set_value('advance_amount', flt(advance_amount, 2));
     frm.set_value('balance_due', flt(balance_due, 2));
@@ -296,17 +228,9 @@ function set_port_filter(frm) {
         if (frm.doc.default_port) {
             const ports = frm.doc.default_port.split(',').map(p => p.trim()).filter(Boolean);
             if (ports.length > 0) {
-                return {
-                    filters: [
-                        ['Port', 'name', 'in', ports]
-                    ]
-                };
+                return { filters: [['Port', 'name', 'in', ports]] };
             }
         }
-        return {
-            filters: {
-                'is_active': 1
-            }
-        };
+        return { filters: { 'is_active': 1 } };
     });
 }
