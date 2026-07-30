@@ -168,6 +168,10 @@ class VendorPurchaseOrder(Document):
 
         if self.items:
             for item in self.items:
+                # Override GST percentage to 0.1% if LUT is applicable and company is "Sarveksha Realty"
+                if self.is_lut_applicable and self.company and "Sarveksha Realty" in self.company:
+                    item.gst_percentage = 0.1
+
                 rate = flt(item.rate)
                 qty = flt(item.quantity) or 1
                 discount_pct = flt(item.discount_percent)
@@ -193,6 +197,9 @@ class VendorPurchaseOrder(Document):
             self.gst_percentage = first.gst_percentage
         else:
             # Fallback for single item legacy POs
+            if self.is_lut_applicable and self.company and "Sarveksha Realty" in self.company:
+                self.gst_percentage = 0.1
+
             rate = flt(self.rate)
             qty = flt(self.quantity) or 1
             discount_pct = flt(self.discount_percent)

@@ -1,0 +1,50 @@
+[
+ {
+  "buying": 1,
+  "copy_attachments_to_transaction": 0,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Terms and Conditions",
+  "modified": "2026-07-31 01:10:21.435897",
+  "name": "Standard Export PO Terms",
+  "selling": 0,
+  "terms": "\n<ol>\n  <li><strong>Payment Terms:</strong> Payment shall be made as per agreed milestones mentioned in the Purchase Order against submission of commercial invoice, packing list, and bill of lading.</li>\n  <li><strong>Inspection &amp; Quality:</strong> Material subject to pre-shipment inspection by Authorized Inspector / Third Party (SGS / Intertek / Bureau Veritas). Seller must provide inspection test certificates prior to dispatch.</li>\n  <li><strong>Liquidated Damages (LD):</strong> In case of delayed delivery beyond the agreed schedule, Liquidated Damages shall be levied @ 0.5% of total PO value per week of delay, subject to a maximum cap of 10%.</li>\n  <li><strong>Warranty:</strong> Equipment carries a comprehensive warranty of 12 months from commissioning or 18 months from shipment date, whichever is earlier. Defective parts shall be replaced free of cost.</li>\n  <li><strong>Packaging &amp; ISPM-15 Compliance:</strong> All wooden packaging, pallets, and crates must be heat treated and stamped in full compliance with ISPM-15 international phytosanitary standards.</li>\n  <li><strong>Force Majeure:</strong> Neither party shall be liable for failure to perform obligations due to acts of God, war, civil commotion, pandemic restrictions, or severe maritime shipping blockades.</li>\n  <li><strong>Governing Law &amp; Jurisdiction:</strong> This contract shall be governed by Indian Laws, and any disputes shall be subject to the exclusive jurisdiction of courts in Mumbai, Maharashtra, India.</li>\n</ol>\n",
+  "title": "Standard Export PO Terms"
+ },
+ {
+  "buying": 1,
+  "copy_attachments_to_transaction": 0,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Terms and Conditions",
+  "modified": "2026-07-31 01:10:21.510661",
+  "name": "Export to Africa Terms",
+  "selling": 0,
+  "terms": "\n<ol>\n  <li><strong>Export Packaging:</strong> Material must be packed in sea-worthy, heavy-duty export containers / flat racks with anti-corrosive coating and moisture absorbers.</li>\n  <li><strong>Pre-Shipment Inspection (PSI):</strong> Mandatory Pre-Shipment Inspection (SGS/Bureau Veritas) required for African import clearance. Inspection certificate must accompany shipping documents.</li>\n  <li><strong>Port Clearance &amp; Demurrage:</strong> Delivery terms Ex-Works / FOB as agreed. All destination port demurrage and customs duties in Africa are on buyer's account unless otherwise specified.</li>\n  <li><strong>Documentation:</strong> Seller must provide original Commercial Invoice, Bill of Lading (BL), Certificate of Origin, Packing List, and Phytosanitary Certificate within 7 days of shipment departure.</li>\n</ol>\n",
+  "title": "Export to Africa Terms"
+ },
+ {
+  "buying": 1,
+  "copy_attachments_to_transaction": 0,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Terms and Conditions",
+  "modified": "2026-07-31 01:10:21.517379",
+  "name": "Domestic India Terms",
+  "selling": 0,
+  "terms": "\n<ol>\n  <li><strong>GST &amp; Invoicing:</strong> Valid Tax Invoice clearly stating HSN/SAC codes, CGST/SGST/IGST breakdown, and supplier GSTIN is mandatory for payment processing.</li>\n  <li><strong>E-Way Bill:</strong> Supplier must generate valid E-Way Bill for transport vehicles prior to dispatch of goods.</li>\n  <li><strong>Delivery &amp; Freight:</strong> Delivery at specified site yard. Freight extra at actuals or inclusive as stated in PO. Transit insurance cover required.</li>\n  <li><strong>Warranty &amp; Service:</strong> Standard 1-year manufacturer warranty against manufacturing defects. On-site service support to be provided within 48 hours of call logging.</li>\n</ol>\n",
+  "title": "Domestic India Terms"
+ },
+ {
+  "buying": 1,
+  "copy_attachments_to_transaction": 0,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Terms and Conditions",
+  "modified": "2026-07-31 01:10:21.524818",
+  "name": "LUT Certificate Terms",
+  "selling": 0,
+  "terms": "\n<ol>\n  <li><strong>Zero-Rated Export under LUT:</strong> Supplies made under Letter of Undertaking (LUT) without payment of integrated tax as per Section 16 of IGST Act, 2017 / Rule 96A of CGST Rules.</li>\n  <li><strong>Concessional GST Rate (0.1%):</strong> Applicable concessional GST @ 0.1% for merchant exports / LUT exports. Seller must provide LUT ARN acknowledgement copy.</li>\n  <li><strong>Proof of Export:</strong> Buyer / Merchant Exporter shall provide Shipping Bill copy / Export invoice proof within 90 days of invoice date.</li>\n</ol>\n",
+  "title": "LUT Certificate Terms"
+ }
+]

@@ -46,6 +46,7 @@
   "discount_percent",
   "taxable_value",
   "col_break_pricing",
+  "is_lut_applicable",
   "gst_percentage",
   "gst_type",
   "cgst_amount",
@@ -98,6 +99,10 @@
   "col_break_approval",
   "approved_by",
   "signatory",
+  "sec_terms",
+  "standard_terms",
+  "terms_preview",
+  "custom_terms",
   "sec_remarks",
   "remarks",
   "attachments",
@@ -326,6 +331,12 @@
   {
    "fieldname": "col_break_pricing",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_lut_applicable",
+   "fieldtype": "Check",
+   "label": "Is LUT Applicable (0.1% GST Export)?"
   },
   {
    "description": "Auto-fetched from Equipment master",
@@ -626,6 +637,27 @@
    "fieldname": "signatory",
    "fieldtype": "Data",
    "label": "Authorized Signatory"
+  },
+  {
+   "fieldname": "sec_terms",
+   "fieldtype": "Section Break",
+   "label": "Terms and Conditions"
+  },
+  {
+   "fieldname": "standard_terms",
+   "fieldtype": "Link",
+   "label": "Standard Terms",
+   "options": "Terms and Conditions"
+  },
+  {
+   "fieldname": "terms_preview",
+   "fieldtype": "HTML",
+   "label": "Standard Terms Preview"
+  },
+  {
+   "fieldname": "custom_terms",
+   "fieldtype": "Text Editor",
+   "label": "Custom Terms"
   },
   {
    "fieldname": "sec_remarks",
