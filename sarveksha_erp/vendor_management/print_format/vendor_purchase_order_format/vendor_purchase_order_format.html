@@ -86,7 +86,7 @@
   }
 </style>
 
-{% set current_roles = frappe.get_roles() %}
+{% set current_roles = frappe.get_roles(frappe.session.user) %}
 {% if doc.workflow_state not in ["Approved", "Printed"] and "Procurement Manager" not in current_roles and "System Manager" not in current_roles and "PO Generator" in current_roles %}
   <div style="text-align:center; font-size:14px; color:red; margin: 100px auto; padding: 40px; border: 2px dashed red; max-width: 500px; font-family: sans-serif; border-radius: 8px; background-color: #fff5f5;">
     <h3 style="margin-top:0; color: #c53030;">Access Denied</h3>
