@@ -466,9 +466,9 @@
   },
   {
    "fieldname": "port",
-   "fieldtype": "Select",
+   "fieldtype": "Link",
    "label": "Port",
-   "options": "Mundra\nJNPT\nMumbai\nConakry\nDurban\nFreetown\nDouala"
+   "options": "Port"
   },
   {
    "fieldname": "shipment_type",

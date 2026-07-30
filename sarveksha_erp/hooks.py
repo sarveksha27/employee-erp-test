@@ -44,10 +44,11 @@ fixtures = [
     {"dt": "Property Setter"},
     {"dt": "Port"},
     {"dt": "Terms and Conditions"},
-    {"dt": "Role", "filters": [["name", "in", ["PO Generator", "PO Verifier", "PO Approver", "Procurement Manager"]]]},
-    {"dt": "Workflow", "filters": [["name", "=", "Vendor Purchase Order Workflow"]]},
+    {"dt": "Role"},
+    {"dt": "Workflow"},
+    {"dt": "Workflow State"},
     {"dt": "Workflow Action Master"},
-    {"dt": "Custom DocPerm", "filters": [["parent", "=", "Vendor Purchase Order"]]}
+    {"dt": "Custom DocPerm"}
 ]
 
 # include js, css files in header of web template

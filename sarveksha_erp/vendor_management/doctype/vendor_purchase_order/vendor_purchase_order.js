@@ -292,14 +292,21 @@ function calculate_gst_and_totals(frm) {
 }
 
 function set_port_filter(frm) {
-    if (frm.doc.default_port) {
-        const ports = frm.doc.default_port.split(',').map(p => p.trim()).filter(Boolean);
-        if (ports.length > 0) {
-            const options = ['', ...ports];
-            frm.set_df_property('port', 'options', options);
-            return;
+    frm.set_query('port', function() {
+        if (frm.doc.default_port) {
+            const ports = frm.doc.default_port.split(',').map(p => p.trim()).filter(Boolean);
+            if (ports.length > 0) {
+                return {
+                    filters: [
+                        ['Port', 'name', 'in', ports]
+                    ]
+                };
+            }
         }
-    }
-    const default_options = ['', 'Mundra', 'JNPT', 'Mumbai', 'Conakry', 'Durban', 'Freetown', 'Douala'];
-    frm.set_df_property('port', 'options', default_options);
+        return {
+            filters: {
+                'is_active': 1
+            }
+        };
+    });
 }
