@@ -99,6 +99,15 @@
   "col_break_approval",
   "approved_by",
   "signatory",
+  "sec_verification_approval",
+  "col_verifier_panel",
+  "verifier_comments",
+  "verifier_status",
+  "verified_on",
+  "col_approver_panel",
+  "approver_comments",
+  "approver_status",
+  "approved_on",
   "sec_terms",
   "standard_terms",
   "terms_preview",
@@ -125,7 +134,7 @@
    "in_filter": 1,
    "in_list_view": 1,
    "label": "Status",
-   "options": "Draft\nSubmitted\nVendor Confirmed\nPartially Paid\nFully Paid\nShipped\nDelivered\nCancelled",
+   "options": "Draft\nPending Verification\nVerification Returned\nPending Approval\nApproved\nPrinted\nSubmitted\nVendor Confirmed\nPartially Paid\nFully Paid\nShipped\nDelivered\nCancelled",
    "reqd": 1
   },
   {
@@ -637,6 +646,65 @@
    "fieldname": "signatory",
    "fieldtype": "Data",
    "label": "Authorized Signatory"
+  },
+  {
+   "fieldname": "sec_verification_approval",
+   "fieldtype": "Section Break",
+   "label": "Verification & Approval Panel (Internal Notes)"
+  },
+  {
+   "fieldname": "col_verifier_panel",
+   "fieldtype": "Column Break",
+   "label": "Verifier Audit & Comments"
+  },
+  {
+   "description": "Internal notes and comments by Verifier",
+   "fieldname": "verifier_comments",
+   "fieldtype": "Small Text",
+   "label": "Verifier Comments / Notes",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "verifier_status",
+   "fieldtype": "Select",
+   "label": "Verifier Status",
+   "options": "\nPending\nVerified\nReturned to Generator",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "verified_on",
+   "fieldtype": "Datetime",
+   "label": "Verified On",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_approver_panel",
+   "fieldtype": "Column Break",
+   "label": "Approver Audit & Comments"
+  },
+  {
+   "description": "Internal notes and comments by Approver",
+   "fieldname": "approver_comments",
+   "fieldtype": "Small Text",
+   "label": "Approver Comments / Notes",
+   "print_hide": 1
+  },
+  {
+   "fieldname": "approver_status",
+   "fieldtype": "Select",
+   "label": "Approver Status",
+   "options": "\nPending\nApproved\nReturned to Verifier",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_on",
+   "fieldtype": "Datetime",
+   "label": "Approved On",
+   "print_hide": 1,
+   "read_only": 1
   },
   {
    "fieldname": "sec_terms",

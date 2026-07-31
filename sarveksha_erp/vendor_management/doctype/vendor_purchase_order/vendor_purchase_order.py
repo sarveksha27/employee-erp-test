@@ -11,11 +11,83 @@ class VendorPurchaseOrder(Document):
 
     def validate(self):
         """Called on every Save. Validates data and recalculates totals."""
+        self.validate_creation_roles()
+        self.validate_generator_edit_rights()
+        self.track_workflow_audit_trail()
         self.sanitize_text_fields()
         self.validate_non_negative_values()
         self.calculate_grand_total()
         self.calculate_advance()
         self.validate_required_fields()
+
+    def validate_creation_roles(self):
+        """Ensure PO Verifier and PO Approver cannot create new POs."""
+        if self.is_new():
+            user_roles = set(frappe.get_roles(frappe.session.user))
+            allowed_creator_roles = {"PO Generator", "Procurement Manager", "System Manager", "Administrator"}
+            if not user_roles.intersection(allowed_creator_roles):
+                if "PO Verifier" in user_roles or "PO Approver" in user_roles:
+                    frappe.throw(
+                        _("PO Verifiers and Approvers cannot create new Purchase Orders."),
+                        frappe.PermissionError
+                    )
+
+    def validate_generator_edit_rights(self):
+        """Prevent PO Generator from modifying PO once generated / submitted for verification."""
+        if self.is_new():
+            return
+            
+        user_roles = set(frappe.get_roles(frappe.session.user))
+        admin_or_higher = {"PO Verifier", "PO Approver", "Procurement Manager", "System Manager", "Administrator"}
+        
+        # If user is PO Generator and does not have higher roles
+        if "PO Generator" in user_roles and not user_roles.intersection(admin_or_higher):
+            state = self.workflow_state or "Draft"
+            if state in ["Pending Verification", "Pending Approval", "Approved", "Printed"]:
+                frappe.throw(
+                    _("PO Generator cannot modify a Purchase Order once generated and submitted for verification."),
+                    frappe.PermissionError
+                )
+
+    def track_workflow_audit_trail(self):
+        """Update audit fields (verified_by, verified_on, approved_by, approved_on) on workflow transition."""
+        if self.is_new():
+            return
+
+        previous = self.get_doc_before_save()
+        if not previous:
+            return
+
+        old_state = previous.workflow_state
+        new_state = self.workflow_state
+
+        if old_state != new_state:
+            now = frappe.utils.now_datetime()
+
+            # Transition to Pending Approval (Verifier verified)
+            if new_state == "Pending Approval" and old_state == "Pending Verification":
+                self.verified_by = frappe.session.user
+                self.verified_on = now
+                self.verifier_status = "Verified"
+
+            # Transition to Verification Returned (Verifier returned to Generator)
+            elif new_state == "Verification Returned":
+                self.verified_by = frappe.session.user
+                self.verified_on = now
+                self.verifier_status = "Returned to Generator"
+
+            # Transition to Approved (Approver approved)
+            elif new_state == "Approved":
+                self.approved_by = frappe.session.user
+                self.approved_on = now
+                self.approver_status = "Approved"
+                self.status = "Approved"
+
+            # Transition from Pending Approval back to Pending Verification (Approver returned to Verifier)
+            elif new_state == "Pending Verification" and old_state == "Pending Approval":
+                self.approved_by = frappe.session.user
+                self.approved_on = now
+                self.approver_status = "Returned to Verifier"
 
     def before_submit(self):
         """Called just before the document is submitted (docstatus → 1)."""
@@ -197,7 +269,7 @@ class VendorPurchaseOrder(Document):
             self.gst_percentage = first.gst_percentage
         else:
             # Fallback for single item legacy POs
-            if self.is_lut_applicable and self.company and "Sarveksha Realty" in self.company:
+            if getattr(self, "is_lut_applicable", False) and self.company and "Sarveksha Realty" in self.company:
                 self.gst_percentage = 0.1
 
             rate = flt(self.rate)
@@ -295,3 +367,22 @@ class VendorPurchaseOrder(Document):
                   "Required role: Accounts Manager or Purchase Manager."),
                 frappe.PermissionError
             )
+
+
+def has_permission(doc, ptype="read", user=None):
+    """Custom permission check for Vendor Purchase Order."""
+    if not user:
+        user = frappe.session.user
+
+    user_roles = set(frappe.get_roles(user))
+
+    # Print Permission Guard
+    if ptype == "print":
+        admin_roles = {"Procurement Manager", "System Manager", "Administrator"}
+        if admin_roles.intersection(user_roles):
+            return True
+        state = (doc.workflow_state if doc else None) or "Draft"
+        if state not in ["Approved", "Printed"]:
+            return False
+
+    return True

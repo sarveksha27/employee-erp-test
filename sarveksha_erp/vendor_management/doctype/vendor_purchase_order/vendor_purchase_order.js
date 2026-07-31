@@ -7,6 +7,11 @@ frappe.ui.form.on('Vendor Purchase Order', {
     refresh: function(frm) {
         const colors = {
             'Draft': 'gray',
+            'Pending Verification': 'orange',
+            'Verification Returned': 'red',
+            'Pending Approval': 'blue',
+            'Approved': 'green',
+            'Printed': 'green',
             'Submitted': 'blue',
             'Vendor Confirmed': 'purple',
             'Partially Paid': 'orange',
@@ -21,11 +26,21 @@ frappe.ui.form.on('Vendor Purchase Order', {
             });
         }
 
-        if (frm.doc.docstatus === 1) {
+        // Configure Print Button & Menu Visibility based on Workflow Stage and User Roles
+        const is_manager = frappe.user.has_role('Procurement Manager') || frappe.user.has_role('System Manager') || frappe.user.has_role('Administrator');
+        const is_approved = (frm.doc.workflow_state === 'Approved' || frm.doc.workflow_state === 'Printed' || frm.doc.docstatus === 1);
+
+        if (is_approved) {
             frm.add_custom_button(__('Print PO'), function() {
                 frappe.set_route('print', 'Vendor Purchase Order', frm.doc.name);
             }, __('Actions'));
+        } else if (!is_manager) {
+            // Hide standard print menu for unapproved POs for regular users
+            frm.page.hide_menu_item(__('Print'));
         }
+
+        // Configure Verification & Approval Panel Dynamic Controls
+        setup_verification_approval_panel(frm);
 
         // Recalculate on every refresh to keep values consistent
         calculate_gst_and_totals(frm);
@@ -233,4 +248,35 @@ function set_port_filter(frm) {
         }
         return { filters: { 'is_active': 1 } };
     });
+}
+
+function setup_verification_approval_panel(frm) {
+    const user_roles = frappe.user.get_roles();
+    const is_verifier = user_roles.includes('PO Verifier') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager');
+    const is_approver = user_roles.includes('PO Approver') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager');
+    const is_generator = user_roles.includes('PO Generator');
+
+    const state = frm.doc.workflow_state || 'Draft';
+
+    // Verifier comments editable during Pending Verification stage
+    if (state === 'Pending Verification' && is_verifier) {
+        frm.set_df_property('verifier_comments', 'read_only', 0);
+    } else {
+        frm.set_df_property('verifier_comments', 'read_only', 1);
+    }
+
+    // Approver comments editable during Pending Approval stage
+    if (state === 'Pending Approval' && is_approver) {
+        frm.set_df_property('approver_comments', 'read_only', 0);
+    } else {
+        frm.set_df_property('approver_comments', 'read_only', 1);
+    }
+
+    // Lock fields for PO Generator once submitted for verification
+    if (is_generator && !is_verifier && !is_approver) {
+        if (['Pending Verification', 'Pending Approval', 'Approved', 'Printed'].includes(state)) {
+            frm.disable_form();
+            frm.dashboard.clear_comment_input();
+        }
+    }
 }

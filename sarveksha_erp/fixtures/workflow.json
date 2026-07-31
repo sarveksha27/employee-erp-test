@@ -112,190 +112,138 @@
   "transitions": [
    {
     "action": "Submit for Verification",
-    "allow_self_approval": 1,
     "allowed": "PO Generator",
+    "allow_self_approval": 1,
     "condition": null,
     "next_state": "Pending Verification",
     "send_email_to_creator": 0,
-    "state": "Draft",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Draft"
    },
    {
     "action": "Submit for Verification",
-    "allow_self_approval": 1,
     "allowed": "Procurement Manager",
+    "allow_self_approval": 1,
     "condition": null,
     "next_state": "Pending Verification",
     "send_email_to_creator": 0,
-    "state": "Draft",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Draft"
    },
    {
     "action": "Verify",
-    "allow_self_approval": 1,
     "allowed": "PO Verifier",
+    "allow_self_approval": 1,
     "condition": null,
     "next_state": "Pending Approval",
     "send_email_to_creator": 0,
-    "state": "Pending Verification",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Pending Verification"
    },
    {
     "action": "Verify",
-    "allow_self_approval": 1,
     "allowed": "Procurement Manager",
+    "allow_self_approval": 1,
     "condition": null,
     "next_state": "Pending Approval",
     "send_email_to_creator": 0,
-    "state": "Pending Verification",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Pending Verification"
    },
    {
-    "action": "Reject / Return",
-    "allow_self_approval": 1,
+    "action": "Return to Generator",
     "allowed": "PO Verifier",
+    "allow_self_approval": 1,
     "condition": null,
     "next_state": "Verification Returned",
     "send_email_to_creator": 0,
-    "state": "Pending Verification",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Pending Verification"
    },
    {
-    "action": "Reject / Return",
-    "allow_self_approval": 1,
+    "action": "Return to Generator",
     "allowed": "Procurement Manager",
+    "allow_self_approval": 1,
     "condition": null,
     "next_state": "Verification Returned",
     "send_email_to_creator": 0,
-    "state": "Pending Verification",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Pending Verification"
    },
    {
     "action": "Resubmit for Verification",
-    "allow_self_approval": 1,
     "allowed": "PO Generator",
+    "allow_self_approval": 1,
     "condition": null,
     "next_state": "Pending Verification",
     "send_email_to_creator": 0,
-    "state": "Verification Returned",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Verification Returned"
    },
    {
     "action": "Resubmit for Verification",
-    "allow_self_approval": 1,
     "allowed": "Procurement Manager",
+    "allow_self_approval": 1,
     "condition": null,
     "next_state": "Pending Verification",
     "send_email_to_creator": 0,
-    "state": "Verification Returned",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Verification Returned"
    },
    {
     "action": "Approve",
-    "allow_self_approval": 1,
     "allowed": "PO Approver",
+    "allow_self_approval": 1,
     "condition": null,
     "next_state": "Approved",
     "send_email_to_creator": 0,
-    "state": "Pending Approval",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Pending Approval"
    },
    {
     "action": "Approve",
-    "allow_self_approval": 1,
     "allowed": "Procurement Manager",
+    "allow_self_approval": 1,
     "condition": null,
     "next_state": "Approved",
     "send_email_to_creator": 0,
-    "state": "Pending Approval",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Pending Approval"
    },
    {
-    "action": "Reject / Return",
-    "allow_self_approval": 1,
+    "action": "Return to Verifier",
     "allowed": "PO Approver",
+    "allow_self_approval": 1,
     "condition": null,
-    "next_state": "Approval Returned",
+    "next_state": "Pending Verification",
     "send_email_to_creator": 0,
-    "state": "Pending Approval",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Pending Approval"
    },
    {
-    "action": "Reject / Return",
-    "allow_self_approval": 1,
+    "action": "Return to Verifier",
     "allowed": "Procurement Manager",
-    "condition": null,
-    "next_state": "Approval Returned",
-    "send_email_to_creator": 0,
-    "state": "Pending Approval",
-    "transition_tasks": null,
-    "workflow_builder_id": null
-   },
-   {
-    "action": "Resubmit for Approval",
     "allow_self_approval": 1,
-    "allowed": "PO Generator",
     "condition": null,
-    "next_state": "Pending Approval",
+    "next_state": "Pending Verification",
     "send_email_to_creator": 0,
-    "state": "Approval Returned",
-    "transition_tasks": null,
-    "workflow_builder_id": null
-   },
-   {
-    "action": "Resubmit for Approval",
-    "allow_self_approval": 1,
-    "allowed": "PO Verifier",
-    "condition": null,
-    "next_state": "Pending Approval",
-    "send_email_to_creator": 0,
-    "state": "Approval Returned",
-    "transition_tasks": null,
-    "workflow_builder_id": null
-   },
-   {
-    "action": "Resubmit for Approval",
-    "allow_self_approval": 1,
-    "allowed": "Procurement Manager",
-    "condition": null,
-    "next_state": "Pending Approval",
-    "send_email_to_creator": 0,
-    "state": "Approval Returned",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Pending Approval"
    },
    {
     "action": "Mark as Printed",
-    "allow_self_approval": 1,
     "allowed": "PO Generator",
+    "allow_self_approval": 1,
     "condition": null,
     "next_state": "Printed",
     "send_email_to_creator": 0,
-    "state": "Approved",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Approved"
    },
    {
     "action": "Mark as Printed",
+    "allowed": "PO Approver",
     "allow_self_approval": 1,
-    "allowed": "Procurement Manager",
     "condition": null,
     "next_state": "Printed",
     "send_email_to_creator": 0,
-    "state": "Approved",
-    "transition_tasks": null,
-    "workflow_builder_id": null
+    "state": "Approved"
+   },
+   {
+    "action": "Mark as Printed",
+    "allowed": "Procurement Manager",
+    "allow_self_approval": 1,
+    "condition": null,
+    "next_state": "Printed",
+    "send_email_to_creator": 0,
+    "state": "Approved"
    }
   ],
   "workflow_data": null,

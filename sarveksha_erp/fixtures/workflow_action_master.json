@@ -61,5 +61,19 @@
   "modified": "2026-07-30 21:40:56.427935",
   "name": "Mark as Printed",
   "workflow_action_name": "Mark as Printed"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-07-31 08:50:00.000000",
+  "name": "Return to Verifier",
+  "workflow_action_name": "Return to Verifier"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-07-31 08:50:00.000000",
+  "name": "Return to Generator",
+  "workflow_action_name": "Return to Generator"
  }
 ]

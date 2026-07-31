@@ -149,13 +149,9 @@ after_install = "sarveksha_erp.install.after_install"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+has_permission = {
+    "Vendor Purchase Order": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.has_permission",
+}
 
 # Document Events
 # ---------------
