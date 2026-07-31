@@ -16,8 +16,10 @@
   "col_break_header",
   "po_date",
   "company",
+  "letter_head",
   "company_gstin",
   "company_pan",
+  "company_address",
   "default_port",
   "sec_vendor",
   "vendor",
@@ -28,7 +30,6 @@
   "vendor_account_number",
   "vendor_ifsc",
   "sec_equipment",
-  "items",
   "equipment",
   "equipment_name",
   "hsn_code",
@@ -39,6 +40,9 @@
   "unit",
   "country_of_origin",
   "specification",
+  "add_equipment_btn",
+  "sec_equipment_summary",
+  "items",
   "sec_pricing",
   "currency",
   "exchange_rate",
@@ -115,7 +119,6 @@
   "sec_remarks",
   "remarks",
   "attachments",
-  "letter_head",
   "amended_from"
  ],
  "fields": [
@@ -176,6 +179,12 @@
    "read_only": 1
   },
   {
+   "fieldname": "company_address",
+   "fieldtype": "Small Text",
+   "label": "Company Address & Details",
+   "read_only": 1
+  },
+  {
    "fieldname": "default_port",
    "fieldtype": "Data",
    "label": "Default Port",
@@ -232,7 +241,12 @@
   {
    "fieldname": "sec_equipment",
    "fieldtype": "Section Break",
-   "label": "Equipment Line Items"
+   "label": "Enter Equipment Details"
+  },
+  {
+   "fieldname": "sec_equipment_summary",
+   "fieldtype": "Section Break",
+   "label": "Included Equipment Items Summary"
   },
   {
    "fieldname": "items",
@@ -247,27 +261,36 @@
    "label": "Equipment",
    "options": "Equipment",
    "reqd": 0,
-   "search_index": 1
+   "search_index": 1,
+   "hidden": 0
   },
   {
    "fieldname": "equipment_name",
    "fieldtype": "Data",
-   "label": "Equipment Name"
+   "label": "Equipment Name",
+   "hidden": 0,
+   "reqd": 0
   },
   {
    "fieldname": "hsn_code",
    "fieldtype": "Data",
-   "label": "HSN Code"
+   "label": "HSN Code",
+   "hidden": 0,
+   "reqd": 0
   },
   {
    "fieldname": "brand",
    "fieldtype": "Data",
-   "label": "Brand"
+   "label": "Brand",
+   "hidden": 0,
+   "reqd": 0
   },
   {
    "fieldname": "manufacturer",
    "fieldtype": "Data",
-   "label": "Manufacturer"
+   "label": "Manufacturer",
+   "hidden": 0,
+   "reqd": 0
   },
   {
    "fieldname": "col_break_equipment",
@@ -278,24 +301,36 @@
    "fieldname": "quantity",
    "fieldtype": "Float",
    "label": "Quantity",
-   "reqd": 0
+   "reqd": 0,
+   "hidden": 0
   },
   {
    "fieldname": "unit",
    "fieldtype": "Link",
    "label": "Unit of Measure",
-   "options": "UOM"
+   "options": "UOM",
+   "hidden": 0,
+   "reqd": 0
   },
   {
    "fieldname": "country_of_origin",
    "fieldtype": "Link",
    "label": "Country of Origin",
-   "options": "Country"
+   "options": "Country",
+   "hidden": 1,
+   "reqd": 0
   },
   {
    "fieldname": "specification",
    "fieldtype": "Text Editor",
-   "label": "Specification / Description"
+   "label": "Specification / Description",
+   "hidden": 0,
+   "reqd": 0
+  },
+  {
+   "fieldname": "add_equipment_btn",
+   "fieldtype": "Button",
+   "label": "+ Add Equipment to Table"
   },
   {
    "fieldname": "sec_pricing",
@@ -662,7 +697,8 @@
    "fieldname": "verifier_comments",
    "fieldtype": "Small Text",
    "label": "Verifier Comments / Notes",
-   "print_hide": 1
+   "print_hide": 1,
+   "read_only": 1
   },
   {
    "fieldname": "verifier_status",
@@ -689,7 +725,8 @@
    "fieldname": "approver_comments",
    "fieldtype": "Small Text",
    "label": "Approver Comments / Notes",
-   "print_hide": 1
+   "print_hide": 1,
+   "read_only": 1
   },
   {
    "fieldname": "approver_status",
@@ -745,7 +782,7 @@
   {
    "fieldname": "letter_head",
    "fieldtype": "Link",
-   "hidden": 1,
+   "hidden": 0,
    "label": "Letter Head",
    "options": "Letter Head",
    "print_hide": 1

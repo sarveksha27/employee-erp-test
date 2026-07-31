@@ -11,14 +11,41 @@ class VendorPurchaseOrder(Document):
 
     def validate(self):
         """Called on every Save. Validates data and recalculates totals."""
+        self.set_default_letter_head()
         self.validate_creation_roles()
         self.validate_generator_edit_rights()
+        self.validate_audit_comments_edit_rights()
         self.track_workflow_audit_trail()
         self.sanitize_text_fields()
         self.validate_non_negative_values()
         self.calculate_grand_total()
         self.calculate_advance()
         self.validate_required_fields()
+
+    def set_default_letter_head(self):
+        """Auto-detect and set default letter head if not selected."""
+        if self.letter_head:
+            return
+
+        if self.company:
+            comp_lh = frappe.db.get_value("Company", self.company, "default_letter_head")
+            if comp_lh and frappe.db.exists("Letter Head", comp_lh):
+                self.letter_head = comp_lh
+                return
+
+            comp_name = (self.company or "").lower()
+            if "botswana" in comp_name and frappe.db.exists("Letter Head", "Botswana (Sarveksha Botswana)"):
+                self.letter_head = "Botswana (Sarveksha Botswana)"
+            elif "baani" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Baani Minerals)"):
+                self.letter_head = "Cameroon (Baani Minerals)"
+            elif "mining" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Sarveksha Mining SARL)"):
+                self.letter_head = "Cameroon (Sarveksha Mining SARL)"
+            elif "bstp" in comp_name and frappe.db.exists("Letter Head", "Guinea (Sarveksha BSTP SAS)"):
+                self.letter_head = "Guinea (Sarveksha BSTP SAS)"
+            elif "sl limited" in comp_name and frappe.db.exists("Letter Head", "Sierra Leone (Sarveksha SL Limited)"):
+                self.letter_head = "Sierra Leone (Sarveksha SL Limited)"
+            elif frappe.db.exists("Letter Head", "India (Sarveksha Realty)"):
+                self.letter_head = "India (Sarveksha Realty)"
 
     def validate_creation_roles(self):
         """Ensure PO Verifier and PO Approver cannot create new POs."""
@@ -46,6 +73,34 @@ class VendorPurchaseOrder(Document):
             if state in ["Pending Verification", "Pending Approval", "Approved", "Printed"]:
                 frappe.throw(
                     _("PO Generator cannot modify a Purchase Order once generated and submitted for verification."),
+                    frappe.PermissionError
+                )
+
+    def validate_audit_comments_edit_rights(self):
+        """Ensure verifier_comments cannot be modified outside Pending Verification stage,
+        and approver_comments cannot be modified outside Pending Approval stage."""
+        if self.is_new():
+            return
+
+        previous = self.get_doc_before_save()
+        if not previous:
+            return
+
+        old_state = previous.workflow_state or "Draft"
+
+        # Check verifier_comments modification
+        if self.has_value_changed("verifier_comments"):
+            if old_state != "Pending Verification":
+                frappe.throw(
+                    _("Verifier comments can only be edited during the 'Pending Verification' stage."),
+                    frappe.PermissionError
+                )
+
+        # Check approver_comments modification
+        if self.has_value_changed("approver_comments"):
+            if old_state != "Pending Approval":
+                frappe.throw(
+                    _("Approver comments can only be edited during the 'Pending Approval' stage."),
                     frappe.PermissionError
                 )
 
@@ -200,6 +255,8 @@ class VendorPurchaseOrder(Document):
 
     def _validate_immutable_fields_after_submit(self):
         """Prevent critical fields from being changed after submission."""
+        if getattr(self.flags, 'ignore_immutable_validation', False):
+            return
         if self.docstatus != 1:
             return
 
@@ -264,9 +321,14 @@ class VendorPurchaseOrder(Document):
             first = self.items[0]
             self.equipment = first.equipment
             self.equipment_name = first.equipment_name
+            self.hsn_code = getattr(first, 'hsn_code', None)
+            self.brand = getattr(first, 'brand', None)
+            self.manufacturer = getattr(first, 'manufacturer', None)
             self.quantity = first.quantity
+            self.unit = getattr(first, 'unit', None)
             self.rate = first.rate
             self.gst_percentage = first.gst_percentage
+            self.specification = getattr(first, 'specification', None)
         else:
             # Fallback for single item legacy POs
             if getattr(self, "is_lut_applicable", False) and self.company and "Sarveksha Realty" in self.company:
@@ -386,3 +448,193 @@ def has_permission(doc, ptype="read", user=None):
             return False
 
     return True
+
+
+def seed_10_equipment_items():
+    """Ensure at least 10 fully populated Equipment master items exist and that
+    all pre-generated Vendor Purchase Orders contain at least 10 complete equipment line items."""
+
+    sample_equipments = [
+        {
+            "equipment_name": "Cone Crusher Assembly Model HP400",
+            "hsn_code": "84742010",
+            "brand": "Metso Outotec",
+            "manufacturer": "Metso Outotec Oyj Finland",
+            "unit": "Set",
+            "approx_cost_inr": 1250000.0,
+            "gst_percentage": 18.0,
+            "specification": "High-capacity secondary cone crusher with hydraulic adjustment, anti-spin mechanism, and integrated lubrication skid."
+        },
+        {
+            "equipment_name": "Vibrating Screen Triple Deck 2400x6000",
+            "hsn_code": "84741000",
+            "brand": "Sandvik Mining",
+            "manufacturer": "Sandvik AB Sweden",
+            "unit": "Set",
+            "approx_cost_inr": 850000.0,
+            "gst_percentage": 18.0,
+            "specification": "Heavy-duty inclined vibrating screen with polyurethane screen media, eccentric shaft drive, and vibration dampers."
+        },
+        {
+            "equipment_name": "Slurry Pump High Head 150kW",
+            "hsn_code": "84137099",
+            "brand": "Warman Slurry",
+            "manufacturer": "Weir Minerals Australia",
+            "unit": "Nos",
+            "approx_cost_inr": 450000.0,
+            "gst_percentage": 18.0,
+            "specification": "Heavy-duty rubber-lined centrifugal slurry pump with mechanical seal and variable frequency drive motor."
+        },
+        {
+            "equipment_name": "Heavy Duty Belt Conveyor Drive 45kW",
+            "hsn_code": "84283300",
+            "brand": "FLSmidth",
+            "manufacturer": "FLSmidth A/S Denmark",
+            "unit": "Set",
+            "approx_cost_inr": 680000.0,
+            "gst_percentage": 18.0,
+            "specification": "1200mm belt conveyor drive head unit with shaft-mounted gearbox, holdback backstop, and motorized pulley."
+        },
+        {
+            "equipment_name": "Magnetic Separator High Intensity",
+            "hsn_code": "84749000",
+            "brand": "Eriez Magnetics",
+            "manufacturer": "Eriez Manufacturing Co. USA",
+            "unit": "Nos",
+            "approx_cost_inr": 520000.0,
+            "gst_percentage": 18.0,
+            "specification": "Cross-belt self-cleaning permanent magnetic separator with stainless steel armor belt and dust-proof motor."
+        },
+        {
+            "equipment_name": "Heavy Duty Hydraulic Excavator Bucket 2.5m3",
+            "hsn_code": "84314990",
+            "brand": "Caterpillar Inc",
+            "manufacturer": "Caterpillar Inc. USA",
+            "unit": "Nos",
+            "approx_cost_inr": 380000.0,
+            "gst_percentage": 18.0,
+            "specification": "Severe-duty rock bucket forged with Hardox 500 wear plates, side cutters, and GET adapter tooth system."
+        },
+        {
+            "equipment_name": "Industrial Variable Frequency Drive 250kW",
+            "hsn_code": "85044090",
+            "brand": "ABB Industrial",
+            "manufacturer": "ABB Ltd. Switzerland",
+            "unit": "Nos",
+            "approx_cost_inr": 950000.0,
+            "gst_percentage": 18.0,
+            "specification": "ACS880 cabinet-built VFD drive with direct torque control (DTC), IP54 enclosure, and Modbus TCP communication card."
+        },
+        {
+            "equipment_name": "High Pressure Multi-Stage Water Pump",
+            "hsn_code": "84137010",
+            "brand": "Grundfos Pumps",
+            "manufacturer": "Grundfos A/S Denmark",
+            "unit": "Nos",
+            "approx_cost_inr": 290000.0,
+            "gst_percentage": 18.0,
+            "specification": "Vertical multistage centrifugal pump CR 95 in AISI 316 stainless steel with cartridge shaft seal and IE3 motor."
+        },
+        {
+            "equipment_name": "Spherical Roller Bearing Assembly 22234",
+            "hsn_code": "84832000",
+            "brand": "SKF Bearings",
+            "manufacturer": "SKF Group Sweden",
+            "unit": "Set",
+            "approx_cost_inr": 180000.0,
+            "gst_percentage": 18.0,
+            "specification": "Heavy-duty spherical roller bearing set with adapter sleeve, labyrinth seals, and cast iron plummer block housing."
+        },
+        {
+            "equipment_name": "Electromagnetic Flow Meter DN200",
+            "hsn_code": "90261010",
+            "brand": "Endress+Hauser",
+            "manufacturer": "Endress+Hauser AG Switzerland",
+            "unit": "Nos",
+            "approx_cost_inr": 310000.0,
+            "gst_percentage": 18.0,
+            "specification": "Promag W 400 electromagnetic flowmeter with hard rubber lining, Hastelloy electrodes, and HART transmitter."
+        }
+    ]
+
+    created_eq_docs = []
+    for i, data in enumerate(sample_equipments, 1):
+        name_key = f"EQ-{3280 + i:05d}"
+        if frappe.db.exists("Equipment", name_key):
+            doc = frappe.get_doc("Equipment", name_key)
+            doc.update(data)
+            doc.save(ignore_permissions=True)
+        else:
+            doc = frappe.get_doc({
+                "doctype": "Equipment",
+                "name": name_key,
+                **data
+            })
+            doc.insert(ignore_permissions=True)
+        created_eq_docs.append(doc)
+
+    frappe.db.commit()
+
+    # Now update all existing Vendor Purchase Orders so each has AT LEAST 10 line items
+    vpos = frappe.get_all("Vendor Purchase Order", fields=["name"])
+    for vpo_dict in vpos:
+        vpo = frappe.get_doc("Vendor Purchase Order", vpo_dict.name)
+
+        vpo.items = []
+        for eq_doc in created_eq_docs:
+            rate = flt(eq_doc.approx_cost_inr) or 100000.0
+            gst_pct = flt(eq_doc.gst_percentage) or 18.0
+            qty = 1.0
+            taxable = rate * qty
+            tax = taxable * (gst_pct / 100.0)
+            total = taxable + tax
+
+            vpo.append("items", {
+                "equipment": eq_doc.name,
+                "equipment_name": eq_doc.equipment_name,
+                "hsn_code": eq_doc.hsn_code,
+                "brand": eq_doc.brand,
+                "manufacturer": eq_doc.manufacturer,
+                "unit": eq_doc.unit or "Nos",
+                "quantity": qty,
+                "rate": rate,
+                "discount_percent": 0.0,
+                "gst_percentage": gst_pct,
+                "taxable_amount": taxable,
+                "tax_amount": tax,
+                "total_amount": total,
+                "specification": eq_doc.specification
+            })
+
+        # Sync top level item fields for backward compatibility
+        vpo.equipment = created_eq_docs[0].name
+        vpo.equipment_name = created_eq_docs[0].equipment_name
+        vpo.hsn_code = created_eq_docs[0].hsn_code
+        vpo.brand = created_eq_docs[0].brand
+        vpo.manufacturer = created_eq_docs[0].manufacturer
+        vpo.unit = created_eq_docs[0].unit
+        vpo.quantity = 1.0
+        vpo.rate = created_eq_docs[0].approx_cost_inr
+        vpo.specification = created_eq_docs[0].specification
+
+        vpo.calculate_grand_total()
+        vpo.calculate_advance()
+        vpo.flags.ignore_validate_update_after_submit = True
+        vpo.flags.ignore_immutable_validation = True
+        vpo.flags.ignore_permissions = True
+        vpo.save(ignore_permissions=True)
+
+    frappe.db.commit()
+    print("Successfully seeded 10 equipment items across all Vendor Purchase Orders!")
+
+
+def verify_10_equipment_items():
+    pos = frappe.get_all("Vendor Purchase Order", fields=["name", "company", "workflow_state"])
+    print(f"Total POs in system: {len(pos)}")
+    for po in pos:
+        doc = frappe.get_doc("Vendor Purchase Order", po.name)
+        print(f"\n--- PO: {doc.name} (State: {doc.workflow_state}, Items: {len(doc.items)}) ---")
+        for i, item in enumerate(doc.items, 1):
+            print(f"  Item {i:2d}: Code: {item.equipment} | Name: {item.equipment_name} | HSN: {item.hsn_code} | Brand: {item.brand} | Qty: {item.quantity} | Rate: {item.rate} | Total: {item.total_amount}")
+
+

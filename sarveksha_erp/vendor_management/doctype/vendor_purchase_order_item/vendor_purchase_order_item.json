@@ -48,7 +48,8 @@
   {
    "fieldname": "brand",
    "fieldtype": "Data",
-   "label": "Brand"
+   "label": "Brand",
+   "in_list_view": 1
   },
   {
    "fieldname": "manufacturer",

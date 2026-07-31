@@ -31,7 +31,6 @@ app_license = "mit"
 fixtures = [
     {"dt": "Company"},
     {"dt": "Fiscal Year"},
-    {"dt": "Fiscal Year Company"},
     {"dt": "Supplier Group"},
     {"dt": "Supplier"},
     {"dt": "Custom Field"},

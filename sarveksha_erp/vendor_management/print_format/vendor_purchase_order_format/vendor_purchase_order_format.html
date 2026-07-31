@@ -182,8 +182,13 @@
       <tr>
         <td>
           The bill should be raised in the name of <strong>{{ company.company_name }}</strong>.
-          {% if doc.company_gstin %}<br><strong>GSTIN:</strong> {{ doc.company_gstin }}{% endif %}
-          {% if doc.company_pan %}<br><strong>PAN:</strong> {{ doc.company_pan }}{% endif %}
+          {% if doc.company_address %}
+            <br><span style="color:#333; font-size:10px;">{{ doc.company_address | replace("\n", "<br>") }}</span>
+          {% else %}
+            {% if doc.company_gstin %}<br><strong>GSTIN:</strong> {{ doc.company_gstin }}{% endif %}
+            {% if doc.company_pan %}<br><strong>PAN:</strong> {{ doc.company_pan }}{% endif %}
+            {% if company.registration_details %}<br><span style="font-size:10px;">{{ company.registration_details }}</span>{% endif %}
+          {% endif %}
         </td>
       </tr>
       <tr><td style="border-top:none;">The bill and delivery challan must clearly mention the Purchase Order number.</td></tr>

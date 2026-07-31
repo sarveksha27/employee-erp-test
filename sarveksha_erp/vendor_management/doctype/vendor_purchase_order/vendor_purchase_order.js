@@ -46,6 +46,11 @@ frappe.ui.form.on('Vendor Purchase Order', {
         calculate_gst_and_totals(frm);
         set_port_filter(frm);
 
+        // Auto-detect letterhead if not set
+        if (!frm.doc.letter_head && frm.doc.company) {
+            frm.trigger('company');
+        }
+
         // Display standard terms preview on load
         if (frm.doc.standard_terms) {
             frm.trigger('standard_terms');
@@ -59,15 +64,16 @@ frappe.ui.form.on('Vendor Purchase Order', {
         if (!frm.doc.company) return;
 
         frappe.db.get_value('Company', frm.doc.company,
-            ['custom_default_port', 'default_currency', 'tax_id', 'country', 'custom_pan'],
+            ['custom_default_port', 'default_currency', 'tax_id', 'country', 'custom_pan', 'default_letter_head', 'registration_details'],
             function(r) {
                 if (r) {
                     if (r.custom_default_port) {
                         frm.set_value('default_port', r.custom_default_port);
                         set_port_filter(frm);
-                        frappe.db.exists('Port', r.custom_default_port).then(exists => {
+                        const first_port = r.custom_default_port.split(',')[0].trim();
+                        frappe.db.exists('Port', first_port).then(exists => {
                             if (exists) {
-                                frm.set_value('port', r.custom_default_port);
+                                frm.set_value('port', first_port);
                             }
                         });
                     }
@@ -78,12 +84,31 @@ frappe.ui.form.on('Vendor Purchase Order', {
                     frm.set_value('company_gstin', r.tax_id || '');
                     frm.set_value('company_pan', r.custom_pan || '');
 
-                    const country = (r.country || '').toLowerCase();
-                    let lh = 'India (Sarveksha Realty)';
-                    if (country.includes('india'))    lh = 'India (Sarveksha Realty)';
-                    else if (country.includes('cameroon')) lh = 'Cameroon (Sarveksha Mining SARL)';
-                    else if (country.includes('botswana')) lh = 'Botswana (Sarveksha Botswana)';
-                    frm.set_value('letter_head', lh);
+                    // Format & set Company Address & Details
+                    let details_arr = [];
+                    if (r.registration_details) details_arr.push(r.registration_details);
+                    if (r.tax_id) details_arr.push('Tax ID / GSTIN: ' + r.tax_id);
+                    if (r.custom_pan) details_arr.push('PAN: ' + r.custom_pan);
+
+                    if (details_arr.length > 0) {
+                        frm.set_value('company_address', details_arr.join('\n'));
+                    }
+
+                    // Letter Head selection: fetch default_letter_head from Company first
+                    if (r.default_letter_head) {
+                        frm.set_value('letter_head', r.default_letter_head);
+                    } else {
+                        const company_name = (frm.doc.company || '').toLowerCase();
+                        const country = (r.country || '').toLowerCase();
+                        let lh = 'India (Sarveksha Realty)';
+                        if (company_name.includes('botswana') || country.includes('botswana')) lh = 'Botswana (Sarveksha Botswana)';
+                        else if (company_name.includes('baani')) lh = 'Cameroon (Baani Minerals)';
+                        else if (company_name.includes('mining') || country.includes('cameroon')) lh = 'Cameroon (Sarveksha Mining SARL)';
+                        else if (company_name.includes('bstp') || country.includes('guinea')) lh = 'Guinea (Sarveksha BSTP SAS)';
+                        else if (company_name.includes('sl limited') || country.includes('sierra')) lh = 'Sierra Leone (Sarveksha SL Limited)';
+                        else if (country.includes('india')) lh = 'India (Sarveksha Realty)';
+                        frm.set_value('letter_head', lh);
+                    }
                 }
                 calculate_gst_and_totals(frm);
             }
@@ -118,6 +143,64 @@ frappe.ui.form.on('Vendor Purchase Order', {
     advance_percentage: function(frm) { calculate_gst_and_totals(frm); },
     vendor_gstin: function(frm) { calculate_gst_and_totals(frm); },
     is_lut_applicable: function(frm) { calculate_gst_and_totals(frm); },
+    // ─── INDIVIDUAL EQUIPMENT ENTRY TRIGGERS ──────────────────
+    equipment: function(frm) {
+        if (!frm.doc.equipment) return;
+
+        frappe.db.get_doc('Equipment', frm.doc.equipment).then(doc => {
+            frm.set_value('equipment_name', doc.equipment_name || '');
+            frm.set_value('hsn_code', doc.hsn_code || '');
+            frm.set_value('brand', doc.brand || '');
+            frm.set_value('manufacturer', doc.manufacturer || '');
+            frm.set_value('unit', doc.unit || 'Nos');
+            frm.set_value('specification', doc.specification || '');
+
+            const cost = flt(doc.approx_cost_inr) || flt(doc.last_purchase_cost_inr) || 10000;
+            const gst_pct = flt(doc.gst_percentage) || 18;
+
+            frm.set_value('rate', cost);
+            frm.set_value('gst_percentage', gst_pct);
+        });
+    },
+
+    add_equipment_btn: function(frm) {
+        if (!frm.doc.equipment && !frm.doc.equipment_name) {
+            frappe.msgprint(__('Please select an Equipment Code or enter Equipment Name before adding to table.'));
+            return;
+        }
+
+        let item = frm.add_child('items');
+        item.equipment = frm.doc.equipment || '';
+        item.equipment_name = frm.doc.equipment_name || '';
+        item.hsn_code = frm.doc.hsn_code || '';
+        item.brand = frm.doc.brand || '';
+        item.manufacturer = frm.doc.manufacturer || '';
+        item.quantity = flt(frm.doc.quantity) || 1;
+        item.unit = frm.doc.unit || 'Nos';
+        item.rate = flt(frm.doc.rate) || 0;
+        item.discount_percent = flt(frm.doc.discount_percent) || 0;
+        item.gst_percentage = flt(frm.doc.gst_percentage) || 18;
+        item.specification = frm.doc.specification || '';
+
+        frm.refresh_field('items');
+        calculate_gst_and_totals(frm);
+
+        // Reset individual input fields for next entry
+        frm.set_value('equipment', '');
+        frm.set_value('equipment_name', '');
+        frm.set_value('hsn_code', '');
+        frm.set_value('brand', '');
+        frm.set_value('manufacturer', '');
+        frm.set_value('quantity', 1);
+        frm.set_value('rate', 0);
+        frm.set_value('specification', '');
+
+        frappe.show_alert({
+            message: __('Equipment item added to order table!'),
+            indicator: 'green'
+        });
+    },
+
     standard_terms: function(frm) {
         if (frm.doc.standard_terms) {
             frappe.db.get_value('Terms and Conditions', frm.doc.standard_terms, 'terms', (r) => {
@@ -252,28 +335,33 @@ function set_port_filter(frm) {
 
 function setup_verification_approval_panel(frm) {
     const user_roles = frappe.user.get_roles();
-    const is_verifier = user_roles.includes('PO Verifier') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager');
-    const is_approver = user_roles.includes('PO Approver') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager');
+    const has_verifier_role = user_roles.includes('PO Verifier') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager');
+    const has_approver_role = user_roles.includes('PO Approver') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager');
     const is_generator = user_roles.includes('PO Generator');
 
     const state = frm.doc.workflow_state || 'Draft';
 
-    // Verifier comments editable during Pending Verification stage
-    if (state === 'Pending Verification' && is_verifier) {
+    // 1. Verifier comments: ONLY editable during 'Pending Verification' stage by authorized verifiers
+    if (state === 'Pending Verification' && has_verifier_role) {
         frm.set_df_property('verifier_comments', 'read_only', 0);
     } else {
         frm.set_df_property('verifier_comments', 'read_only', 1);
     }
 
-    // Approver comments editable during Pending Approval stage
-    if (state === 'Pending Approval' && is_approver) {
+    // 2. Approver comments: ONLY editable during 'Pending Approval' stage by authorized approvers
+    if (state === 'Pending Approval' && has_approver_role) {
         frm.set_df_property('approver_comments', 'read_only', 0);
     } else {
         frm.set_df_property('approver_comments', 'read_only', 1);
     }
 
-    // Lock fields for PO Generator once submitted for verification
-    if (is_generator && !is_verifier && !is_approver) {
+    // 3. Ensure audit metadata fields are permanently read-only
+    ['verified_by', 'verified_on', 'verifier_status', 'approved_by', 'approved_on', 'approver_status', 'prepared_by'].forEach(field => {
+        frm.set_df_property(field, 'read_only', 1);
+    });
+
+    // 4. Lock entire form for PO Generator once submitted for verification
+    if (is_generator && !user_roles.includes('Procurement Manager') && !user_roles.includes('System Manager')) {
         if (['Pending Verification', 'Pending Approval', 'Approved', 'Printed'].includes(state)) {
             frm.disable_form();
             frm.dashboard.clear_comment_input();
