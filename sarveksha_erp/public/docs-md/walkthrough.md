@@ -1,101 +1,87 @@
-# Sarveksha ERP — Vendor Purchase Order Presentation Walkthrough
+# Sarveksha ERP — System Walkthrough Guide
 
-## Executive Summary
+## 📌 Executive Overview
+Sarveksha ERP provides an end-to-end procurement and vendor management solution designed for industrial equipment purchasing across global operating entities (**India, Botswana, Cameroon, Guinea, and Sierra Leone**). 
 
-This walkthrough presents the end-to-end enhancements implemented in the **Vendor Purchase Order (VPO)** module for Sarveksha ERP. The updates focus on streamlining procurement workflows, eliminating confusing pop-up modals in favor of direct form inputs, ensuring complete equipment data (10+ items per PO with HSN codes), enabling automatic company letterhead detection with manual override options, enforcing multi-stage workflow security, and optimizing fixture data structures.
-
----
-
-## 🌟 Key Features & Improvements
-
-### 1. Direct Equipment Form Entry (No Pop-ups)
-> [!NOTE]
-> **Before**: Adding or modifying equipment items forced users into nested modal dialog pop-ups for every line item.  
-> **Now**: Equipment details are entered directly into dedicated form fields on the main page.
-
-- **Form Fields**: `Equipment Code`, `Equipment Name`, `HSN Code`, `Brand`, `Manufacturer`, `Quantity`, `Unit of Measure`, `Unit Rate`, `GST %`, and `Specification`.
-- **Auto-Fill**: Selecting an `Equipment Code` automatically populates HSN code, brand, manufacturer, unit rate, GST percentage, and technical specifications.
-- **Action Button**: Primary **`+ Add Equipment to Table`** button adds the item row to the summary table, recalculates grand totals, clears the entry fields for immediate next entry, and triggers a confirmation notification.
-- **Summary Table**: Dedicated **Included Equipment Items Summary** table displays all 10 key columns in list view without requiring row dialogs.
+This walkthrough outlines how users interact with the system—from creating a Purchase Order to item entry, multi-tier approvals, and generating branded purchase documents.
 
 ---
 
-### 2. Complete Sample Data (10+ Equipment Items with HSN Codes)
-> [!TIP]
-> All pre-generated Purchase Orders now feature at least **10 fully populated equipment line items**.
+## 📑 Step-by-Step Operational Walkthrough
 
-- **Equipment Master**: Created/updated 10 complete equipment master records (`EQ-03281` through `EQ-03290`).
-- **Complete Attributes**: Every line item includes official HSN codes (e.g., `84742010`, `84741000`, `84137099`), brand, manufacturer, rates, GST calculations, and full specifications.
-- **Verified Across All Workflow States**: Demo POs (`SRIPO-0001` through `SRIPO-0005`) across `Draft`, `Pending Verification`, `Pending Approval`, and `Approved` states contain complete 10-item summary tables.
-
----
-
-### 3. Automatic Company Letter Head Detection
-> [!IMPORTANT]
-> Automatic letterhead detection matching company settings and country rules while keeping the Letter Head option selector fully visible on the form.
-
-- **Auto-Detection Matrix**:
-  - `Sarveksha Botswana` $\rightarrow$ `Botswana (Sarveksha Botswana)`
-  - `Baani Minerals` $\rightarrow$ `Cameroon (Baani Minerals)`
-  - `Sarveksha Mining SARL` $\rightarrow$ `Cameroon (Sarveksha Mining SARL)`
-  - `Sarveksha BSTP SAS` $\rightarrow$ `Guinea (Sarveksha BSTP SAS)`
-  - `Sarveksha SL Limited` / `Odhav` $\rightarrow$ `Sierra Leone (Sarveksha SL Limited)`
-  - `Sarveksha Realty` $\rightarrow$ `India (Sarveksha Realty)`
-- **Manual Override Option**: The `letter_head` dropdown is positioned right under the **Company** selector in the document header, enabling users to review or manually select any alternative letterhead.
+### 1. Order Initialization & Company Selection
+- **Select Operating Entity**: Choose the Sarveksha company raising the order (e.g., *Sarveksha Botswana Proprietary Limited*).
+  - **Automatic Letterhead Detection**: The system automatically detects and applies the appropriate company letterhead (e.g., *Botswana (Sarveksha Botswana)*). Users can also select an alternative letterhead from the visible dropdown if needed.
+  - **Automatic Port Filtering**: Customs and delivery ports are automatically filtered to show options relevant to the selected company's region (e.g., *Gaborone Dry Port*, *Walvis Bay*).
+  - **Tax & Address Auto-Fill**: Company GSTIN, PAN, and address details automatically populate on the document.
+- **Select Vendor**: Choose the supplier. Vendor bank accounts, payment details, and registered addresses auto-populate instantly.
 
 ---
 
-### 4. Role-Based Workflow Security & Immutability
-- **Audit Immutability**: `Verifier Comments` and `Approver Comments` are locked to their respective workflow stages (`Pending Verification` and `Pending Approval`), preventing cross-role edits.
-- **Server-Side Guard**: Backend validation (`validate_audit_comments_edit_rights`) blocks unauthorized API modifications.
-- **Document Locking**: Submitted/Approved POs lock critical header fields (`vendor`, `company`, `equipment`, `grand_total`) to prevent tampering after approval.
+### 2. Fast Equipment Line Item Entry
+- **Direct Input Fields**: Add equipment items directly on the main form screen without any confusing pop-up windows or dialogs.
+- **Auto-Populating Details**: Select an **Equipment Code** (e.g., `EQ-03281`), and the system automatically fills:
+  - Equipment Name & Model
+  - Official HSN / SAC Code (for GST compliance)
+  - Brand & Manufacturer Name
+  - Standard Unit Rate & Applicable GST %
+  - Technical Specifications
+- **One-Click Item Addition**: Click **`+ Add Equipment to Table`** to insert the line item into the summary table. The system recalculates order totals, shows a confirmation message, and clears the input fields for the next item.
+- **Clear Equipment Summary Table**: All added items appear in a clean table displaying item code, description, HSN code, brand, quantity, rate, GST, and total amounts.
 
 ---
 
-### 5. Repository & Fixture Size Optimization
-> [!WARNING]
-> Eliminating a 55 MB parent-child fixture duplication issue.
-
-- **Root Cause Identified**: `Fiscal Year Company` was listed alongside `Fiscal Year` in `hooks.py`, creating a recursive duplication loop during `export-fixtures`.
-- **Action Taken**: Deduplicated database tables, removed `Fiscal Year Company` from `hooks.py`, and re-exported clean fixtures.
-- **Results**:
-  - `fiscal_year.json`: **9.5 MB $\rightarrow$ 2.6 KB**
-  - `fiscal_year_company.json` (45 MB): **Removed**
-  - Total Fixture Directory: **58 MB $\rightarrow$ 3.2 MB** (~95% reduction).
+### 3. Shipping, Logistics & Commercial Terms
+- **Destination & Port**: Pick the receiving warehouse and delivery port.
+- **Logistics Tracking**: Record shipment types, container numbers, and attach shipping documents (Commercial Invoice, Bill of Lading, Packing List, Certificate of Origin).
+- **Payment Structure**: Define advance payment percentages, second installments, and final delivery payments. The system automatically calculates advance and balance amounts.
+- **Terms & Conditions**: Select pre-defined standard terms or add custom agreement clauses.
 
 ---
 
-## 📽️ Live Demonstration Flow
+### 4. Multi-Stage Approval & Audit Workflow
+The procurement process follows a strict 3-stage security and audit flow:
 
-```mermaid
-flowchart TD
-    A["Select Company & Vendor"] --> B["Auto-Detect Letterhead & Default Port"]
-    B --> C["Enter Equipment Code in Direct Field"]
-    C --> D["Auto-Fill Name, HSN Code, Brand, Rate & Specs"]
-    D --> E["Click '+ Add Equipment to Table'"]
-    E --> F["Summary Table Updates & Totals Recalculate"]
-    F --> G["Submit PO -> Workflow Verification & Approval"]
+1. **Draft Stage (PO Generator)**
+   - Procurement team fills order details and submits the document. State changes to **Pending Verification**.
+2. **Verification Stage (PO Verifier)**
+   - Verifier audits equipment specs, HSN codes, and pricing.
+   - Verifier enters official review comments.
+   - Can either **Return to Generator** for revisions or **Verify & Forward** to Approver.
+3. **Approval Stage (PO Approver / Manager)**
+   - Management checks financial budgets and commercial terms.
+   - Approver adds final authorization notes and clicks **Approve**.
+- **Data Protection**: Audit notes can only be modified by the designated role during their respective stage. Approved orders are locked against unauthorized changes.
+
+---
+
+### 5. Branded Purchase Order Generation & Printing
+- **One-Click Print**: Once approved, the **Print PO** button becomes active.
+- **Professional Layout**: Generates a clean PDF document containing:
+  - Official Company Letterhead Header & Logo
+  - Document Naming Series & Dates
+  - Complete Company and Vendor Details
+  - Structured Equipment Table with HSN Codes & Technical Specs
+  - Tax Breakdowns (CGST, SGST, IGST / International Rates)
+  - Payment Terms, Remarks & Terms & Conditions
+  - Signature & Authorization Blocks
+
+---
+
+## 🔄 Quick Visual Workflow Summary
+
 ```
-
-### Demonstration Steps:
-1. **Open Purchase Order Form**:
-   - Navigate to **Vendor Purchase Order** $\rightarrow$ Click **New**.
-2. **Observe Header Auto-Detection**:
-   - Select **Company**: `Sarveksha Botswana Proprietary Limited`.
-   - Notice **Letter Head** instantly populates `Botswana (Sarveksha Botswana)` while remaining editable in the UI.
-3. **Add Equipment Item Directly**:
-   - In **Enter Equipment Details**, select `EQ-03281`.
-   - Observe `Equipment Name`, `HSN Code` (`84742010`), `Brand` (`Metso Outotec`), `Unit Rate`, and `Specification` auto-fill directly into individual fields.
-   - Click **`+ Add Equipment to Table`**.
-   - Notice toast confirmation, summary table row addition, and automatic resetting of input fields.
-4. **Inspect Existing Pre-Generated POs**:
-   - Open `SRIPO-0001` or `SRIPO-0004`.
-   - Verify all 10 equipment items are listed with complete HSN codes and breakdown totals.
-
----
-
-## 📦 Repository & Branch Verification
-
-- **Branch**: `umesh-test`
-- **Remote**: `upstream` (`git@github.com:manikkDev/employee-erp-test.git`)
-- **Status**: Clean, committed, and pushed up-to-date (`Commit: 2bc4117`).
+ [ Select Company ]  ──> Auto-detects Letterhead & Regional Clearance Ports
+         │
+         ▼
+ [ Equipment Entry ] ──> Select Equipment -> Auto-fill HSN & Specs -> Click "+ Add"
+         │
+         ▼
+ [ Commercial Terms ]──> Set Payment Terms, Advance %, Delivery & Shipping Docs
+         │
+         ▼
+ [ 3-Stage Audit ]   ──> Draft ──> Verified (Auditor) ──> Approved (Manager)
+         │
+         ▼
+ [ Print Branded PO ]──> Generate PDF with Letterhead, HSN Codes & Signature Blocks
+```
