@@ -92,15 +92,15 @@ class VendorPurchaseOrder(Document):
         # If user is PO Generator and does not have higher roles
         if "PO Generator" in user_roles and not user_roles.intersection(admin_or_higher):
             state = self.workflow_state or "Draft"
-            if state in ["Pending Verification", "Pending Approval", "Approved", "Printed"]:
+            if state in ["Generated", "Verified (Ready for Approval)", "Approved"]:
                 frappe.throw(
                     _("PO Generator cannot modify a Purchase Order once generated and submitted for verification."),
                     frappe.PermissionError
                 )
 
     def validate_audit_comments_edit_rights(self):
-        """Ensure verifier_comments cannot be modified outside Pending Verification stage,
-        and approver_comments cannot be modified outside Pending Approval stage."""
+        """Ensure verifier_comments cannot be modified outside Generated stage,
+        and approver_comments cannot be modified outside Verified (Ready for Approval) stage."""
         if self.is_new():
             return
 
@@ -112,17 +112,17 @@ class VendorPurchaseOrder(Document):
 
         # Check verifier_comments modification
         if self.has_value_changed("verifier_comments"):
-            if old_state != "Pending Verification":
+            if old_state != "Generated":
                 frappe.throw(
-                    _("Verifier comments can only be edited during the 'Pending Verification' stage."),
+                    _("Verifier comments can only be edited during the 'Generated' stage."),
                     frappe.PermissionError
                 )
 
         # Check approver_comments modification
         if self.has_value_changed("approver_comments"):
-            if old_state != "Pending Approval":
+            if old_state != "Verified (Ready for Approval)":
                 frappe.throw(
-                    _("Approver comments can only be edited during the 'Pending Approval' stage."),
+                    _("Approver comments can only be edited during the 'Verified (Ready for Approval)' stage."),
                     frappe.PermissionError
                 )
 
@@ -141,14 +141,14 @@ class VendorPurchaseOrder(Document):
         if old_state != new_state:
             now = frappe.utils.now_datetime()
 
-            # Transition to Pending Approval (Verifier verified)
-            if new_state == "Pending Approval" and old_state == "Pending Verification":
+            # Transition to Verified (Ready for Approval) (Verifier verified)
+            if new_state == "Verified (Ready for Approval)" and old_state == "Generated":
                 self.verified_by = frappe.session.user
                 self.verified_on = now
                 self.verifier_status = "Verified"
 
-            # Transition to Verification Returned (Verifier returned to Generator)
-            elif new_state == "Verification Returned":
+            # Transition to Draft (Verifier returned to Generator)
+            elif new_state == "Draft" and old_state == "Generated":
                 self.verified_by = frappe.session.user
                 self.verified_on = now
                 self.verifier_status = "Returned to Generator"
@@ -160,8 +160,8 @@ class VendorPurchaseOrder(Document):
                 self.approver_status = "Approved"
                 self.status = "Approved"
 
-            # Transition from Pending Approval back to Pending Verification (Approver returned to Verifier)
-            elif new_state == "Pending Verification" and old_state == "Pending Approval":
+            # Transition from Verified (Ready for Approval) back to Generated (Approver returned to Verifier)
+            elif new_state == "Generated" and old_state == "Verified (Ready for Approval)":
                 self.approved_by = frappe.session.user
                 self.approved_on = now
                 self.approver_status = "Returned to Verifier"
@@ -466,10 +466,25 @@ def has_permission(doc, ptype="read", user=None):
         if admin_roles.intersection(user_roles):
             return True
         state = (doc.workflow_state if doc else None) or "Draft"
-        if state not in ["Approved", "Printed"]:
+        if state not in ["Approved"]:
             return False
 
     return True
+
+
+def get_permission_query_conditions(user=None):
+    """Restrict PO Approver to only view Verified (Ready for Approval) and Approved POs."""
+    if not user:
+        user = frappe.session.user
+
+    user_roles = set(frappe.get_roles(user))
+    admin_roles = {"Procurement Manager", "System Manager", "Administrator"}
+
+    # If the user is an Approver and does not have administrative roles, restrict view
+    if "PO Approver" in user_roles and not user_roles.intersection(admin_roles):
+        return "(`tabVendor Purchase Order`.workflow_state in ('Verified (Ready for Approval)', 'Approved'))"
+    
+    return ""
 
 
 def seed_10_equipment_items():

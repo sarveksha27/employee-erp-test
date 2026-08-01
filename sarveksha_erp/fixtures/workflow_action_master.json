@@ -2,23 +2,44 @@
  {
   "docstatus": 0,
   "doctype": "Workflow Action Master",
-  "modified": "2026-07-30 01:40:39.742523",
+  "modified": "2026-08-01 18:00:00.000000",
   "name": "Approve",
   "workflow_action_name": "Approve"
  },
  {
   "docstatus": 0,
   "doctype": "Workflow Action Master",
-  "modified": "2026-07-30 01:40:39.744402",
+  "modified": "2026-08-01 18:00:00.000000",
   "name": "Reject",
   "workflow_action_name": "Reject"
  },
  {
   "docstatus": 0,
   "doctype": "Workflow Action Master",
-  "modified": "2026-07-30 01:40:39.746234",
+  "modified": "2026-08-01 18:00:00.000000",
   "name": "Review",
   "workflow_action_name": "Review"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-01 18:00:00.000000",
+  "name": "Generate PO",
+  "workflow_action_name": "Generate PO"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-01 18:00:00.000000",
+  "name": "Verify",
+  "workflow_action_name": "Verify"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-08-01 18:00:00.000000",
+  "name": "Send Back",
+  "workflow_action_name": "Send Back"
  },
  {
   "docstatus": 0,
@@ -26,13 +47,6 @@
   "modified": "2026-07-30 21:40:56.407151",
   "name": "Submit for Verification",
   "workflow_action_name": "Submit for Verification"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow Action Master",
-  "modified": "2026-07-30 21:40:56.413806",
-  "name": "Verify",
-  "workflow_action_name": "Verify"
  },
  {
   "docstatus": 0,

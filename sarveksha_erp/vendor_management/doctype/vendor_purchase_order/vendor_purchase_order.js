@@ -7,28 +7,109 @@ frappe.ui.form.on('Vendor Purchase Order', {
     refresh: function(frm) {
         const colors = {
             'Draft': 'gray',
-            'Pending Verification': 'orange',
-            'Verification Returned': 'red',
-            'Pending Approval': 'blue',
+            'Generated': 'orange',
+            'Verified (Ready for Approval)': 'blue',
             'Approved': 'green',
-            'Printed': 'green',
-            'Submitted': 'blue',
-            'Vendor Confirmed': 'purple',
-            'Partially Paid': 'orange',
-            'Fully Paid': 'green',
-            'Shipped': 'teal',
-            'Delivered': 'green',
             'Cancelled': 'red',
         };
-        if (frm.doc.status && colors[frm.doc.status]) {
-            frm.set_indicator_formatter('status', function(doc) {
-                return colors[doc.status] || 'gray';
+        if (frm.doc.workflow_state && colors[frm.doc.workflow_state]) {
+            frm.set_indicator_formatter('workflow_state', function(doc) {
+                return colors[doc.workflow_state] || 'gray';
             });
         }
 
+        // Hide standard workflow actions menu
+        if (frm.states) {
+            frm.states.show_actions = function() {};
+            frm.page.clear_actions_menu();
+        }
+
+        // Hide manual status and workflow_state selection fields from the form
+        frm.toggle_display('status', false);
+        frm.toggle_display('workflow_state', false);
+
+        // Render custom buttons based on workflow state & user roles
+        const state = frm.doc.workflow_state || 'Draft';
+        const user_roles = frappe.user.get_roles();
+        const is_manager = user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
+
+        // Helper function to apply workflow action
+        const apply_action = function(action_name) {
+            frappe.dom.freeze();
+            frappe.xcall("frappe.model.workflow.apply_workflow", {
+                doc: frm.doc,
+                action: action_name
+            }).then(doc => {
+                frappe.model.sync(doc);
+                frm.reload_doc();
+                frappe.show_alert({
+                    message: __("Action '{0}' applied successfully!", [action_name]),
+                    indicator: 'green'
+                });
+            }).catch(err => {
+                frappe.msgprint(__("Error applying action: ") + err.message);
+            }).finally(() => {
+                frappe.dom.unfreeze();
+            });
+        };
+
+        // Clear existing custom buttons first
+        frm.clear_custom_buttons();
+
+        if (frm.doc.docstatus === 0 && !frm.doc.__islocal && !frm.doc.__unsaved) {
+            if (state === 'Draft' && (user_roles.includes('PO Generator') || is_manager)) {
+                frm.add_custom_button(__('Generate PO'), function() {
+                    apply_action('Generate PO');
+                });
+            }
+
+            else if (state === 'Generated' && (user_roles.includes('PO Verifier') || is_manager)) {
+                frm.add_custom_button(__('Verify'), function() {
+                    apply_action('Verify');
+                });
+
+                frm.add_custom_button(__('Send Back'), function() {
+                    frappe.prompt([
+                        {
+                            label: __('Reason / Corrective Action Required'),
+                            fieldname: 'remarks',
+                            fieldtype: 'Small Text',
+                            reqd: 1
+                        }
+                    ], function(values) {
+                        frm.set_value('verifier_comments', values.remarks);
+                        frm.save().then(() => {
+                            apply_action('Send Back');
+                        });
+                    }, __('Send Back to Generator'), __('Submit'));
+                });
+            }
+
+            else if (state === 'Verified (Ready for Approval)' && (user_roles.includes('PO Approver') || is_manager)) {
+                frm.add_custom_button(__('Approve'), function() {
+                    apply_action('Approve');
+                });
+
+                frm.add_custom_button(__('Send Back'), function() {
+                    frappe.prompt([
+                        {
+                            label: __('Reason / Corrective Action Required'),
+                            fieldname: 'remarks',
+                            fieldtype: 'Small Text',
+                            reqd: 1
+                        }
+                    ], function(values) {
+                        frm.set_value('approver_comments', values.remarks);
+                        frm.save().then(() => {
+                            apply_action('Send Back');
+                        });
+                    }, __('Send Back to Verifier'), __('Submit'));
+                });
+            }
+        }
+
         // Configure Print Button & Menu Visibility based on Workflow Stage and User Roles
-        const is_manager = frappe.user.has_role('Procurement Manager') || frappe.user.has_role('System Manager') || frappe.user.has_role('Administrator');
-        const is_approved = (frm.doc.workflow_state === 'Approved' || frm.doc.workflow_state === 'Printed' || frm.doc.docstatus === 1);
+        const is_approved = (frm.doc.workflow_state === 'Approved' || frm.doc.docstatus === 1);
 
         if (is_approved) {
             frm.add_custom_button(__('Print PO'), function() {
@@ -362,15 +443,15 @@ function setup_verification_approval_panel(frm) {
 
     const state = frm.doc.workflow_state || 'Draft';
 
-    // 1. Verifier comments: ONLY editable during 'Pending Verification' stage by authorized verifiers
-    if (state === 'Pending Verification' && has_verifier_role) {
+    // 1. Verifier comments: ONLY editable during 'Generated' stage by authorized verifiers
+    if (state === 'Generated' && has_verifier_role) {
         frm.set_df_property('verifier_comments', 'read_only', 0);
     } else {
         frm.set_df_property('verifier_comments', 'read_only', 1);
     }
 
-    // 2. Approver comments: ONLY editable during 'Pending Approval' stage by authorized approvers
-    if (state === 'Pending Approval' && has_approver_role) {
+    // 2. Approver comments: ONLY editable during 'Verified (Ready for Approval)' stage by authorized approvers
+    if (state === 'Verified (Ready for Approval)' && has_approver_role) {
         frm.set_df_property('approver_comments', 'read_only', 0);
     } else {
         frm.set_df_property('approver_comments', 'read_only', 1);
@@ -383,7 +464,7 @@ function setup_verification_approval_panel(frm) {
 
     // 4. Lock entire form for PO Generator once submitted for verification
     if (is_generator && !user_roles.includes('Procurement Manager') && !user_roles.includes('System Manager')) {
-        if (['Pending Verification', 'Pending Approval', 'Approved', 'Printed'].includes(state)) {
+        if (['Generated', 'Verified (Ready for Approval)', 'Approved'].includes(state)) {
             frm.disable_form();
             frm.dashboard.clear_comment_input();
         }

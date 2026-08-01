@@ -152,6 +152,10 @@ has_permission = {
     "Vendor Purchase Order": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.has_permission",
 }
 
+permission_query_conditions = {
+    "Vendor Purchase Order": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.get_permission_query_conditions",
+}
+
 # Document Events
 # ---------------
 # Hook on document methods and events
