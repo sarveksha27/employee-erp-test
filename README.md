@@ -66,10 +66,17 @@ The workflow replaces standard manual state changes with top-level, role-specifi
 ```
 
 ### Automatic Transitions & Rules (MoM Compliance)
-1. **No Manual Status Select**: The `workflow_state` is read-only and automatically updated based on the action button clicked.
-2. **Auto-Save before Actions**: The frontend automatically calls `frm.save()` before triggering workflow RPC calls, preventing mismatches from unsaved user changes.
+1. **Yet to be Verified (Generated)**: When a PO Generator creates a document, the initial status is `Draft`. Once they click `Send Forward` (Generate PO), the document's state transitions to `Generated` (which represents **Yet to be Verified**). It is no longer in the `Draft` state, and the Generator is locked out of making further edits.
+2. **No Manual Status Select**: The `workflow_state` is read-only and automatically updated based on the action button clicked.
 3. **List View Visibility**: Only **Pending Approval** (Generated, Verified) and **Approved** POs are visible in the PO list view for verification/approval roles; all other draft stages are filtered out.
 4. **Send Back Remarks**: Clicking `Send Back` prompts the user for remarks, writes them to `verifier_comments` or `approver_comments`, and redirects the document back.
+
+### Custom Button & Print Logic Modifications
+* **Top-Level Exclusive Buttons**: The custom workflow action buttons (`Send Forward` / `Send Back`) are exposed as prominent top-level buttons on the form, avoiding nested dropdowns.
+  * **Primary Styling**: `Send Forward` is styled as a primary action button (`primary`).
+  * **Danger Styling**: `Send Back` is styled as a danger action button (`danger`).
+* **Unsaved & New Documents Support**: Workflow buttons are shown on all editable forms (`docstatus === 0`), even if the form has unsaved edits or is new (`__islocal` / `__unsaved`). When clicked, the script automatically triggers a form save (`frm.save()`) first before running the workflow RPC transition, ensuring no changes are lost.
+* **Toolbar Print Guarding**: The default printer icon/button in the top-right toolbar (`frm.page.btn_print`) and the standard Print/PDF menu options are completely hidden (`frm.page.set_print_btn_display(false)`) for all unapproved documents. Printing is restricted to approved VPOs and authorized roles.
 
 ---
 
