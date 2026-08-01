@@ -12,6 +12,7 @@ class VendorPurchaseOrder(Document):
     def validate(self):
         """Called on every Save. Validates data and recalculates totals."""
         self.set_default_letter_head()
+        self.set_default_terms()
         self.validate_creation_roles()
         self.validate_generator_edit_rights()
         self.validate_audit_comments_edit_rights()
@@ -45,6 +46,28 @@ class VendorPurchaseOrder(Document):
             self.letter_head = "Sierra Leone (Sarveksha SL Limited)"
         elif frappe.db.exists("Letter Head", "India (Sarveksha Realty)"):
             self.letter_head = "India (Sarveksha Realty)"
+
+    def set_default_terms(self):
+        """Auto-set default Terms and Conditions if not explicitly selected."""
+        if self.standard_terms:
+            return
+
+        if self.is_lut_applicable and frappe.db.exists("Terms and Conditions", "LUT Certificate Terms"):
+            self.standard_terms = "LUT Certificate Terms"
+            return
+
+        if self.company:
+            comp_name = (self.company or "").lower()
+            if "bstp" in comp_name and frappe.db.exists("Terms and Conditions", "Guinea BSTP SAS Procurement Terms"):
+                self.standard_terms = "Guinea BSTP SAS Procurement Terms"
+            elif ("mining" in comp_name or "baani" in comp_name) and frappe.db.exists("Terms and Conditions", "Cameroon Mining & Minerals Terms"):
+                self.standard_terms = "Cameroon Mining & Minerals Terms"
+            elif "sl limited" in comp_name and frappe.db.exists("Terms and Conditions", "Sierra Leone Procurement Terms"):
+                self.standard_terms = "Sierra Leone Procurement Terms"
+            elif "botswana" in comp_name and frappe.db.exists("Terms and Conditions", "Botswana Mining & Equipment Terms"):
+                self.standard_terms = "Botswana Mining & Equipment Terms"
+            elif frappe.db.exists("Terms and Conditions", "Standard Export PO Terms"):
+                self.standard_terms = "Standard Export PO Terms"
 
     def validate_creation_roles(self):
         """Ensure PO Verifier and PO Approver cannot create new POs."""

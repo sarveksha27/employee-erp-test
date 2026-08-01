@@ -109,6 +109,21 @@ frappe.ui.form.on('Vendor Purchase Order', {
                         else if (country.includes('india')) lh = 'India (Sarveksha Realty)';
                         frm.set_value('letter_head', lh);
                     }
+
+                    // Auto-select standard terms if not already set
+                    if (!frm.doc.standard_terms) {
+                        const company_name = (frm.doc.company || '').toLowerCase();
+                        let default_t = 'Standard Export PO Terms';
+                        if (frm.doc.is_lut_applicable) default_t = 'LUT Certificate Terms';
+                        else if (company_name.includes('bstp')) default_t = 'Guinea BSTP SAS Procurement Terms';
+                        else if (company_name.includes('mining') || company_name.includes('baani')) default_t = 'Cameroon Mining & Minerals Terms';
+                        else if (company_name.includes('sl limited')) default_t = 'Sierra Leone Procurement Terms';
+                        else if (company_name.includes('botswana')) default_t = 'Botswana Mining & Equipment Terms';
+                        else default_t = 'Standard Export PO Terms';
+
+                        frm.set_value('standard_terms', default_t);
+                        frm.trigger('standard_terms');
+                    }
                 }
                 calculate_gst_and_totals(frm);
             }
@@ -142,7 +157,13 @@ frappe.ui.form.on('Vendor Purchase Order', {
     other_charges: function(frm) { calculate_gst_and_totals(frm); },
     advance_percentage: function(frm) { calculate_gst_and_totals(frm); },
     vendor_gstin: function(frm) { calculate_gst_and_totals(frm); },
-    is_lut_applicable: function(frm) { calculate_gst_and_totals(frm); },
+    is_lut_applicable: function(frm) {
+        if (frm.doc.is_lut_applicable) {
+            frm.set_value('standard_terms', 'LUT Certificate Terms');
+            frm.trigger('standard_terms');
+        }
+        calculate_gst_and_totals(frm);
+    },
     // ─── INDIVIDUAL EQUIPMENT ENTRY TRIGGERS ──────────────────
     equipment: function(frm) {
         if (!frm.doc.equipment) return;
