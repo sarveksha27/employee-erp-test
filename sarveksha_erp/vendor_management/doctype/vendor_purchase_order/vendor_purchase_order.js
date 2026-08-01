@@ -35,38 +35,48 @@ frappe.ui.form.on('Vendor Purchase Order', {
 
         // Helper function to apply workflow action
         const apply_action = function(action_name) {
-            frappe.dom.freeze();
-            frappe.xcall("frappe.model.workflow.apply_workflow", {
-                doc: frm.doc,
-                action: action_name
-            }).then(doc => {
-                frappe.model.sync(doc);
-                frm.reload_doc();
-                frappe.show_alert({
-                    message: __("Action '{0}' applied successfully!", [action_name]),
-                    indicator: 'green'
+            const execute_action = () => {
+                frappe.dom.freeze();
+                frappe.xcall("frappe.model.workflow.apply_workflow", {
+                    doc: frm.doc,
+                    action: action_name
+                }).then(doc => {
+                    frappe.model.sync(doc);
+                    frm.reload_doc();
+                    frappe.show_alert({
+                        message: __("Action '{0}' applied successfully!", [action_name]),
+                        indicator: 'green'
+                    });
+                }).catch(err => {
+                    frappe.msgprint(__("Error applying action: ") + err.message);
+                }).finally(() => {
+                    frappe.dom.unfreeze();
                 });
-            }).catch(err => {
-                frappe.msgprint(__("Error applying action: ") + err.message);
-            }).finally(() => {
-                frappe.dom.unfreeze();
-            });
+            };
+
+            if (frm.doc.__unsaved || frm.doc.__islocal) {
+                frm.save().then(execute_action);
+            } else {
+                execute_action();
+            }
         };
 
         // Clear existing custom buttons first
         frm.clear_custom_buttons();
 
-        if (frm.doc.docstatus === 0 && !frm.doc.__islocal && !frm.doc.__unsaved) {
+        if (frm.doc.docstatus === 0) {
             if (state === 'Draft' && (user_roles.includes('PO Generator') || is_manager)) {
-                frm.add_custom_button(__('Generate PO'), function() {
+                frm.add_custom_button(__('Send Forward'), function() {
                     apply_action('Generate PO');
                 });
+                frm.change_custom_button_type(__('Send Forward'), null, 'primary');
             }
 
             else if (state === 'Generated' && (user_roles.includes('PO Verifier') || is_manager)) {
-                frm.add_custom_button(__('Verify'), function() {
+                frm.add_custom_button(__('Send Forward'), function() {
                     apply_action('Verify');
                 });
+                frm.change_custom_button_type(__('Send Forward'), null, 'primary');
 
                 frm.add_custom_button(__('Send Back'), function() {
                     frappe.prompt([
@@ -83,12 +93,14 @@ frappe.ui.form.on('Vendor Purchase Order', {
                         });
                     }, __('Send Back to Generator'), __('Submit'));
                 });
+                frm.change_custom_button_type(__('Send Back'), null, 'danger');
             }
 
             else if (state === 'Verified (Ready for Approval)' && (user_roles.includes('PO Approver') || is_manager)) {
-                frm.add_custom_button(__('Approve'), function() {
+                frm.add_custom_button(__('Send Forward'), function() {
                     apply_action('Approve');
                 });
+                frm.change_custom_button_type(__('Send Forward'), null, 'primary');
 
                 frm.add_custom_button(__('Send Back'), function() {
                     frappe.prompt([
@@ -105,19 +117,39 @@ frappe.ui.form.on('Vendor Purchase Order', {
                         });
                     }, __('Send Back to Verifier'), __('Submit'));
                 });
+                frm.change_custom_button_type(__('Send Back'), null, 'danger');
             }
         }
 
         // Configure Print Button & Menu Visibility based on Workflow Stage and User Roles
         const is_approved = (frm.doc.workflow_state === 'Approved' || frm.doc.docstatus === 1);
+        const can_print = is_approved && (user_roles.includes('PO Generator') || is_manager);
 
-        if (is_approved) {
+        if (can_print) {
             frm.add_custom_button(__('Print PO'), function() {
                 frappe.set_route('print', 'Vendor Purchase Order', frm.doc.name);
-            }, __('Actions'));
-        } else if (!is_manager) {
-            // Hide standard print menu for unapproved POs for regular users
+            });
+            frm.change_custom_button_type(__('Print PO'), null, 'primary');
+        }
+
+        if (!can_print) {
             frm.page.hide_menu_item(__('Print'));
+            frm.page.hide_menu_item(__('PDF'));
+            if (frm.page.btn_print) frm.page.btn_print.hide();
+            if (frm.page.set_print_btn_display) frm.page.set_print_btn_display(false);
+        } else {
+            frm.page.show_menu_item(__('Print'));
+            frm.page.show_menu_item(__('PDF'));
+            if (frm.page.btn_print) frm.page.btn_print.show();
+            if (frm.page.set_print_btn_display) frm.page.set_print_btn_display(true);
+        }
+
+        // Hide "+ New" button for Verifiers/Approvers in Form View
+        const allowed_creator_roles = ["PO Generator", "Procurement Manager", "System Manager", "Administrator"];
+        const has_creation_role = user_roles.some(role => allowed_creator_roles.includes(role));
+        if (!has_creation_role) {
+            frm.page.hide_menu_item(__('New'));
+            frm.page.clear_secondary_action();
         }
 
         // Configure Verification & Approval Panel Dynamic Controls
@@ -144,52 +176,29 @@ frappe.ui.form.on('Vendor Purchase Order', {
     company: function(frm) {
         if (!frm.doc.company) return;
 
-        frappe.db.get_value('Company', frm.doc.company,
-            ['custom_default_port', 'default_currency', 'tax_id', 'country', 'custom_pan', 'default_letter_head', 'registration_details'],
-            function(r) {
-                if (r) {
-                    if (r.custom_default_port) {
-                        frm.set_value('default_port', r.custom_default_port);
+        frappe.call({
+            method: 'sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.get_company_details',
+            args: { company: frm.doc.company },
+            callback: function(r) {
+                if (r.message) {
+                    const data = r.message;
+                    if (data.default_port) {
+                        frm.set_value('default_port', data.default_port);
                         set_port_filter(frm);
-                        const first_port = r.custom_default_port.split(',')[0].trim();
+                        const first_port = data.default_port.split(',')[0].trim();
                         frappe.db.exists('Port', first_port).then(exists => {
                             if (exists) {
                                 frm.set_value('port', first_port);
                             }
                         });
                     }
-                    if (r.default_currency) {
-                        frm.set_value('currency', r.default_currency);
+                    if (data.currency) {
+                        frm.set_value('currency', data.currency);
                     }
-                    frm._company_gstin = r.tax_id || '';
-                    frm.set_value('company_gstin', r.tax_id || '');
-                    frm.set_value('company_pan', r.custom_pan || '');
-
-                    // Format & set Company Address & Details
-                    let details_arr = [];
-                    if (r.registration_details) details_arr.push(r.registration_details);
-                    if (r.tax_id) details_arr.push('Tax ID / GSTIN: ' + r.tax_id);
-                    if (r.custom_pan) details_arr.push('PAN: ' + r.custom_pan);
-
-                    if (details_arr.length > 0) {
-                        frm.set_value('company_address', details_arr.join('\n'));
-                    }
-
-                    // Letter Head selection: fetch default_letter_head from Company first
-                    if (r.default_letter_head) {
-                        frm.set_value('letter_head', r.default_letter_head);
-                    } else {
-                        const company_name = (frm.doc.company || '').toLowerCase();
-                        const country = (r.country || '').toLowerCase();
-                        let lh = 'India (Sarveksha Realty)';
-                        if (company_name.includes('botswana') || country.includes('botswana')) lh = 'Botswana (Sarveksha Botswana)';
-                        else if (company_name.includes('baani')) lh = 'Cameroon (Baani Minerals)';
-                        else if (company_name.includes('mining') || country.includes('cameroon')) lh = 'Cameroon (Sarveksha Mining SARL)';
-                        else if (company_name.includes('bstp') || country.includes('guinea')) lh = 'Guinea (Sarveksha BSTP SAS)';
-                        else if (company_name.includes('sl limited') || country.includes('sierra')) lh = 'Sierra Leone (Sarveksha SL Limited)';
-                        else if (country.includes('india')) lh = 'India (Sarveksha Realty)';
-                        frm.set_value('letter_head', lh);
-                    }
+                    frm.set_value('company_gstin', data.company_gstin);
+                    frm.set_value('company_pan', data.company_pan);
+                    frm.set_value('company_address', data.company_address);
+                    frm.set_value('letter_head', data.letter_head);
 
                     // Auto-select standard terms if not already set
                     if (!frm.doc.standard_terms || frm.doc.standard_terms.length === 0) {
@@ -214,7 +223,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
                 }
                 calculate_gst_and_totals(frm);
             }
-        );
+        });
     },
 
     // ─── VENDOR TRIGGER ───────────────────────────────────────
@@ -477,36 +486,47 @@ function set_port_filter(frm) {
 
 function setup_verification_approval_panel(frm) {
     const user_roles = frappe.user.get_roles();
-    const has_verifier_role = user_roles.includes('PO Verifier') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager');
-    const has_approver_role = user_roles.includes('PO Approver') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager');
-    const is_generator = user_roles.includes('PO Generator');
+    const has_verifier_role = user_roles.includes('PO Verifier') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
+    const has_approver_role = user_roles.includes('PO Approver') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
+    const is_manager = user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
 
     const state = frm.doc.workflow_state || 'Draft';
 
-    // 1. Verifier comments: ONLY editable during 'Generated' stage by authorized verifiers
-    if (state === 'Generated' && has_verifier_role) {
+    // 1. Enable/Disable entire form based on active role allowed to edit in current state
+    let can_edit = false;
+    if (is_manager) {
+        can_edit = true;
+    } else if (state === 'Draft' && user_roles.includes('PO Generator')) {
+        can_edit = true;
+    } else if (state === 'Generated' && user_roles.includes('PO Verifier')) {
+        can_edit = true;
+    } else if (state === 'Verified (Ready for Approval)' && user_roles.includes('PO Approver')) {
+        can_edit = true;
+    }
+
+    if (can_edit) {
+        frm.enable_form();
+    } else {
+        frm.disable_form();
+        frm.dashboard.clear_comment_input();
+    }
+
+    // 2. Verifier comments: ONLY editable during 'Generated' stage by authorized verifiers
+    if (state === 'Generated' && has_verifier_role && can_edit) {
         frm.set_df_property('verifier_comments', 'read_only', 0);
     } else {
         frm.set_df_property('verifier_comments', 'read_only', 1);
     }
 
-    // 2. Approver comments: ONLY editable during 'Verified (Ready for Approval)' stage by authorized approvers
-    if (state === 'Verified (Ready for Approval)' && has_approver_role) {
+    // 3. Approver comments: ONLY editable during 'Verified (Ready for Approval)' stage by authorized approvers
+    if (state === 'Verified (Ready for Approval)' && has_approver_role && can_edit) {
         frm.set_df_property('approver_comments', 'read_only', 0);
     } else {
         frm.set_df_property('approver_comments', 'read_only', 1);
     }
 
-    // 3. Ensure audit metadata fields are permanently read-only
+    // 4. Ensure audit metadata fields are permanently read-only
     ['verified_by', 'verified_on', 'verifier_status', 'approved_by', 'approved_on', 'approver_status', 'prepared_by'].forEach(field => {
         frm.set_df_property(field, 'read_only', 1);
     });
-
-    // 4. Lock entire form for PO Generator once submitted for verification
-    if (is_generator && !user_roles.includes('Procurement Manager') && !user_roles.includes('System Manager')) {
-        if (['Generated', 'Verified (Ready for Approval)', 'Approved'].includes(state)) {
-            frm.disable_form();
-            frm.dashboard.clear_comment_input();
-        }
-    }
 }

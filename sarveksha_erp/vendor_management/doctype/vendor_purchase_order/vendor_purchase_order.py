@@ -45,7 +45,22 @@ class VendorPurchaseOrder(Document):
         if comp_doc.custom_pan:
             self.company_pan = comp_doc.custom_pan
 
+        # Fetch physical address of the Company from linked Address doctype
+        address_text = ""
+        addr_name = frappe.db.get_value(
+            "Dynamic Link",
+            {"link_doctype": "Company", "link_name": self.company, "parenttype": "Address"},
+            "parent"
+        )
+        if addr_name:
+            from frappe.contacts.doctype.address.address import get_address_display
+            address_text = get_address_display(addr_name)
+            if address_text:
+                address_text = address_text.replace("<br>", "\n").strip()
+
         details_arr = []
+        if address_text:
+            details_arr.append(address_text)
         if comp_doc.registration_details:
             details_arr.append(comp_doc.registration_details)
         if comp_doc.tax_id:
@@ -54,7 +69,7 @@ class VendorPurchaseOrder(Document):
             details_arr.append(f"PAN: {comp_doc.custom_pan}")
 
         if details_arr:
-            self.company_address = "\n".join(details_arr)
+            self.company_address = "\n".join([d for d in details_arr if d])
 
     def set_default_letter_head(self):
         """Auto-detect and set default letter head based on Company."""
@@ -131,8 +146,9 @@ class VendorPurchaseOrder(Document):
         
         # If user is PO Generator and does not have higher roles
         if "PO Generator" in user_roles and not user_roles.intersection(admin_or_higher):
-            state = self.workflow_state or "Draft"
-            if state in ["Generated", "Verified (Ready for Approval)", "Approved"]:
+            previous = self.get_doc_before_save()
+            old_state = (previous.workflow_state if previous else None) or "Draft"
+            if old_state in ["Generated", "Verified (Ready for Approval)", "Approved"]:
                 frappe.throw(
                     _("PO Generator cannot modify a Purchase Order once generated and submitted for verification."),
                     frappe.PermissionError
@@ -713,5 +729,66 @@ def verify_10_equipment_items():
         print(f"\n--- PO: {doc.name} (State: {doc.workflow_state}, Items: {len(doc.items)}) ---")
         for i, item in enumerate(doc.items, 1):
             print(f"  Item {i:2d}: Code: {item.equipment} | Name: {item.equipment_name} | HSN: {item.hsn_code} | Brand: {item.brand} | Qty: {item.quantity} | Rate: {item.rate} | Total: {item.total_amount}")
+
+
+@frappe.whitelist()
+def get_company_details(company):
+    if not company:
+        return {}
+
+    comp_doc = frappe.get_doc("Company", company)
+
+    # Fetch physical address of the Company from linked Address doctype
+    address_text = ""
+    addr_name = frappe.db.get_value(
+        "Dynamic Link",
+        {"link_doctype": "Company", "link_name": company, "parenttype": "Address"},
+        "parent"
+    )
+    if addr_name:
+        from frappe.contacts.doctype.address.address import get_address_display
+        address_text = get_address_display(addr_name)
+        if address_text:
+            address_text = address_text.replace("<br>", "\n").strip()
+
+    details_arr = []
+    if address_text:
+        details_arr.append(address_text)
+    if comp_doc.registration_details:
+        details_arr.append(comp_doc.registration_details)
+    if comp_doc.tax_id:
+        details_arr.append(f"Tax ID / GSTIN: {comp_doc.tax_id}")
+    if comp_doc.custom_pan:
+        details_arr.append(f"PAN: {comp_doc.custom_pan}")
+
+    company_address = "\n".join([d for d in details_arr if d])
+
+    # Auto-detect letter head
+    letter_head = comp_doc.default_letter_head
+    if not letter_head:
+        company_name = company.lower()
+        country = (comp_doc.country or "").lower()
+        letter_head = "India (Sarveksha Realty)"
+        if "botswana" in company_name or "botswana" in country:
+            letter_head = "Botswana (Sarveksha Botswana)"
+        elif "baani" in company_name:
+            letter_head = "Cameroon (Baani Minerals)"
+        elif "mining" in company_name or "cameroon" in country:
+            letter_head = "Cameroon (Sarveksha Mining SARL)"
+        elif "bstp" in company_name or "guinea" in country:
+            letter_head = "Guinea (Sarveksha BSTP SAS)"
+        elif "sl limited" in company_name or "sierra" in country:
+            letter_head = "Sierra Leone (Sarveksha SL Limited)"
+        elif "india" in country:
+            letter_head = "India (Sarveksha Realty)"
+
+    return {
+        "default_port": comp_doc.custom_default_port or "",
+        "currency": comp_doc.default_currency or "",
+        "company_gstin": comp_doc.tax_id or "",
+        "company_pan": comp_doc.custom_pan or "",
+        "company_address": company_address,
+        "letter_head": letter_head
+    }
 
 
