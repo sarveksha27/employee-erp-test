@@ -23,29 +23,28 @@ class VendorPurchaseOrder(Document):
         self.validate_required_fields()
 
     def set_default_letter_head(self):
-        """Auto-detect and set default letter head if not selected."""
-        if self.letter_head:
+        """Auto-detect and set default letter head based on Company."""
+        if not self.company:
             return
 
-        if self.company:
-            comp_lh = frappe.db.get_value("Company", self.company, "default_letter_head")
-            if comp_lh and frappe.db.exists("Letter Head", comp_lh):
-                self.letter_head = comp_lh
-                return
+        comp_lh = frappe.db.get_value("Company", self.company, "default_letter_head")
+        if comp_lh and frappe.db.exists("Letter Head", comp_lh):
+            self.letter_head = comp_lh
+            return
 
-            comp_name = (self.company or "").lower()
-            if "botswana" in comp_name and frappe.db.exists("Letter Head", "Botswana (Sarveksha Botswana)"):
-                self.letter_head = "Botswana (Sarveksha Botswana)"
-            elif "baani" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Baani Minerals)"):
-                self.letter_head = "Cameroon (Baani Minerals)"
-            elif "mining" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Sarveksha Mining SARL)"):
-                self.letter_head = "Cameroon (Sarveksha Mining SARL)"
-            elif "bstp" in comp_name and frappe.db.exists("Letter Head", "Guinea (Sarveksha BSTP SAS)"):
-                self.letter_head = "Guinea (Sarveksha BSTP SAS)"
-            elif "sl limited" in comp_name and frappe.db.exists("Letter Head", "Sierra Leone (Sarveksha SL Limited)"):
-                self.letter_head = "Sierra Leone (Sarveksha SL Limited)"
-            elif frappe.db.exists("Letter Head", "India (Sarveksha Realty)"):
-                self.letter_head = "India (Sarveksha Realty)"
+        comp_name = (self.company or "").lower()
+        if "botswana" in comp_name and frappe.db.exists("Letter Head", "Botswana (Sarveksha Botswana)"):
+            self.letter_head = "Botswana (Sarveksha Botswana)"
+        elif "baani" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Baani Minerals)"):
+            self.letter_head = "Cameroon (Baani Minerals)"
+        elif "mining" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Sarveksha Mining SARL)"):
+            self.letter_head = "Cameroon (Sarveksha Mining SARL)"
+        elif "bstp" in comp_name and frappe.db.exists("Letter Head", "Guinea (Sarveksha BSTP SAS)"):
+            self.letter_head = "Guinea (Sarveksha BSTP SAS)"
+        elif "sl limited" in comp_name and frappe.db.exists("Letter Head", "Sierra Leone (Sarveksha SL Limited)"):
+            self.letter_head = "Sierra Leone (Sarveksha SL Limited)"
+        elif frappe.db.exists("Letter Head", "India (Sarveksha Realty)"):
+            self.letter_head = "India (Sarveksha Realty)"
 
     def validate_creation_roles(self):
         """Ensure PO Verifier and PO Approver cannot create new POs."""
