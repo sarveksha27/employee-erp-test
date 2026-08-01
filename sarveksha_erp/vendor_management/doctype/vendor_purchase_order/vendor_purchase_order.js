@@ -192,17 +192,23 @@ frappe.ui.form.on('Vendor Purchase Order', {
                     }
 
                     // Auto-select standard terms if not already set
-                    if (!frm.doc.standard_terms) {
+                    if (!frm.doc.standard_terms || frm.doc.standard_terms.length === 0) {
                         const company_name = (frm.doc.company || '').toLowerCase();
-                        let default_t = 'Standard Export PO Terms';
-                        if (frm.doc.is_lut_applicable) default_t = 'LUT Certificate Terms';
-                        else if (company_name.includes('bstp')) default_t = 'Guinea BSTP SAS Procurement Terms';
-                        else if (company_name.includes('mining') || company_name.includes('baani')) default_t = 'Cameroon Mining & Minerals Terms';
-                        else if (company_name.includes('sl limited')) default_t = 'Sierra Leone Procurement Terms';
-                        else if (company_name.includes('botswana')) default_t = 'Botswana Mining & Equipment Terms';
-                        else default_t = 'Standard Export PO Terms';
+                        let terms_to_add = [];
+                        if (frm.doc.is_lut_applicable) {
+                            terms_to_add.push('LUT Certificate Terms');
+                        }
+                        
+                        if (company_name.includes('bstp')) terms_to_add.push('Guinea BSTP SAS Procurement Terms');
+                        else if (company_name.includes('mining') || company_name.includes('baani')) terms_to_add.push('Cameroon Mining & Minerals Terms');
+                        else if (company_name.includes('sl limited')) terms_to_add.push('Sierra Leone Procurement Terms');
+                        else if (company_name.includes('botswana')) terms_to_add.push('Botswana Mining & Equipment Terms');
 
-                        frm.set_value('standard_terms', default_t);
+                        if (!terms_to_add.includes('Standard Export PO Terms')) {
+                            terms_to_add.push('Standard Export PO Terms');
+                        }
+
+                        frm.set_value('standard_terms', terms_to_add.map(t => ({ standard_term: t })));
                         frm.trigger('standard_terms');
                     }
                 }
@@ -240,7 +246,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
     vendor_gstin: function(frm) { calculate_gst_and_totals(frm); },
     is_lut_applicable: function(frm) {
         if (frm.doc.is_lut_applicable) {
-            frm.set_value('standard_terms', 'LUT Certificate Terms');
+            frm.set_value('standard_terms', [{ standard_term: 'LUT Certificate Terms' }]);
             frm.trigger('standard_terms');
         }
         calculate_gst_and_totals(frm);
@@ -249,20 +255,25 @@ frappe.ui.form.on('Vendor Purchase Order', {
     equipment: function(frm) {
         if (!frm.doc.equipment) return;
 
-        frappe.db.get_doc('Equipment', frm.doc.equipment).then(doc => {
-            frm.set_value('equipment_name', doc.equipment_name || '');
-            frm.set_value('hsn_code', doc.hsn_code || '');
-            frm.set_value('brand', doc.brand || '');
-            frm.set_value('manufacturer', doc.manufacturer || '');
-            frm.set_value('unit', doc.unit || 'Nos');
-            frm.set_value('specification', doc.specification || '');
+        frappe.db.get_value('Equipment', frm.doc.equipment,
+            ['equipment_name', 'hsn_code', 'brand', 'manufacturer', 'unit', 'specification', 'approx_cost_inr', 'last_purchase_cost_inr', 'gst_percentage'],
+            function(r) {
+                if (r) {
+                    frm.set_value('equipment_name', r.equipment_name || '');
+                    frm.set_value('hsn_code', r.hsn_code || '');
+                    frm.set_value('brand', r.brand || '');
+                    frm.set_value('manufacturer', r.manufacturer || '');
+                    frm.set_value('unit', r.unit || 'Nos');
+                    frm.set_value('specification', r.specification || '');
 
-            const cost = flt(doc.approx_cost_inr) || flt(doc.last_purchase_cost_inr) || 10000;
-            const gst_pct = flt(doc.gst_percentage) || 18;
+                    const cost = flt(r.approx_cost_inr) || flt(r.last_purchase_cost_inr) || 10000;
+                    const gst_pct = flt(r.gst_percentage) || 18;
 
-            frm.set_value('rate', cost);
-            frm.set_value('gst_percentage', gst_pct);
-        });
+                    frm.set_value('rate', cost);
+                    frm.set_value('gst_percentage', gst_pct);
+                }
+            }
+        );
     },
 
     add_equipment_btn: function(frm) {
@@ -304,14 +315,38 @@ frappe.ui.form.on('Vendor Purchase Order', {
     },
 
     standard_terms: function(frm) {
-        if (frm.doc.standard_terms) {
-            frappe.db.get_value('Terms and Conditions', frm.doc.standard_terms, 'terms', (r) => {
-                if (r && r.terms) {
-                    frm.set_df_property('terms_preview', 'options', r.terms);
-                } else {
-                    frm.set_df_property('terms_preview', 'options', '');
-                }
-            });
+        if (frm.doc.standard_terms && frm.doc.standard_terms.length > 0) {
+            const terms_list = frm.doc.standard_terms.map(row => row.standard_term).filter(Boolean);
+            if (terms_list.length > 0) {
+                frappe.call({
+                    method: 'frappe.client.get_list',
+                    args: {
+                        doctype: 'Terms and Conditions',
+                        filters: { name: ['in', terms_list] },
+                        fields: ['name', 'terms'],
+                        limit: 50
+                    },
+                    callback: function(r) {
+                        if (r.message && r.message.length > 0) {
+                            const terms_map = {};
+                            r.message.forEach(item => {
+                                terms_map[item.name] = item.terms;
+                            });
+                            let concatenated_terms = '';
+                            terms_list.forEach((t_name, idx) => {
+                                if (terms_map[t_name]) {
+                                    concatenated_terms += `<h3>${idx + 1}. ${t_name}</h3>${terms_map[t_name]}<br><hr>`;
+                                }
+                            });
+                            frm.set_df_property('terms_preview', 'options', concatenated_terms);
+                        } else {
+                            frm.set_df_property('terms_preview', 'options', '');
+                        }
+                    }
+                });
+            } else {
+                frm.set_df_property('terms_preview', 'options', '');
+            }
         } else {
             frm.set_df_property('terms_preview', 'options', '');
         }
@@ -325,22 +360,27 @@ frappe.ui.form.on('Vendor Purchase Order Item', {
         let row = locals[cdt][cdn];
         if (!row.equipment) return;
 
-        frappe.db.get_doc('Equipment', row.equipment).then(doc => {
-            frappe.model.set_value(cdt, cdn, 'equipment_name', doc.equipment_name || '');
-            frappe.model.set_value(cdt, cdn, 'hsn_code', doc.hsn_code || '');
-            frappe.model.set_value(cdt, cdn, 'brand', doc.brand || '');
-            frappe.model.set_value(cdt, cdn, 'manufacturer', doc.manufacturer || '');
-            frappe.model.set_value(cdt, cdn, 'unit', doc.unit || 'Nos');
-            frappe.model.set_value(cdt, cdn, 'specification', doc.specification || '');
-            
-            const cost = flt(doc.approx_cost_inr) || flt(doc.last_purchase_cost_inr) || 10000;
-            const gst_pct = flt(doc.gst_percentage) || 18;
-            
-            frappe.model.set_value(cdt, cdn, 'rate', cost);
-            frappe.model.set_value(cdt, cdn, 'gst_percentage', gst_pct);
+        frappe.db.get_value('Equipment', row.equipment,
+            ['equipment_name', 'hsn_code', 'brand', 'manufacturer', 'unit', 'specification', 'approx_cost_inr', 'last_purchase_cost_inr', 'gst_percentage'],
+            function(r) {
+                if (r) {
+                    frappe.model.set_value(cdt, cdn, 'equipment_name', r.equipment_name || '');
+                    frappe.model.set_value(cdt, cdn, 'hsn_code', r.hsn_code || '');
+                    frappe.model.set_value(cdt, cdn, 'brand', r.brand || '');
+                    frappe.model.set_value(cdt, cdn, 'manufacturer', r.manufacturer || '');
+                    frappe.model.set_value(cdt, cdn, 'unit', r.unit || 'Nos');
+                    frappe.model.set_value(cdt, cdn, 'specification', r.specification || '');
+                    
+                    const cost = flt(r.approx_cost_inr) || flt(r.last_purchase_cost_inr) || 10000;
+                    const gst_pct = flt(r.gst_percentage) || 18;
+                    
+                    frappe.model.set_value(cdt, cdn, 'rate', cost);
+                    frappe.model.set_value(cdt, cdn, 'gst_percentage', gst_pct);
 
-            calculate_gst_and_totals(frm);
-        });
+                    calculate_gst_and_totals(frm);
+                }
+            }
+        );
     },
 
     quantity: function(frm, cdt, cdn) { calculate_gst_and_totals(frm); },

@@ -11,6 +11,7 @@ class VendorPurchaseOrder(Document):
 
     def validate(self):
         """Called on every Save. Validates data and recalculates totals."""
+        self.set_company_details()
         self.set_default_letter_head()
         self.set_default_terms()
         self.validate_creation_roles()
@@ -22,6 +23,38 @@ class VendorPurchaseOrder(Document):
         self.calculate_grand_total()
         self.calculate_advance()
         self.validate_required_fields()
+
+    def set_company_details(self):
+        """Auto-set company address, PAN, GSTIN, default port, currency from Company Master."""
+        if not self.company:
+            return
+
+        comp_doc = frappe.get_doc("Company", self.company)
+        if not self.currency and comp_doc.default_currency:
+            self.currency = comp_doc.default_currency
+
+        if not self.default_port and comp_doc.custom_default_port:
+            self.default_port = comp_doc.custom_default_port
+            if not self.port:
+                first_port = comp_doc.custom_default_port.split(',')[0].strip()
+                if frappe.db.exists("Port", first_port):
+                    self.port = first_port
+
+        if comp_doc.tax_id:
+            self.company_gstin = comp_doc.tax_id
+        if comp_doc.custom_pan:
+            self.company_pan = comp_doc.custom_pan
+
+        details_arr = []
+        if comp_doc.registration_details:
+            details_arr.append(comp_doc.registration_details)
+        if comp_doc.tax_id:
+            details_arr.append(f"Tax ID / GSTIN: {comp_doc.tax_id}")
+        if comp_doc.custom_pan:
+            details_arr.append(f"PAN: {comp_doc.custom_pan}")
+
+        if details_arr:
+            self.company_address = "\n".join(details_arr)
 
     def set_default_letter_head(self):
         """Auto-detect and set default letter head based on Company."""
@@ -52,22 +85,29 @@ class VendorPurchaseOrder(Document):
         if self.standard_terms:
             return
 
+        terms_to_add = []
+
         if self.is_lut_applicable and frappe.db.exists("Terms and Conditions", "LUT Certificate Terms"):
-            self.standard_terms = "LUT Certificate Terms"
-            return
+            terms_to_add.append("LUT Certificate Terms")
 
         if self.company:
             comp_name = (self.company or "").lower()
             if "bstp" in comp_name and frappe.db.exists("Terms and Conditions", "Guinea BSTP SAS Procurement Terms"):
-                self.standard_terms = "Guinea BSTP SAS Procurement Terms"
+                terms_to_add.append("Guinea BSTP SAS Procurement Terms")
             elif ("mining" in comp_name or "baani" in comp_name) and frappe.db.exists("Terms and Conditions", "Cameroon Mining & Minerals Terms"):
-                self.standard_terms = "Cameroon Mining & Minerals Terms"
+                terms_to_add.append("Cameroon Mining & Minerals Terms")
             elif "sl limited" in comp_name and frappe.db.exists("Terms and Conditions", "Sierra Leone Procurement Terms"):
-                self.standard_terms = "Sierra Leone Procurement Terms"
+                terms_to_add.append("Sierra Leone Procurement Terms")
             elif "botswana" in comp_name and frappe.db.exists("Terms and Conditions", "Botswana Mining & Equipment Terms"):
-                self.standard_terms = "Botswana Mining & Equipment Terms"
-            elif frappe.db.exists("Terms and Conditions", "Standard Export PO Terms"):
-                self.standard_terms = "Standard Export PO Terms"
+                terms_to_add.append("Botswana Mining & Equipment Terms")
+
+        # Always append general export terms as a default as well if not already added
+        if frappe.db.exists("Terms and Conditions", "Standard Export PO Terms"):
+            if "Standard Export PO Terms" not in terms_to_add:
+                terms_to_add.append("Standard Export PO Terms")
+
+        for term in terms_to_add:
+            self.append("standard_terms", {"standard_term": term})
 
     def validate_creation_roles(self):
         """Ensure PO Verifier and PO Approver cannot create new POs."""

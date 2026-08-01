@@ -361,10 +361,15 @@
     <tbody>
       <tr><td style="line-height:1.9;">
         {% if doc.standard_terms %}
-          {% set st_doc = frappe.get_doc("Terms and Conditions", doc.standard_terms) %}
-          <div class="standard-terms-print">
-            {{ st_doc.terms }}
-          </div>
+          {% for row in doc.standard_terms %}
+            {% if row.standard_term and frappe.db.exists("Terms and Conditions", row.standard_term) %}
+              {% set st_doc = frappe.get_doc("Terms and Conditions", row.standard_term) %}
+              <div class="standard-terms-print" style="margin-bottom: 10px;">
+                <strong>{{ row.standard_term }}</strong>
+                <div>{{ st_doc.terms }}</div>
+              </div>
+            {% endif %}
+          {% endfor %}
         {% endif %}
         {% if doc.custom_terms %}
           <div class="custom-terms-print" style="margin-top: 10px;">

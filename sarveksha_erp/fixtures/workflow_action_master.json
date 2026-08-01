@@ -2,42 +2,42 @@
  {
   "docstatus": 0,
   "doctype": "Workflow Action Master",
-  "modified": "2026-08-01 18:00:00.000000",
+  "modified": "2026-08-01 18:00:00",
   "name": "Approve",
   "workflow_action_name": "Approve"
  },
  {
   "docstatus": 0,
   "doctype": "Workflow Action Master",
-  "modified": "2026-08-01 18:00:00.000000",
+  "modified": "2026-08-01 18:00:00",
   "name": "Reject",
   "workflow_action_name": "Reject"
  },
  {
   "docstatus": 0,
   "doctype": "Workflow Action Master",
-  "modified": "2026-08-01 18:00:00.000000",
+  "modified": "2026-08-01 18:00:00",
   "name": "Review",
   "workflow_action_name": "Review"
  },
  {
   "docstatus": 0,
   "doctype": "Workflow Action Master",
-  "modified": "2026-08-01 18:00:00.000000",
+  "modified": "2026-08-01 18:00:00",
   "name": "Generate PO",
   "workflow_action_name": "Generate PO"
  },
  {
   "docstatus": 0,
   "doctype": "Workflow Action Master",
-  "modified": "2026-08-01 18:00:00.000000",
+  "modified": "2026-08-01 18:00:00",
   "name": "Verify",
   "workflow_action_name": "Verify"
  },
  {
   "docstatus": 0,
   "doctype": "Workflow Action Master",
-  "modified": "2026-08-01 18:00:00.000000",
+  "modified": "2026-08-01 18:00:00",
   "name": "Send Back",
   "workflow_action_name": "Send Back"
  },
