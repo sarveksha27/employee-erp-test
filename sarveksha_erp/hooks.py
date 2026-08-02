@@ -110,6 +110,13 @@ fixtures = [
 # before_install = "sarveksha_erp.install.before_install"
 after_install = "sarveksha_erp.install.after_install"
 
+# Migrate
+# -------
+# Sync company/account currencies in the DB to match the company.json fixture
+# before fixtures are imported, so ERPNext's Company.validate_default_accounts
+# passes. Runs automatically on every `bench migrate`.
+before_migrate = ["sarveksha_erp.migrate_sync.before_migrate"]
+
 # Uninstallation
 # ------------
 
@@ -160,13 +167,13 @@ permission_query_conditions = {
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+# Safety net: fix account currencies right before Company.validate runs during
+# fixture import, so validate_default_accounts never fails on currency mismatch.
+doc_events = {
+	"Company": {
+		"before_validate": "sarveksha_erp.migrate_sync.company_before_validate",
+	},
+}
 
 # Scheduled Tasks
 # ---------------
