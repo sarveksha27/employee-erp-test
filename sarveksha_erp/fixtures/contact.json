@@ -421,18 +421,18 @@
    }
   ],
   "first_name": "_Test",
-  "full_name": "_Test",
-  "gender": null,
+  "full_name": "_Test Employee",
+  "gender": "Female",
   "google_contacts": null,
   "google_contacts_id": null,
   "image": null,
   "is_billing_contact": 0,
   "is_primary_contact": 0,
-  "last_name": null,
+  "last_name": "Employee",
   "links": [],
   "middle_name": null,
   "mobile_no": "",
-  "modified": "2026-08-01 23:28:06.312789",
+  "modified": "2026-08-02 00:01:45.074621",
   "name": "_Test",
   "phone": "",
   "phone_nos": [],
@@ -457,19 +457,19 @@
     "is_primary": 1
    }
   ],
-  "first_name": "_Test1",
-  "full_name": "_Test1",
-  "gender": null,
+  "first_name": "_Test",
+  "full_name": "_Test 1",
+  "gender": "Male",
   "google_contacts": null,
   "google_contacts_id": null,
   "image": null,
   "is_billing_contact": 0,
   "is_primary_contact": 0,
-  "last_name": null,
+  "last_name": "1",
   "links": [],
   "middle_name": null,
   "mobile_no": "",
-  "modified": "2026-08-01 23:28:06.660431",
+  "modified": "2026-08-02 00:01:46.359492",
   "name": "_Test1",
   "phone": "",
   "phone_nos": [],
@@ -494,19 +494,19 @@
     "is_primary": 1
    }
   ],
-  "first_name": "_Test2",
-  "full_name": "_Test2",
-  "gender": null,
+  "first_name": "_Test",
+  "full_name": "_Test 2",
+  "gender": "Male",
   "google_contacts": null,
   "google_contacts_id": null,
   "image": null,
   "is_billing_contact": 0,
   "is_primary_contact": 0,
-  "last_name": null,
+  "last_name": "2",
   "links": [],
   "middle_name": null,
   "mobile_no": "",
-  "modified": "2026-08-01 23:28:06.770369",
+  "modified": "2026-08-02 00:01:47.209862",
   "name": "_Test2",
   "phone": "",
   "phone_nos": [],
@@ -849,5 +849,318 @@
   "sync_with_google_contacts": 0,
   "unsubscribed": 0,
   "user": "mathias@abc.com"
+ },
+ {
+  "address": null,
+  "company_name": null,
+  "department": null,
+  "designation": null,
+  "docstatus": 0,
+  "doctype": "Contact",
+  "email_id": "test_lead@example.com",
+  "email_ids": [
+   {
+    "email_id": "test_lead@example.com",
+    "is_primary": 1
+   }
+  ],
+  "first_name": "_Test Lead",
+  "full_name": "_Test Lead",
+  "gender": null,
+  "google_contacts": null,
+  "google_contacts_id": null,
+  "image": null,
+  "is_billing_contact": 0,
+  "is_primary_contact": 0,
+  "last_name": null,
+  "links": [
+   {
+    "link_doctype": "Lead",
+    "link_name": "_T-Lead-00001",
+    "link_title": "_Test Lead"
+   }
+  ],
+  "middle_name": null,
+  "mobile_no": "",
+  "modified": "2026-08-02 00:01:47.800120",
+  "name": "_Test Lead",
+  "phone": "",
+  "phone_nos": [],
+  "pulled_from_google_contacts": 0,
+  "salutation": null,
+  "status": "Passive",
+  "sync_with_google_contacts": 0,
+  "unsubscribed": 0,
+  "user": null
+ },
+ {
+  "address": null,
+  "company_name": null,
+  "department": null,
+  "designation": null,
+  "docstatus": 0,
+  "doctype": "Contact",
+  "email_id": "test_lead1@example.com",
+  "email_ids": [
+   {
+    "email_id": "test_lead1@example.com",
+    "is_primary": 1
+   }
+  ],
+  "first_name": "_Test Lead 1",
+  "full_name": "_Test Lead 1",
+  "gender": null,
+  "google_contacts": null,
+  "google_contacts_id": null,
+  "image": null,
+  "is_billing_contact": 0,
+  "is_primary_contact": 0,
+  "last_name": null,
+  "links": [
+   {
+    "link_doctype": "Lead",
+    "link_name": "_T-Lead-00002",
+    "link_title": "_Test Lead 1"
+   }
+  ],
+  "middle_name": null,
+  "mobile_no": "",
+  "modified": "2026-08-02 00:01:47.843266",
+  "name": "_Test Lead 1",
+  "phone": "",
+  "phone_nos": [],
+  "pulled_from_google_contacts": 0,
+  "salutation": null,
+  "status": "Passive",
+  "sync_with_google_contacts": 0,
+  "unsubscribed": 0,
+  "user": null
+ },
+ {
+  "address": null,
+  "company_name": null,
+  "department": null,
+  "designation": null,
+  "docstatus": 0,
+  "doctype": "Contact",
+  "email_id": "test_lead2@example.com",
+  "email_ids": [
+   {
+    "email_id": "test_lead2@example.com",
+    "is_primary": 1
+   }
+  ],
+  "first_name": "_Test Lead 2",
+  "full_name": "_Test Lead 2",
+  "gender": null,
+  "google_contacts": null,
+  "google_contacts_id": null,
+  "image": null,
+  "is_billing_contact": 0,
+  "is_primary_contact": 0,
+  "last_name": null,
+  "links": [
+   {
+    "link_doctype": "Lead",
+    "link_name": "_T-Lead-00003",
+    "link_title": "_Test Lead 2"
+   }
+  ],
+  "middle_name": null,
+  "mobile_no": "",
+  "modified": "2026-08-02 00:01:47.870436",
+  "name": "_Test Lead 2",
+  "phone": "",
+  "phone_nos": [],
+  "pulled_from_google_contacts": 0,
+  "salutation": null,
+  "status": "Passive",
+  "sync_with_google_contacts": 0,
+  "unsubscribed": 0,
+  "user": null
+ },
+ {
+  "address": null,
+  "company_name": null,
+  "department": null,
+  "designation": null,
+  "docstatus": 0,
+  "doctype": "Contact",
+  "email_id": "test_lead3@example.com",
+  "email_ids": [
+   {
+    "email_id": "test_lead3@example.com",
+    "is_primary": 1
+   }
+  ],
+  "first_name": "_Test Lead 3",
+  "full_name": "_Test Lead 3",
+  "gender": null,
+  "google_contacts": null,
+  "google_contacts_id": null,
+  "image": null,
+  "is_billing_contact": 0,
+  "is_primary_contact": 0,
+  "last_name": null,
+  "links": [
+   {
+    "link_doctype": "Lead",
+    "link_name": "_T-Lead-00004",
+    "link_title": "_Test Lead 3"
+   }
+  ],
+  "middle_name": null,
+  "mobile_no": "",
+  "modified": "2026-08-02 00:01:47.897718",
+  "name": "_Test Lead 3",
+  "phone": "",
+  "phone_nos": [],
+  "pulled_from_google_contacts": 0,
+  "salutation": null,
+  "status": "Passive",
+  "sync_with_google_contacts": 0,
+  "unsubscribed": 0,
+  "user": null
+ },
+ {
+  "address": null,
+  "company_name": "_Test Lead 4",
+  "department": null,
+  "designation": null,
+  "docstatus": 0,
+  "doctype": "Contact",
+  "email_id": "test_lead4@example.com",
+  "email_ids": [
+   {
+    "email_id": "test_lead4@example.com",
+    "is_primary": 1
+   }
+  ],
+  "first_name": "_Test Lead 4",
+  "full_name": "_Test Lead 4",
+  "gender": null,
+  "google_contacts": null,
+  "google_contacts_id": null,
+  "image": null,
+  "is_billing_contact": 0,
+  "is_primary_contact": 0,
+  "last_name": null,
+  "links": [
+   {
+    "link_doctype": "Lead",
+    "link_name": "_T-Lead-00005",
+    "link_title": "_Test Lead 4"
+   }
+  ],
+  "middle_name": null,
+  "mobile_no": "",
+  "modified": "2026-08-02 00:01:47.922668",
+  "name": "_Test Lead 4",
+  "phone": "",
+  "phone_nos": [],
+  "pulled_from_google_contacts": 0,
+  "salutation": null,
+  "status": "Passive",
+  "sync_with_google_contacts": 0,
+  "unsubscribed": 0,
+  "user": null
+ },
+ {
+  "address": null,
+  "company_name": null,
+  "department": null,
+  "designation": null,
+  "docstatus": 0,
+  "doctype": "Contact",
+  "email_id": "test_contact_customer@example.com",
+  "email_ids": [
+   {
+    "email_id": "test_contact_customer@example.com",
+    "is_primary": 1
+   }
+  ],
+  "first_name": "_Test Contact for _Test Customer",
+  "full_name": "_Test Contact for _Test Customer",
+  "gender": null,
+  "google_contacts": null,
+  "google_contacts_id": null,
+  "image": null,
+  "is_billing_contact": 0,
+  "is_primary_contact": 0,
+  "last_name": null,
+  "links": [
+   {
+    "link_doctype": "Customer",
+    "link_name": "_Test Customer",
+    "link_title": "_Test Customer"
+   }
+  ],
+  "middle_name": null,
+  "mobile_no": "",
+  "modified": "2026-08-02 00:01:48.330061",
+  "name": "_Test Contact for _Test Customer-_Test Customer",
+  "phone": "+91 0000000000",
+  "phone_nos": [
+   {
+    "is_primary_mobile_no": 0,
+    "is_primary_phone": 1,
+    "phone": "+91 0000000000"
+   }
+  ],
+  "pulled_from_google_contacts": 0,
+  "salutation": null,
+  "status": "Passive",
+  "sync_with_google_contacts": 0,
+  "unsubscribed": 0,
+  "user": null
+ },
+ {
+  "address": null,
+  "company_name": null,
+  "department": null,
+  "designation": null,
+  "docstatus": 0,
+  "doctype": "Contact",
+  "email_id": "test_contact_two_customer@example.com",
+  "email_ids": [
+   {
+    "email_id": "test_contact_two_customer@example.com",
+    "is_primary": 1
+   }
+  ],
+  "first_name": "_Test Contact 2 for _Test Customer",
+  "full_name": "_Test Contact 2 for _Test Customer",
+  "gender": null,
+  "google_contacts": null,
+  "google_contacts_id": null,
+  "image": null,
+  "is_billing_contact": 0,
+  "is_primary_contact": 0,
+  "last_name": null,
+  "links": [
+   {
+    "link_doctype": "Customer",
+    "link_name": "_Test Customer",
+    "link_title": "_Test Customer"
+   }
+  ],
+  "middle_name": null,
+  "mobile_no": "",
+  "modified": "2026-08-02 00:01:48.344295",
+  "name": "_Test Contact 2 for _Test Customer-_Test Customer",
+  "phone": "+92 0000000000",
+  "phone_nos": [
+   {
+    "is_primary_mobile_no": 0,
+    "is_primary_phone": 1,
+    "phone": "+92 0000000000"
+   }
+  ],
+  "pulled_from_google_contacts": 0,
+  "salutation": null,
+  "status": "Passive",
+  "sync_with_google_contacts": 0,
+  "unsubscribed": 0,
+  "user": null
  }
 ]

@@ -92,6 +92,9 @@
   "advance_percentage",
   "advance_amount",
   "payment_status",
+  "payment_pending",
+  "payment_partially_paid",
+  "payment_fully_paid",
   "balance_due",
   "col_break_payment",
   "second_payment",
@@ -627,6 +630,27 @@
    "fieldtype": "Select",
    "label": "Payment Status",
    "options": "Pending\nAdvance Paid\nPartially Paid\nFully Paid"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "payment_pending",
+   "fieldtype": "Check",
+   "label": "Payment Pending"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "payment_partially_paid",
+   "fieldtype": "Check",
+   "label": "Payment Partially Paid"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "payment_fully_paid",
+   "fieldtype": "Check",
+   "label": "Payment Fully Paid"
   },
   {
    "fieldname": "col_break_payment",

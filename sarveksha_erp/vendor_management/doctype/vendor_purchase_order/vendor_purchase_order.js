@@ -7,8 +7,8 @@ frappe.ui.form.on('Vendor Purchase Order', {
     refresh: function(frm) {
         const colors = {
             'Draft': 'gray',
-            'Generated': 'orange',
-            'Verified (Ready for Approval)': 'blue',
+            'Generated (Yet to be Verified)': 'orange',
+            'Verified (Yet to be approved)': 'blue',
             'Approved': 'green',
             'Cancelled': 'red',
         };
@@ -30,7 +30,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
 
         // Render custom buttons based on workflow state & user roles
         const state = frm.doc.workflow_state || 'Draft';
-        const user_roles = frappe.user.get_roles();
+        const user_roles = frappe.user_roles;
         const is_manager = user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
 
         // Helper function to apply workflow action
@@ -72,7 +72,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
                 frm.change_custom_button_type(__('Send Forward'), null, 'primary');
             }
 
-            else if (state === 'Generated' && (user_roles.includes('PO Verifier') || is_manager)) {
+            else if (state === 'Generated (Yet to be Verified)' && (user_roles.includes('PO Verifier') || is_manager)) {
                 frm.add_custom_button(__('Send Forward'), function() {
                     apply_action('Verify');
                 });
@@ -96,7 +96,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
                 frm.change_custom_button_type(__('Send Back'), null, 'danger');
             }
 
-            else if (state === 'Verified (Ready for Approval)' && (user_roles.includes('PO Approver') || is_manager)) {
+            else if (state === 'Verified (Yet to be approved)' && (user_roles.includes('PO Approver') || is_manager)) {
                 frm.add_custom_button(__('Send Forward'), function() {
                     apply_action('Approve');
                 });
@@ -145,11 +145,14 @@ frappe.ui.form.on('Vendor Purchase Order', {
         }
 
         // Hide "+ New" button for Verifiers/Approvers in Form View
-        const allowed_creator_roles = ["PO Generator", "Procurement Manager", "System Manager", "Administrator"];
-        const has_creation_role = user_roles.some(role => allowed_creator_roles.includes(role));
-        if (!has_creation_role) {
-            frm.page.hide_menu_item(__('New'));
-            frm.page.clear_secondary_action();
+        if (frappe.session.user !== 'Administrator') {
+            const is_verifier_or_approver = (user_roles.includes('PO Verifier') || user_roles.includes('PO Approver'));
+            const is_generator = user_roles.includes('PO Generator');
+
+            if (is_verifier_or_approver && !is_generator) {
+                frm.page.hide_menu_item(__('New'));
+                frm.page.clear_secondary_action();
+            }
         }
 
         // Configure Verification & Approval Panel Dynamic Controls
@@ -401,7 +404,7 @@ frappe.ui.form.on('Vendor Purchase Order Item', {
 
 // ─── MASTER CALCULATION ENGINE ────────────────────────────────
 function calculate_gst_and_totals(frm) {
-    const is_lut = (frm.doc.is_lut_applicable && frm.doc.company && frm.doc.company.includes("Sarveksha Realty"));
+    const is_lut = frm.doc.is_lut_applicable;
     
     let total_taxable_value = 0;
     let total_item_tax = 0;
@@ -445,7 +448,12 @@ function calculate_gst_and_totals(frm) {
     let gst_type = 'IGST';
     let cgst = 0, sgst = 0, igst = 0;
 
-    if (vendor_gstin.length >= 2 && company_gstin.length >= 2 && vendor_gstin.substring(0, 2) === company_gstin.substring(0, 2)) {
+    if (is_lut) {
+        gst_type = 'IGST';
+        igst = total_item_tax;
+        cgst = 0;
+        sgst = 0;
+    } else if (vendor_gstin.length >= 2 && company_gstin.length >= 2 && vendor_gstin.substring(0, 2) === company_gstin.substring(0, 2)) {
         gst_type = 'CGST + SGST';
         cgst = total_item_tax / 2;
         sgst = total_item_tax / 2;
@@ -485,7 +493,7 @@ function set_port_filter(frm) {
 }
 
 function setup_verification_approval_panel(frm) {
-    const user_roles = frappe.user.get_roles();
+    const user_roles = frappe.user_roles;
     const has_verifier_role = user_roles.includes('PO Verifier') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
     const has_approver_role = user_roles.includes('PO Approver') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
     const is_manager = user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
@@ -498,9 +506,9 @@ function setup_verification_approval_panel(frm) {
         can_edit = true;
     } else if (state === 'Draft' && user_roles.includes('PO Generator')) {
         can_edit = true;
-    } else if (state === 'Generated' && user_roles.includes('PO Verifier')) {
+    } else if (state === 'Generated (Yet to be Verified)' && user_roles.includes('PO Verifier')) {
         can_edit = true;
-    } else if (state === 'Verified (Ready for Approval)' && user_roles.includes('PO Approver')) {
+    } else if (state === 'Verified (Yet to be approved)' && user_roles.includes('PO Approver')) {
         can_edit = true;
     }
 
@@ -511,15 +519,15 @@ function setup_verification_approval_panel(frm) {
         frm.dashboard.clear_comment_input();
     }
 
-    // 2. Verifier comments: ONLY editable during 'Generated' stage by authorized verifiers
-    if (state === 'Generated' && has_verifier_role && can_edit) {
+    // 2. Verifier comments: ONLY editable during 'Generated (Yet to be Verified)' stage by authorized verifiers
+    if (state === 'Generated (Yet to be Verified)' && has_verifier_role && can_edit) {
         frm.set_df_property('verifier_comments', 'read_only', 0);
     } else {
         frm.set_df_property('verifier_comments', 'read_only', 1);
     }
 
-    // 3. Approver comments: ONLY editable during 'Verified (Ready for Approval)' stage by authorized approvers
-    if (state === 'Verified (Ready for Approval)' && has_approver_role && can_edit) {
+    // 3. Approver comments: ONLY editable during 'Verified (Yet to be approved)' stage by authorized approvers
+    if (state === 'Verified (Yet to be approved)' && has_approver_role && can_edit) {
         frm.set_df_property('approver_comments', 'read_only', 0);
     } else {
         frm.set_df_property('approver_comments', 'read_only', 1);

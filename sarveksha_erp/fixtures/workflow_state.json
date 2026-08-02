@@ -2,17 +2,8 @@
  {
   "docstatus": 0,
   "doctype": "Workflow State",
-  "icon": "question-sign",
-  "modified": "2026-08-01 18:00:00",
-  "name": "Pending",
-  "style": "",
-  "workflow_state_name": "Pending"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow State",
   "icon": "ok-sign",
-  "modified": "2026-08-01 18:00:00",
+  "modified": "2026-08-02 12:40:57.622256",
   "name": "Approved",
   "style": "Success",
   "workflow_state_name": "Approved"
@@ -20,17 +11,8 @@
  {
   "docstatus": 0,
   "doctype": "Workflow State",
-  "icon": "remove",
-  "modified": "2026-08-01 18:00:00",
-  "name": "Rejected",
-  "style": "Danger",
-  "workflow_state_name": "Rejected"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow State",
   "icon": "",
-  "modified": "2026-08-01 18:00:00",
+  "modified": "2026-08-02 12:40:56.956289",
   "name": "Draft",
   "style": "",
   "workflow_state_name": "Draft"
@@ -39,63 +21,18 @@
   "docstatus": 0,
   "doctype": "Workflow State",
   "icon": "",
-  "modified": "2026-08-01 18:00:00",
-  "name": "Generated",
+  "modified": "2026-08-02 12:40:57.519418",
+  "name": "Generated (Yet to be Verified)",
   "style": "Warning",
-  "workflow_state_name": "Generated"
+  "workflow_state_name": "Generated (Yet to be Verified)"
  },
  {
   "docstatus": 0,
   "doctype": "Workflow State",
   "icon": "",
-  "modified": "2026-08-01 18:00:00",
-  "name": "Verified (Ready for Approval)",
+  "modified": "2026-08-02 12:40:57.615517",
+  "name": "Verified (Yet to be approved)",
   "style": "Primary",
-  "workflow_state_name": "Verified (Ready for Approval)"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow State",
-  "icon": "",
-  "modified": "2026-07-30 21:40:56.447947",
-  "name": "Pending Verification",
-  "style": "",
-  "workflow_state_name": "Pending Verification"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow State",
-  "icon": "",
-  "modified": "2026-07-30 21:40:56.451816",
-  "name": "Verification Returned",
-  "style": "",
-  "workflow_state_name": "Verification Returned"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow State",
-  "icon": "",
-  "modified": "2026-07-30 21:40:56.454816",
-  "name": "Pending Approval",
-  "style": "",
-  "workflow_state_name": "Pending Approval"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow State",
-  "icon": "",
-  "modified": "2026-07-30 21:40:56.457915",
-  "name": "Approval Returned",
-  "style": "",
-  "workflow_state_name": "Approval Returned"
- },
- {
-  "docstatus": 0,
-  "doctype": "Workflow State",
-  "icon": "",
-  "modified": "2026-07-30 21:40:56.461647",
-  "name": "Printed",
-  "style": "",
-  "workflow_state_name": "Printed"
+  "workflow_state_name": "Verified (Yet to be approved)"
  }
 ]

@@ -14,8 +14,10 @@ class VendorPurchaseOrder(Document):
         self.set_company_details()
         self.set_default_letter_head()
         self.set_default_terms()
+        self.validate_uom()
         self.validate_creation_roles()
         self.validate_generator_edit_rights()
+        self.validate_payment_permissions()
         self.validate_audit_comments_edit_rights()
         self.track_workflow_audit_trail()
         self.sanitize_text_fields()
@@ -23,6 +25,7 @@ class VendorPurchaseOrder(Document):
         self.calculate_grand_total()
         self.calculate_advance()
         self.validate_required_fields()
+        self.sync_payment_check_fields()
 
     def set_company_details(self):
         """Auto-set company address, PAN, GSTIN, default port, currency from Company Master."""
@@ -124,17 +127,82 @@ class VendorPurchaseOrder(Document):
         for term in terms_to_add:
             self.append("standard_terms", {"standard_term": term})
 
+    def validate_uom(self):
+        """Ensure all UOMs in parent and child items exist in the database to prevent Link Validation errors."""
+        # Collect all unique UOMs present on the document
+        uoms = set()
+        if self.unit:
+            uoms.add(self.unit)
+        
+        if hasattr(self, "items") and self.items:
+            for item in self.items:
+                if getattr(item, "unit", None):
+                    uoms.add(item.unit)
+
+        # For each UOM, ensure it exists or dynamically create it
+        validated_uoms = {}
+        for uom_name in uoms:
+            if not uom_name:
+                continue
+            if frappe.db.exists("UOM", uom_name):
+                validated_uoms[uom_name] = uom_name
+            else:
+                try:
+                    # Create the UOM record dynamically
+                    uom_doc = frappe.new_doc("UOM")
+                    uom_doc.name = uom_name
+                    uom_doc.uom_name = uom_name
+                    uom_doc.insert(ignore_permissions=True)
+                    validated_uoms[uom_name] = uom_name
+                except Exception:
+                    # Fallback to an existing UOM
+                    fallback_found = None
+                    for fallback in ["Nos", "Unit"]:
+                        if frappe.db.exists("UOM", fallback):
+                            fallback_found = fallback
+                            break
+                    if fallback_found:
+                        validated_uoms[uom_name] = fallback_found
+                    else:
+                        validated_uoms[uom_name] = uom_name
+
+        # Apply validated/fallback UOMs back to parent and items
+        if self.unit and self.unit in validated_uoms:
+            self.unit = validated_uoms[self.unit]
+        else:
+            self.unit = "Nos"
+
+        if hasattr(self, "items") and self.items:
+            for item in self.items:
+                if getattr(item, "unit", None) and item.unit in validated_uoms:
+                    item.unit = validated_uoms[item.unit]
+                else:
+                    item.unit = "Nos"
+
     def validate_creation_roles(self):
         """Ensure PO Verifier and PO Approver cannot create new POs."""
         if self.is_new():
+            if frappe.session.user == "Administrator":
+                return
+
             user_roles = set(frappe.get_roles(frappe.session.user))
-            allowed_creator_roles = {"PO Generator", "Procurement Manager", "System Manager", "Administrator"}
-            if not user_roles.intersection(allowed_creator_roles):
-                if "PO Verifier" in user_roles or "PO Approver" in user_roles:
-                    frappe.throw(
-                        _("PO Verifiers and Approvers cannot create new Purchase Orders."),
-                        frappe.PermissionError
-                    )
+            
+            # If the user has PO Verifier role and is not a PO Generator
+            if "PO Verifier" in user_roles and "PO Generator" not in user_roles:
+                frappe.throw(
+                    _("PO Verifiers cannot create new Purchase Orders."),
+                    frappe.PermissionError
+                )
+
+            # If the user has PO Approver role and is not a PO Generator
+            if "PO Approver" in user_roles and "PO Generator" not in user_roles:
+                frappe.throw(
+                    _("PO Approvers cannot create new Purchase Orders. "
+                      "As an Approver, your role is strictly to review, verify, "
+                      "and approve or reject/return purchase orders forwarded by PO Generators and Verifiers. "
+                      "If you need to generate a purchase order, please request a user with the PO Generator role to initiate the draft."),
+                    frappe.PermissionError
+                )
 
     def validate_generator_edit_rights(self):
         """Prevent PO Generator from modifying PO once generated / submitted for verification."""
@@ -148,15 +216,29 @@ class VendorPurchaseOrder(Document):
         if "PO Generator" in user_roles and not user_roles.intersection(admin_or_higher):
             previous = self.get_doc_before_save()
             old_state = (previous.workflow_state if previous else None) or "Draft"
-            if old_state in ["Generated", "Verified (Ready for Approval)", "Approved"]:
+            if old_state in ["Generated (Yet to be Verified)", "Verified (Yet to be approved)", "Approved"]:
                 frappe.throw(
                     _("PO Generator cannot modify a Purchase Order once generated and submitted for verification."),
                     frappe.PermissionError
                 )
 
+    def validate_payment_permissions(self):
+        """Ensure only authorized roles can modify payment fields on save."""
+        if self.is_new():
+            return
+
+        previous = self.get_doc_before_save()
+        if not previous:
+            return
+
+        payment_fields = ["payment_status", "payment_pending", "payment_partially_paid", "payment_fully_paid"]
+        changed = any(previous.get(f) != self.get(f) for f in payment_fields)
+        if changed:
+            self._check_payment_role()
+
     def validate_audit_comments_edit_rights(self):
-        """Ensure verifier_comments cannot be modified outside Generated stage,
-        and approver_comments cannot be modified outside Verified (Ready for Approval) stage."""
+        """Ensure verifier_comments cannot be modified outside Generated (Yet to be Verified) stage,
+        and approver_comments cannot be modified outside Verified (Yet to be approved) stage."""
         if self.is_new():
             return
 
@@ -168,17 +250,17 @@ class VendorPurchaseOrder(Document):
 
         # Check verifier_comments modification
         if self.has_value_changed("verifier_comments"):
-            if old_state != "Generated":
+            if old_state != "Generated (Yet to be Verified)":
                 frappe.throw(
-                    _("Verifier comments can only be edited during the 'Generated' stage."),
+                    _("Verifier comments can only be edited during the 'Generated (Yet to be Verified)' stage."),
                     frappe.PermissionError
                 )
 
         # Check approver_comments modification
         if self.has_value_changed("approver_comments"):
-            if old_state != "Verified (Ready for Approval)":
+            if old_state != "Verified (Yet to be approved)":
                 frappe.throw(
-                    _("Approver comments can only be edited during the 'Verified (Ready for Approval)' stage."),
+                    _("Approver comments can only be edited during the 'Verified (Yet to be approved)' stage."),
                     frappe.PermissionError
                 )
 
@@ -197,14 +279,14 @@ class VendorPurchaseOrder(Document):
         if old_state != new_state:
             now = frappe.utils.now_datetime()
 
-            # Transition to Verified (Ready for Approval) (Verifier verified)
-            if new_state == "Verified (Ready for Approval)" and old_state == "Generated":
+            # Transition to Verified (Yet to be approved) (Verifier verified)
+            if new_state == "Verified (Yet to be approved)" and old_state == "Generated (Yet to be Verified)":
                 self.verified_by = frappe.session.user
                 self.verified_on = now
                 self.verifier_status = "Verified"
 
             # Transition to Draft (Verifier returned to Generator)
-            elif new_state == "Draft" and old_state == "Generated":
+            elif new_state == "Draft" and old_state == "Generated (Yet to be Verified)":
                 self.verified_by = frappe.session.user
                 self.verified_on = now
                 self.verifier_status = "Returned to Generator"
@@ -216,8 +298,8 @@ class VendorPurchaseOrder(Document):
                 self.approver_status = "Approved"
                 self.status = "Approved"
 
-            # Transition from Verified (Ready for Approval) back to Generated (Approver returned to Verifier)
-            elif new_state == "Generated" and old_state == "Verified (Ready for Approval)":
+            # Transition from Verified (Yet to be approved) back to Generated (Yet to be Verified) (Approver returned to Verifier)
+            elif new_state == "Generated (Yet to be Verified)" and old_state == "Verified (Yet to be approved)":
                 self.approved_by = frappe.session.user
                 self.approved_on = now
                 self.approver_status = "Returned to Verifier"
@@ -238,6 +320,9 @@ class VendorPurchaseOrder(Document):
         # Ensure payment status starts as Pending on submission
         if not self.payment_status:
             self.db_set("payment_status", "Pending")
+        self.db_set("payment_pending", 1)
+        self.db_set("payment_partially_paid", 0)
+        self.db_set("payment_fully_paid", 0)
         frappe.msgprint(
             _("Purchase Order {0} submitted successfully. "
               "Grand Total: {1} {2}").format(
@@ -253,6 +338,9 @@ class VendorPurchaseOrder(Document):
         """Called when a submitted document is cancelled."""
         self.db_set("status", "Cancelled")
         self.db_set("payment_status", "Pending")
+        self.db_set("payment_pending", 1)
+        self.db_set("payment_partially_paid", 0)
+        self.db_set("payment_fully_paid", 0)
 
     def on_update_after_submit(self):
         """Validate that critical fields are not tampered with after submission."""
@@ -331,8 +419,15 @@ class VendorPurchaseOrder(Document):
                 indicator="orange"
             )
 
+    def sync_payment_check_fields(self):
+        """Sync boolean Check fields with payment_status Select field value."""
+        status = self.payment_status or "Pending"
+        self.payment_pending = 1 if status == "Pending" else 0
+        self.payment_partially_paid = 1 if status in ["Advance Paid", "Partially Paid"] else 0
+        self.payment_fully_paid = 1 if status == "Fully Paid" else 0
+
     def _validate_immutable_fields_after_submit(self):
-        """Prevent critical fields from being changed after submission."""
+        """Prevent critical fields and child tables from being changed after submission."""
         if getattr(self.flags, 'ignore_immutable_validation', False):
             return
         if self.docstatus != 1:
@@ -342,22 +437,49 @@ class VendorPurchaseOrder(Document):
         if not previous:
             return
 
+        # 1. Parent level financial/tax fields
         immutable_fields = [
             ("vendor", "Vendor"),
             ("company", "Company"),
-            ("equipment", "Equipment"),
-            ("rate", "Unit Rate"),
-            ("quantity", "Quantity"),
             ("grand_total", "Grand Total"),
+            ("cgst_amount", "CGST Amount"),
+            ("sgst_amount", "SGST Amount"),
+            ("igst_amount", "IGST Amount"),
+            ("freight", "Freight Charges"),
+            ("insurance", "Insurance"),
+            ("packing_charges", "Packing Charges"),
+            ("other_charges", "Other Charges"),
+            ("is_lut_applicable", "LUT Applicable"),
+            ("vendor_gstin", "Vendor GSTIN"),
+            ("company_gstin", "Company GSTIN"),
         ]
         for field, label in immutable_fields:
-            old_val = previous.get(field)
-            new_val = self.get(field)
-            if old_val and new_val and str(old_val) != str(new_val):
+            if previous.get(field) != self.get(field):
                 frappe.throw(
-                    _("{0} cannot be changed after submission. "
-                      "Please amend this Purchase Order instead.").format(label)
+                    _("Critical field {0} cannot be changed after submission.").format(label),
+                    frappe.PermissionError
                 )
+
+        # 2. Child table 'items' verification
+        prev_items = previous.get("items") or []
+        curr_items = self.get("items") or []
+
+        if len(prev_items) != len(curr_items):
+            frappe.throw(
+                _("Items table cannot be modified after submission (cannot add/remove rows)."),
+                frappe.PermissionError
+            )
+
+        # Compare row by row
+        critical_item_fields = ["equipment", "quantity", "rate", "gst_percentage", "amount", "cgst_amount", "sgst_amount", "igst_amount"]
+        for idx, prev_item in enumerate(prev_items):
+            curr_item = curr_items[idx]
+            for field in critical_item_fields:
+                if prev_item.get(field) != curr_item.get(field):
+                    frappe.throw(
+                        _("Item details at row {0} ({1}) cannot be changed after submission.").format(idx + 1, field),
+                        frappe.PermissionError
+                    )
 
     # ─── CALCULATION METHODS ──────────────────────────────
 
@@ -375,8 +497,8 @@ class VendorPurchaseOrder(Document):
 
         if self.items:
             for item in self.items:
-                # Override GST percentage to 0.1% if LUT is applicable and company is "Sarveksha Realty"
-                if self.is_lut_applicable and self.company and "Sarveksha Realty" in self.company:
+                # Override GST percentage to 0.1% if LUT is applicable
+                if self.is_lut_applicable:
                     item.gst_percentage = 0.1
 
                 rate = flt(item.rate)
@@ -409,7 +531,7 @@ class VendorPurchaseOrder(Document):
             self.specification = getattr(first, 'specification', None)
         else:
             # Fallback for single item legacy POs
-            if getattr(self, "is_lut_applicable", False) and self.company and "Sarveksha Realty" in self.company:
+            if getattr(self, "is_lut_applicable", False):
                 self.gst_percentage = 0.1
 
             rate = flt(self.rate)
@@ -428,10 +550,13 @@ class VendorPurchaseOrder(Document):
         vendor_gstin = self.vendor_gstin or ""
         company_gstin = self.company_gstin or ""
         
-        gst_type = "IGST"
-        if len(vendor_gstin) >= 2 and len(company_gstin) >= 2:
-            if vendor_gstin[:2] == company_gstin[:2]:
-                gst_type = "CGST + SGST"
+        if self.is_lut_applicable:
+            gst_type = "IGST"
+        else:
+            gst_type = "IGST"
+            if len(vendor_gstin) >= 2 and len(company_gstin) >= 2:
+                if vendor_gstin[:2] == company_gstin[:2]:
+                    gst_type = "CGST + SGST"
         
         self.gst_type = gst_type
 
@@ -472,6 +597,9 @@ class VendorPurchaseOrder(Document):
 
         self.db_set("payment_status", "Advance Paid")
         self.db_set("status", "Partially Paid")
+        self.db_set("payment_pending", 0)
+        self.db_set("payment_partially_paid", 1)
+        self.db_set("payment_fully_paid", 0)
         self.add_comment("Info",
             _("Advance payment marked by {0}").format(frappe.session.user)
         )
@@ -489,6 +617,9 @@ class VendorPurchaseOrder(Document):
 
         self.db_set("payment_status", "Fully Paid")
         self.db_set("status", "Fully Paid")
+        self.db_set("payment_pending", 0)
+        self.db_set("payment_partially_paid", 0)
+        self.db_set("payment_fully_paid", 1)
         self.add_comment("Info",
             _("Marked as Fully Paid by {0}").format(frappe.session.user)
         )
@@ -499,12 +630,12 @@ class VendorPurchaseOrder(Document):
 
     def _check_payment_role(self):
         """Ensure only authorized roles can modify payment status."""
-        allowed_roles = {"System Manager", "Accounts Manager", "Purchase Manager"}
+        allowed_roles = {"System Manager", "Administrator", "Procurement Manager"}
         user_roles = set(frappe.get_roles(frappe.session.user))
         if not allowed_roles.intersection(user_roles):
             frappe.throw(
                 _("You do not have permission to modify payment status. "
-                  "Required role: Accounts Manager or Purchase Manager."),
+                  "Required role: Procurement Manager."),
                 frappe.PermissionError
             )
 
@@ -521,214 +652,41 @@ def has_permission(doc, ptype="read", user=None):
         admin_roles = {"Procurement Manager", "System Manager", "Administrator"}
         if admin_roles.intersection(user_roles):
             return True
+
         state = (doc.workflow_state if doc else None) or "Draft"
-        if state not in ["Approved"]:
+        if state != "Approved":
             return False
+
+        # Only the PO Generator (or managers/administrators) can print.
+        # Verifiers and Approvers cannot print.
+        allowed_roles = {"PO Generator", "Procurement Manager", "System Manager", "Administrator"}
+        if allowed_roles.intersection(user_roles):
+            return True
+        return False
 
     return True
 
 
 def get_permission_query_conditions(user=None):
-    """Restrict PO Approver to only view Verified (Ready for Approval) and Approved POs."""
+    """Apply automatic filtering to the purchase order list view for Verifiers and Approvers."""
     if not user:
         user = frappe.session.user
 
-    user_roles = set(frappe.get_roles(user))
-    admin_roles = {"Procurement Manager", "System Manager", "Administrator"}
+    if user == "Administrator":
+        return ""
 
-    # If the user is an Approver and does not have administrative roles, restrict view
-    if "PO Approver" in user_roles and not user_roles.intersection(admin_roles):
-        return "(`tabVendor Purchase Order`.workflow_state in ('Verified (Ready for Approval)', 'Approved'))"
-    
+    user_roles = set(frappe.get_roles(user))
+
+    # If user is a PO Approver and not a PO Generator, restrict view
+    if "PO Approver" in user_roles and "PO Generator" not in user_roles:
+        return "(`tabVendor Purchase Order`.workflow_state in ('Verified (Yet to be approved)', 'Approved'))"
+
+    # If user is a PO Verifier and not a PO Generator, restrict view
+    if "PO Verifier" in user_roles and "PO Generator" not in user_roles:
+        return "(`tabVendor Purchase Order`.workflow_state in ('Generated (Yet to be Verified)', 'Verified (Yet to be approved)', 'Approved'))"
+
     return ""
 
-
-def seed_10_equipment_items():
-    """Ensure at least 10 fully populated Equipment master items exist and that
-    all pre-generated Vendor Purchase Orders contain at least 10 complete equipment line items."""
-
-    sample_equipments = [
-        {
-            "equipment_name": "Cone Crusher Assembly Model HP400",
-            "hsn_code": "84742010",
-            "brand": "Metso Outotec",
-            "manufacturer": "Metso Outotec Oyj Finland",
-            "unit": "Set",
-            "approx_cost_inr": 1250000.0,
-            "gst_percentage": 18.0,
-            "specification": "High-capacity secondary cone crusher with hydraulic adjustment, anti-spin mechanism, and integrated lubrication skid."
-        },
-        {
-            "equipment_name": "Vibrating Screen Triple Deck 2400x6000",
-            "hsn_code": "84741000",
-            "brand": "Sandvik Mining",
-            "manufacturer": "Sandvik AB Sweden",
-            "unit": "Set",
-            "approx_cost_inr": 850000.0,
-            "gst_percentage": 18.0,
-            "specification": "Heavy-duty inclined vibrating screen with polyurethane screen media, eccentric shaft drive, and vibration dampers."
-        },
-        {
-            "equipment_name": "Slurry Pump High Head 150kW",
-            "hsn_code": "84137099",
-            "brand": "Warman Slurry",
-            "manufacturer": "Weir Minerals Australia",
-            "unit": "Nos",
-            "approx_cost_inr": 450000.0,
-            "gst_percentage": 18.0,
-            "specification": "Heavy-duty rubber-lined centrifugal slurry pump with mechanical seal and variable frequency drive motor."
-        },
-        {
-            "equipment_name": "Heavy Duty Belt Conveyor Drive 45kW",
-            "hsn_code": "84283300",
-            "brand": "FLSmidth",
-            "manufacturer": "FLSmidth A/S Denmark",
-            "unit": "Set",
-            "approx_cost_inr": 680000.0,
-            "gst_percentage": 18.0,
-            "specification": "1200mm belt conveyor drive head unit with shaft-mounted gearbox, holdback backstop, and motorized pulley."
-        },
-        {
-            "equipment_name": "Magnetic Separator High Intensity",
-            "hsn_code": "84749000",
-            "brand": "Eriez Magnetics",
-            "manufacturer": "Eriez Manufacturing Co. USA",
-            "unit": "Nos",
-            "approx_cost_inr": 520000.0,
-            "gst_percentage": 18.0,
-            "specification": "Cross-belt self-cleaning permanent magnetic separator with stainless steel armor belt and dust-proof motor."
-        },
-        {
-            "equipment_name": "Heavy Duty Hydraulic Excavator Bucket 2.5m3",
-            "hsn_code": "84314990",
-            "brand": "Caterpillar Inc",
-            "manufacturer": "Caterpillar Inc. USA",
-            "unit": "Nos",
-            "approx_cost_inr": 380000.0,
-            "gst_percentage": 18.0,
-            "specification": "Severe-duty rock bucket forged with Hardox 500 wear plates, side cutters, and GET adapter tooth system."
-        },
-        {
-            "equipment_name": "Industrial Variable Frequency Drive 250kW",
-            "hsn_code": "85044090",
-            "brand": "ABB Industrial",
-            "manufacturer": "ABB Ltd. Switzerland",
-            "unit": "Nos",
-            "approx_cost_inr": 950000.0,
-            "gst_percentage": 18.0,
-            "specification": "ACS880 cabinet-built VFD drive with direct torque control (DTC), IP54 enclosure, and Modbus TCP communication card."
-        },
-        {
-            "equipment_name": "High Pressure Multi-Stage Water Pump",
-            "hsn_code": "84137010",
-            "brand": "Grundfos Pumps",
-            "manufacturer": "Grundfos A/S Denmark",
-            "unit": "Nos",
-            "approx_cost_inr": 290000.0,
-            "gst_percentage": 18.0,
-            "specification": "Vertical multistage centrifugal pump CR 95 in AISI 316 stainless steel with cartridge shaft seal and IE3 motor."
-        },
-        {
-            "equipment_name": "Spherical Roller Bearing Assembly 22234",
-            "hsn_code": "84832000",
-            "brand": "SKF Bearings",
-            "manufacturer": "SKF Group Sweden",
-            "unit": "Set",
-            "approx_cost_inr": 180000.0,
-            "gst_percentage": 18.0,
-            "specification": "Heavy-duty spherical roller bearing set with adapter sleeve, labyrinth seals, and cast iron plummer block housing."
-        },
-        {
-            "equipment_name": "Electromagnetic Flow Meter DN200",
-            "hsn_code": "90261010",
-            "brand": "Endress+Hauser",
-            "manufacturer": "Endress+Hauser AG Switzerland",
-            "unit": "Nos",
-            "approx_cost_inr": 310000.0,
-            "gst_percentage": 18.0,
-            "specification": "Promag W 400 electromagnetic flowmeter with hard rubber lining, Hastelloy electrodes, and HART transmitter."
-        }
-    ]
-
-    created_eq_docs = []
-    for i, data in enumerate(sample_equipments, 1):
-        name_key = f"EQ-{3280 + i:05d}"
-        if frappe.db.exists("Equipment", name_key):
-            doc = frappe.get_doc("Equipment", name_key)
-            doc.update(data)
-            doc.save(ignore_permissions=True)
-        else:
-            doc = frappe.get_doc({
-                "doctype": "Equipment",
-                "name": name_key,
-                **data
-            })
-            doc.insert(ignore_permissions=True)
-        created_eq_docs.append(doc)
-
-    frappe.db.commit()
-
-    # Now update all existing Vendor Purchase Orders so each has AT LEAST 10 line items
-    vpos = frappe.get_all("Vendor Purchase Order", fields=["name"])
-    for vpo_dict in vpos:
-        vpo = frappe.get_doc("Vendor Purchase Order", vpo_dict.name)
-
-        vpo.items = []
-        for eq_doc in created_eq_docs:
-            rate = flt(eq_doc.approx_cost_inr) or 100000.0
-            gst_pct = flt(eq_doc.gst_percentage) or 18.0
-            qty = 1.0
-            taxable = rate * qty
-            tax = taxable * (gst_pct / 100.0)
-            total = taxable + tax
-
-            vpo.append("items", {
-                "equipment": eq_doc.name,
-                "equipment_name": eq_doc.equipment_name,
-                "hsn_code": eq_doc.hsn_code,
-                "brand": eq_doc.brand,
-                "manufacturer": eq_doc.manufacturer,
-                "unit": eq_doc.unit or "Nos",
-                "quantity": qty,
-                "rate": rate,
-                "discount_percent": 0.0,
-                "gst_percentage": gst_pct,
-                "taxable_amount": taxable,
-                "tax_amount": tax,
-                "total_amount": total,
-                "specification": eq_doc.specification
-            })
-
-        # Sync top level item fields for backward compatibility
-        vpo.equipment = created_eq_docs[0].name
-        vpo.equipment_name = created_eq_docs[0].equipment_name
-        vpo.hsn_code = created_eq_docs[0].hsn_code
-        vpo.brand = created_eq_docs[0].brand
-        vpo.manufacturer = created_eq_docs[0].manufacturer
-        vpo.unit = created_eq_docs[0].unit
-        vpo.quantity = 1.0
-        vpo.rate = created_eq_docs[0].approx_cost_inr
-        vpo.specification = created_eq_docs[0].specification
-
-        vpo.calculate_grand_total()
-        vpo.calculate_advance()
-        vpo.flags.ignore_validate_update_after_submit = True
-        vpo.flags.ignore_immutable_validation = True
-        vpo.flags.ignore_permissions = True
-        vpo.save(ignore_permissions=True)
-
-    frappe.db.commit()
-    print("Successfully seeded 10 equipment items across all Vendor Purchase Orders!")
-
-
-def verify_10_equipment_items():
-    pos = frappe.get_all("Vendor Purchase Order", fields=["name", "company", "workflow_state"])
-    print(f"Total POs in system: {len(pos)}")
-    for po in pos:
-        doc = frappe.get_doc("Vendor Purchase Order", po.name)
-        print(f"\n--- PO: {doc.name} (State: {doc.workflow_state}, Items: {len(doc.items)}) ---")
-        for i, item in enumerate(doc.items, 1):
-            print(f"  Item {i:2d}: Code: {item.equipment} | Name: {item.equipment_name} | HSN: {item.hsn_code} | Brand: {item.brand} | Qty: {item.quantity} | Rate: {item.rate} | Total: {item.total_amount}")
 
 
 @frappe.whitelist()
