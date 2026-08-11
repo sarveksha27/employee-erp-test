@@ -4,9 +4,9 @@
  "allow_rename": 0,
  "autoname": "naming_series:",
  "creation": "2026-07-25 00:38:15.156674",
+ "default_print_format": "Vendor Purchase Order Format",
  "description": "Purchase Order raised by Sarveksha to a Vendor for equipment procurement",
  "doctype": "DocType",
- "default_print_format": "Vendor Purchase Order Format",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -16,6 +16,10 @@
   "col_break_header",
   "po_date",
   "company",
+  "letter_head",
+  "company_gstin",
+  "company_pan",
+  "company_address",
   "default_port",
   "sec_vendor",
   "vendor",
@@ -36,6 +40,9 @@
   "unit",
   "country_of_origin",
   "specification",
+  "add_equipment_btn",
+  "sec_equipment_summary",
+  "items",
   "sec_pricing",
   "currency",
   "exchange_rate",
@@ -43,6 +50,7 @@
   "discount_percent",
   "taxable_value",
   "col_break_pricing",
+  "is_lut_applicable",
   "gst_percentage",
   "gst_type",
   "cgst_amount",
@@ -84,6 +92,9 @@
   "advance_percentage",
   "advance_amount",
   "payment_status",
+  "payment_pending",
+  "payment_partially_paid",
+  "payment_fully_paid",
   "balance_due",
   "col_break_payment",
   "second_payment",
@@ -95,10 +106,22 @@
   "col_break_approval",
   "approved_by",
   "signatory",
+  "sec_verification_approval",
+  "col_verifier_panel",
+  "verifier_comments",
+  "verifier_status",
+  "verified_on",
+  "col_approver_panel",
+  "approver_comments",
+  "approver_status",
+  "approved_on",
+  "sec_terms",
+  "standard_terms",
+  "terms_preview",
+  "custom_terms",
   "sec_remarks",
   "remarks",
   "attachments",
-  "letter_head",
   "amended_from"
  ],
  "fields": [
@@ -117,7 +140,7 @@
    "in_filter": 1,
    "in_list_view": 1,
    "label": "Status",
-   "options": "Draft\nSubmitted\nVendor Confirmed\nPartially Paid\nFully Paid\nShipped\nDelivered\nCancelled",
+   "options": "Draft\nPending Verification\nVerification Returned\nPending Approval\nApproved\nPrinted\nSubmitted\nVendor Confirmed\nPartially Paid\nFully Paid\nShipped\nDelivered\nCancelled",
    "reqd": 1
   },
   {
@@ -145,6 +168,24 @@
    "label": "Company",
    "options": "Company",
    "reqd": 1
+  },
+  {
+   "fieldname": "company_gstin",
+   "fieldtype": "Data",
+   "label": "Company GSTIN",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company_pan",
+   "fieldtype": "Data",
+   "label": "Company PAN",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company_address",
+   "fieldtype": "Small Text",
+   "label": "Company Address & Details",
+   "read_only": 1
   },
   {
    "fieldname": "default_port",
@@ -203,7 +244,18 @@
   {
    "fieldname": "sec_equipment",
    "fieldtype": "Section Break",
-   "label": "Equipment Details"
+   "label": "Enter Equipment Details"
+  },
+  {
+   "fieldname": "sec_equipment_summary",
+   "fieldtype": "Section Break",
+   "label": "Included Equipment Items Summary"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Equipment Line Items",
+   "options": "Vendor Purchase Order Item"
   },
   {
    "fieldname": "equipment",
@@ -211,28 +263,37 @@
    "in_list_view": 1,
    "label": "Equipment",
    "options": "Equipment",
-   "reqd": 1,
-   "search_index": 1
+   "reqd": 0,
+   "search_index": 1,
+   "hidden": 0
   },
   {
    "fieldname": "equipment_name",
    "fieldtype": "Data",
-   "label": "Equipment Name"
+   "label": "Equipment Name",
+   "hidden": 0,
+   "reqd": 0
   },
   {
    "fieldname": "hsn_code",
    "fieldtype": "Data",
-   "label": "HSN Code"
+   "label": "HSN Code",
+   "hidden": 0,
+   "reqd": 0
   },
   {
    "fieldname": "brand",
    "fieldtype": "Data",
-   "label": "Brand"
+   "label": "Brand",
+   "hidden": 0,
+   "reqd": 0
   },
   {
    "fieldname": "manufacturer",
    "fieldtype": "Data",
-   "label": "Manufacturer"
+   "label": "Manufacturer",
+   "hidden": 0,
+   "reqd": 0
   },
   {
    "fieldname": "col_break_equipment",
@@ -243,24 +304,36 @@
    "fieldname": "quantity",
    "fieldtype": "Float",
    "label": "Quantity",
-   "reqd": 1
+   "reqd": 0,
+   "hidden": 0
   },
   {
    "fieldname": "unit",
    "fieldtype": "Link",
    "label": "Unit of Measure",
-   "options": "UOM"
+   "options": "UOM",
+   "hidden": 0,
+   "reqd": 0
   },
   {
    "fieldname": "country_of_origin",
    "fieldtype": "Link",
    "label": "Country of Origin",
-   "options": "Country"
+   "options": "Country",
+   "hidden": 1,
+   "reqd": 0
   },
   {
    "fieldname": "specification",
    "fieldtype": "Text Editor",
-   "label": "Specification / Description"
+   "label": "Specification / Description",
+   "hidden": 0,
+   "reqd": 0
+  },
+  {
+   "fieldname": "add_equipment_btn",
+   "fieldtype": "Button",
+   "label": "+ Add Equipment to Table"
   },
   {
    "fieldname": "sec_pricing",
@@ -287,7 +360,7 @@
    "fieldtype": "Currency",
    "label": "Unit Rate",
    "options": "currency",
-   "reqd": 1
+   "reqd": 0
   },
   {
    "default": "0",
@@ -305,6 +378,12 @@
   {
    "fieldname": "col_break_pricing",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_lut_applicable",
+   "fieldtype": "Check",
+   "label": "Is LUT Applicable (0.1% GST Export)?"
   },
   {
    "description": "Auto-fetched from Equipment master",
@@ -441,16 +520,16 @@
    "options": "Warehouse"
   },
   {
-   "description": "e.g., Mundra, Conakry, Freetown, Douala",
    "fieldname": "port",
-   "fieldtype": "Data",
-   "label": "Port"
+   "fieldtype": "Link",
+   "label": "Port",
+   "options": "Port"
   },
   {
    "fieldname": "shipment_type",
    "fieldtype": "Select",
    "label": "Shipment Type",
-   "options": "\nSea\nAir\nRoad\nCourier"
+   "options": "FCL\nLCL\nContainerized\nFlat Rack\nOversized\nHazardous Cargo\nPart Shipment\nHeight Cargo\nBreak Bulk\nRoRo\nAir Freight\nExpress Courier"
   },
   {
    "fieldname": "container_number",
@@ -537,19 +616,41 @@
   },
   {
    "bold": 1,
+   "description": "Grand Total minus Advance Amount",
    "fieldname": "balance_due",
    "fieldtype": "Currency",
    "label": "Balance Due",
    "options": "currency",
-   "read_only": 1,
-   "description": "Grand Total minus Advance Amount"
+   "read_only": 1
   },
   {
+   "allow_on_submit": 1,
    "default": "Pending",
    "fieldname": "payment_status",
    "fieldtype": "Select",
    "label": "Payment Status",
    "options": "Pending\nAdvance Paid\nPartially Paid\nFully Paid"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "payment_pending",
+   "fieldtype": "Check",
+   "label": "Payment Pending"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "payment_partially_paid",
+   "fieldtype": "Check",
+   "label": "Payment Partially Paid"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "payment_fully_paid",
+   "fieldtype": "Check",
+   "label": "Payment Fully Paid"
   },
   {
    "fieldname": "col_break_payment",
@@ -607,6 +708,88 @@
    "label": "Authorized Signatory"
   },
   {
+   "fieldname": "sec_verification_approval",
+   "fieldtype": "Section Break",
+   "label": "Verification & Approval Panel (Internal Notes)"
+  },
+  {
+   "fieldname": "col_verifier_panel",
+   "fieldtype": "Column Break",
+   "label": "Verifier Audit & Comments"
+  },
+  {
+   "description": "Internal notes and comments by Verifier",
+   "fieldname": "verifier_comments",
+   "fieldtype": "Small Text",
+   "label": "Verifier Comments / Notes",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "verifier_status",
+   "fieldtype": "Select",
+   "label": "Verifier Status",
+   "options": "\nPending\nVerified\nReturned to Generator",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "verified_on",
+   "fieldtype": "Datetime",
+   "label": "Verified On",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_approver_panel",
+   "fieldtype": "Column Break",
+   "label": "Approver Audit & Comments"
+  },
+  {
+   "description": "Internal notes and comments by Approver",
+   "fieldname": "approver_comments",
+   "fieldtype": "Small Text",
+   "label": "Approver Comments / Notes",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "approver_status",
+   "fieldtype": "Select",
+   "label": "Approver Status",
+   "options": "\nPending\nApproved\nReturned to Verifier",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_on",
+   "fieldtype": "Datetime",
+   "label": "Approved On",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_terms",
+   "fieldtype": "Section Break",
+   "label": "Terms and Conditions"
+  },
+  {
+   "fieldname": "standard_terms",
+   "fieldtype": "Table MultiSelect",
+   "label": "Standard Terms",
+   "options": "VPO Standard Term"
+  },
+  {
+   "fieldname": "terms_preview",
+   "fieldtype": "HTML",
+   "label": "Standard Terms Preview"
+  },
+  {
+   "fieldname": "custom_terms",
+   "fieldtype": "Text Editor",
+   "label": "Custom Terms"
+  },
+  {
    "fieldname": "sec_remarks",
    "fieldtype": "Section Break",
    "label": "Remarks & Attachments"
@@ -624,10 +807,10 @@
   {
    "fieldname": "letter_head",
    "fieldtype": "Link",
+   "hidden": 0,
    "label": "Letter Head",
    "options": "Letter Head",
-   "print_hide": 1,
-   "hidden": 1
+   "print_hide": 1
   },
   {
    "fieldname": "amended_from",
@@ -643,7 +826,6 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 0,
  "is_submittable": 1,
- "track_changes": 1,
  "links": [],
  "modified": "2026-07-25 00:38:15.156674",
  "modified_by": "Administrator",
@@ -704,5 +886,6 @@
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [],
- "title_field": "vendor"
+ "title_field": "vendor",
+ "track_changes": 1
 }

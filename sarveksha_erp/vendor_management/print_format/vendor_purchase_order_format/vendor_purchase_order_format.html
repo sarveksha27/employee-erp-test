@@ -9,9 +9,15 @@
 {% elif company.default_letter_head and frappe.db.exists("Letter Head", company.default_letter_head) %}
   {% set lh_doc = frappe.get_doc("Letter Head", company.default_letter_head) %}
 {% else %}
-  {% set lh_doc = None %}
+  {# Fallback: search for any active Letter Head matching the company name #}
+  {% set _lh_name = frappe.db.get_value("Letter Head", {"disabled": 0, "is_default": 1}, "name") %}
+  {% if _lh_name %}
+    {% set lh_doc = frappe.get_doc("Letter Head", _lh_name) %}
+  {% else %}
+    {% set lh_doc = None %}
+  {% endif %}
 {% endif %}
-{% set letterhead_img = lh_doc.image if lh_doc else "" %}
+{% set letterhead_img = lh_doc.image if (lh_doc and lh_doc.image) else "" %}
 
 
 
@@ -45,6 +51,8 @@
   }
   table.fixed .right { text-align: right; }
   table.fixed .center { text-align: center; }
+  /* Bold label helper — used throughout the template */
+  .lbl { font-weight: bold; }
   .section-head {
     background: #f0f0f0;
     font-weight: bold;
@@ -60,7 +68,7 @@
   /* ── WEB PREVIEW (Screen): Repeats on virtual paper ── */
   @media screen {
     .print-format {
-      background-image: url('{{ letterhead_img }}') !important;
+      background-image: url('{{ (frappe.utils.get_url() + letterhead_img) | replace(" ", "%20") }}') !important;
       background-size: 100% 297mm !important;
       background-repeat: repeat-y !important;
       background-position: top center !important;
@@ -74,21 +82,15 @@
     @page { margin: 0 !important; size: A4; }
     html, body { margin: 0 !important; padding: 0 !important; }
     tr, td, th, p { page-break-inside: avoid; }
-    .print-format { background: transparent !important; padding: 0 !important; }
-    
-    /* This fixed div natively stretches to fill 100% of every printed page */
-    .print-bg-fixed {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image: url('{{ letterhead_img }}') !important;
-      background-size: 100% 100% !important;
-      background-repeat: no-repeat !important;
-      z-index: -1;
-      display: block !important;
+    .print-format {
+      background-image: url('{{ (frappe.utils.get_url() + letterhead_img) | replace(" ", "%20") }}') !important;
+      background-size: 100% 297mm !important;
+      background-repeat: repeat-y !important;
+      background-position: top center !important;
+      background-color: transparent !important;
+      padding: 0 !important;
     }
+    .print-bg-fixed { display: none !important; }
   }
 </style>
 
@@ -98,7 +100,7 @@
 <!-- ── MASTER WRAPPER (Dodges header/footer graphics on all pages) ── -->
 <table style="width:100%; border:none; margin:0; padding:0; border-collapse:collapse;">
   <thead style="display:table-header-group;">
-    <tr><td style="height:150px; border:none; padding:0;"></td></tr>
+    <tr><td style="height:190px; border:none; padding:0;"></td></tr>
   </thead>
   <tfoot style="display:table-footer-group;">
     <tr>
@@ -172,12 +174,23 @@
 
   <!-- ── SALUTATION ─────────────────────────────────────── -->
   <p>Dear Sir/Ma'am,</p>
-  <p>We are pleased to release this Purchase Order for the supply of <strong>{{ doc.equipment_name }}</strong>. Details and specifications are as per below. Please send your acceptance confirmation via return email for further processing.</p>
+  <p>We are pleased to release this Purchase Order for the supply of <strong>{{ doc.equipment_name or doc.item_code or "the specified goods" }}</strong>. Details and specifications are as per below. Please send your acceptance confirmation via return email for further processing.</p>
 
   <!-- ── PRE-CONDITIONS ─────────────────────────────────── -->
   <table class="fixed" style="margin-bottom:12px;">
     <tbody>
-      <tr><td>The bill should be raised in the name of <strong>{{ company.company_name }}</strong>.</td></tr>
+      <tr>
+        <td>
+          The bill should be raised in the name of <strong>{{ company.company_name }}</strong>.
+          {% if doc.company_address %}
+            <br><span style="color:#333; font-size:10px;">{{ doc.company_address | replace("\n", "<br>") }}</span>
+          {% else %}
+            {% if doc.company_gstin %}<br><strong>GSTIN:</strong> {{ doc.company_gstin }}{% endif %}
+            {% if doc.company_pan %}<br><strong>PAN:</strong> {{ doc.company_pan }}{% endif %}
+            {% if company.registration_details %}<br><span style="font-size:10px;">{{ company.registration_details }}</span>{% endif %}
+          {% endif %}
+        </td>
+      </tr>
       <tr><td style="border-top:none;">The bill and delivery challan must clearly mention the Purchase Order number.</td></tr>
       <tr><td style="border-top:none;">The bill must clearly mention the applicable HSN/SAC codes as required under GST law.</td></tr>
       <tr><td style="border-top:none;">Original signed invoice and relevant documents must be provided at the time of material delivery.</td></tr>
@@ -207,25 +220,45 @@
         <th class="center">UOM</th>
         <th class="center">Qty</th>
         <th class="right">Rate ({{ doc.currency }})</th>
-        <th class="right">Amount (INR)</th>
+        <th class="right">Amount ({{ doc.currency }})</th>
       </tr>
     </thead>
     <tbody>
-      <tr>
-        <td class="center" style="border-top:none;">1</td>
-        <td style="border-top:none;">
-          <strong>{{ doc.equipment_name }}</strong><br>
-          {% if doc.manufacturer %}Mfr: {{ doc.manufacturer }}<br>{% endif %}
-          {% if doc.country_of_origin %}Origin: {{ doc.country_of_origin }}<br>{% endif %}
-          {% if doc.specification %}<span style="font-size:10px;">{{ doc.specification }}</span>{% endif %}
-        </td>
-        <td class="center" style="border-top:none;">{{ doc.hsn_code or "—" }}</td>
-        <td class="center" style="border-top:none;">{{ doc.brand or "—" }}</td>
-        <td class="center" style="border-top:none;">{{ doc.unit or "Nos" }}</td>
-        <td class="center" style="border-top:none;">{{ doc.quantity }}</td>
-        <td class="right" style="border-top:none;">{{ doc.get_formatted("rate") }}</td>
-        <td class="right" style="border-top:none;">{{ doc.get_formatted("taxable_value") }}</td>
-      </tr>
+      {% if doc.items and doc.items|length > 0 %}
+        {% for item in doc.items %}
+        <tr>
+          <td class="center" style="border-top:none;">{{ loop.index }}</td>
+          <td style="border-top:none;">
+            <strong>{{ item.equipment_name or item.equipment or "—" }}</strong><br>
+            {% if item.brand %}Brand: {{ item.brand }} | {% endif %}
+            {% if item.manufacturer %}Mfr: {{ item.manufacturer }}<br>{% endif %}
+            {% if item.specification %}<span style="font-size:10px;">{{ item.specification }}</span>{% endif %}
+          </td>
+          <td class="center" style="border-top:none;">{{ item.hsn_code or "—" }}</td>
+          <td class="center" style="border-top:none;">{{ item.brand or "—" }}</td>
+          <td class="center" style="border-top:none;">{{ item.unit or "Nos" }}</td>
+          <td class="center" style="border-top:none;">{{ item.quantity }}</td>
+          <td class="right" style="border-top:none;">{{ doc.currency }} {{ frappe.utils.fmt_money(item.rate, currency=doc.currency) }}</td>
+          <td class="right" style="border-top:none;">{{ doc.currency }} {{ frappe.utils.fmt_money(item.taxable_amount, currency=doc.currency) }}</td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td class="center" style="border-top:none;">1</td>
+          <td style="border-top:none;">
+            <strong>{{ doc.equipment_name or doc.equipment or "—" }}</strong><br>
+            {% if doc.manufacturer %}Mfr: {{ doc.manufacturer }}<br>{% endif %}
+            {% if doc.country_of_origin %}Origin: {{ doc.country_of_origin }}<br>{% endif %}
+            {% if doc.specification %}<span style="font-size:10px;">{{ doc.specification }}</span>{% endif %}
+          </td>
+          <td class="center" style="border-top:none;">{{ doc.hsn_code or "—" }}</td>
+          <td class="center" style="border-top:none;">{{ doc.brand or "—" }}</td>
+          <td class="center" style="border-top:none;">{{ doc.unit or "Nos" }}</td>
+          <td class="center" style="border-top:none;">{{ doc.quantity }}</td>
+          <td class="right" style="border-top:none;">{{ doc.get_formatted("rate") }}</td>
+          <td class="right" style="border-top:none;">{{ doc.get_formatted("taxable_value") }}</td>
+        </tr>
+      {% endif %}
 
       <!-- Tax rows -->
       {% if doc.gst_type == "CGST + SGST" %}
@@ -322,6 +355,31 @@
   </table>
 
   <!-- ── TERMS & CONDITIONS ─────────────────────────────── -->
+  {% if doc.standard_terms or doc.custom_terms %}
+  <p style="margin:10px 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
+  <table class="fixed">
+    <tbody>
+      <tr><td style="line-height:1.9;">
+        {% if doc.standard_terms %}
+          {% for row in doc.standard_terms %}
+            {% if row.standard_term and frappe.db.exists("Terms and Conditions", row.standard_term) %}
+              {% set st_doc = frappe.get_doc("Terms and Conditions", row.standard_term) %}
+              <div class="standard-terms-print" style="margin-bottom: 10px;">
+                <strong>{{ row.standard_term }}</strong>
+                <div>{{ st_doc.terms }}</div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% if doc.custom_terms %}
+          <div class="custom-terms-print" style="margin-top: 10px;">
+            {{ doc.custom_terms }}
+          </div>
+        {% endif %}
+      </td></tr>
+    </tbody>
+  </table>
+  {% else %}
   <p style="margin:10px 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
   <table class="fixed">
     <tbody>
@@ -344,6 +402,7 @@
       </td></tr>
     </tbody>
   </table>
+  {% endif %}
 
   {% if doc.remarks %}
   <div class="section-head" style="margin-top:10px;">NOTE</div>

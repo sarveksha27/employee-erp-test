@@ -1,0 +1,186 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Workflow",
+  "document_type": "Vendor Purchase Order",
+  "enable_action_confirmation": 0,
+  "is_active": 1,
+  "modified": "2026-08-02 12:40:57.680185",
+  "name": "Vendor Purchase Order Workflow",
+  "override_status": 0,
+  "send_email_alert": 0,
+  "states": [
+   {
+    "allow_edit": "PO Generator",
+    "avoid_status_override": 0,
+    "doc_status": "0",
+    "evaluate_as_expression": 0,
+    "is_optional_state": 0,
+    "message": null,
+    "next_action_email_template": null,
+    "send_email": 1,
+    "state": "Draft",
+    "update_field": null,
+    "update_value": null,
+    "workflow_builder_id": null
+   },
+   {
+    "allow_edit": "PO Verifier",
+    "avoid_status_override": 0,
+    "doc_status": "0",
+    "evaluate_as_expression": 0,
+    "is_optional_state": 0,
+    "message": null,
+    "next_action_email_template": null,
+    "send_email": 1,
+    "state": "Generated (Yet to be Verified)",
+    "update_field": null,
+    "update_value": null,
+    "workflow_builder_id": null
+   },
+   {
+    "allow_edit": "PO Approver",
+    "avoid_status_override": 0,
+    "doc_status": "0",
+    "evaluate_as_expression": 0,
+    "is_optional_state": 0,
+    "message": null,
+    "next_action_email_template": null,
+    "send_email": 1,
+    "state": "Verified (Yet to be approved)",
+    "update_field": null,
+    "update_value": null,
+    "workflow_builder_id": null
+   },
+   {
+    "allow_edit": "Procurement Manager",
+    "avoid_status_override": 0,
+    "doc_status": "1",
+    "evaluate_as_expression": 0,
+    "is_optional_state": 0,
+    "message": null,
+    "next_action_email_template": null,
+    "send_email": 1,
+    "state": "Approved",
+    "update_field": null,
+    "update_value": null,
+    "workflow_builder_id": null
+   }
+  ],
+  "transitions": [
+   {
+    "action": "Generate PO",
+    "allow_self_approval": 1,
+    "allowed": "PO Generator",
+    "condition": null,
+    "next_state": "Generated (Yet to be Verified)",
+    "send_email_to_creator": 0,
+    "state": "Draft",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   },
+   {
+    "action": "Generate PO",
+    "allow_self_approval": 1,
+    "allowed": "Procurement Manager",
+    "condition": null,
+    "next_state": "Generated (Yet to be Verified)",
+    "send_email_to_creator": 0,
+    "state": "Draft",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   },
+   {
+    "action": "Verify",
+    "allow_self_approval": 1,
+    "allowed": "PO Verifier",
+    "condition": null,
+    "next_state": "Verified (Yet to be approved)",
+    "send_email_to_creator": 0,
+    "state": "Generated (Yet to be Verified)",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   },
+   {
+    "action": "Verify",
+    "allow_self_approval": 1,
+    "allowed": "Procurement Manager",
+    "condition": null,
+    "next_state": "Verified (Yet to be approved)",
+    "send_email_to_creator": 0,
+    "state": "Generated (Yet to be Verified)",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   },
+   {
+    "action": "Send Back",
+    "allow_self_approval": 1,
+    "allowed": "PO Verifier",
+    "condition": null,
+    "next_state": "Draft",
+    "send_email_to_creator": 0,
+    "state": "Generated (Yet to be Verified)",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   },
+   {
+    "action": "Send Back",
+    "allow_self_approval": 1,
+    "allowed": "Procurement Manager",
+    "condition": null,
+    "next_state": "Draft",
+    "send_email_to_creator": 0,
+    "state": "Generated (Yet to be Verified)",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   },
+   {
+    "action": "Approve",
+    "allow_self_approval": 1,
+    "allowed": "PO Approver",
+    "condition": null,
+    "next_state": "Approved",
+    "send_email_to_creator": 0,
+    "state": "Verified (Yet to be approved)",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   },
+   {
+    "action": "Approve",
+    "allow_self_approval": 1,
+    "allowed": "Procurement Manager",
+    "condition": null,
+    "next_state": "Approved",
+    "send_email_to_creator": 0,
+    "state": "Verified (Yet to be approved)",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   },
+   {
+    "action": "Send Back",
+    "allow_self_approval": 1,
+    "allowed": "PO Approver",
+    "condition": null,
+    "next_state": "Generated (Yet to be Verified)",
+    "send_email_to_creator": 0,
+    "state": "Verified (Yet to be approved)",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   },
+   {
+    "action": "Send Back",
+    "allow_self_approval": 1,
+    "allowed": "Procurement Manager",
+    "condition": null,
+    "next_state": "Generated (Yet to be Verified)",
+    "send_email_to_creator": 0,
+    "state": "Verified (Yet to be approved)",
+    "transition_tasks": null,
+    "workflow_builder_id": null
+   }
+  ],
+  "workflow_data": null,
+  "workflow_name": "Vendor Purchase Order Workflow",
+  "workflow_state_field": "workflow_state"
+ }
+]

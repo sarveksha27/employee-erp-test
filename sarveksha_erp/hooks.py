@@ -31,7 +31,6 @@ app_license = "mit"
 fixtures = [
     {"dt": "Company"},
     {"dt": "Fiscal Year"},
-    {"dt": "Fiscal Year Company"},
     {"dt": "Supplier Group"},
     {"dt": "Supplier"},
     {"dt": "Custom Field"},
@@ -41,7 +40,14 @@ fixtures = [
     {"dt": "Bank Account"},
     {"dt": "Letter Head"},
     {"dt": "Print Format"},
-    {"dt": "Property Setter"}
+    {"dt": "Property Setter"},
+    {"dt": "Port"},
+    {"dt": "Terms and Conditions"},
+    {"dt": "Role"},
+    {"dt": "Workflow"},
+    {"dt": "Workflow State"},
+    {"dt": "Workflow Action Master"},
+    {"dt": "Custom DocPerm"}
 ]
 
 # include js, css files in header of web template
@@ -142,13 +148,13 @@ after_install = "sarveksha_erp.install.after_install"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+has_permission = {
+    "Vendor Purchase Order": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.has_permission",
+}
+
+permission_query_conditions = {
+    "Vendor Purchase Order": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.get_permission_query_conditions",
+}
 
 # Document Events
 # ---------------
