@@ -126,3 +126,32 @@ All Frappe test data that was leaking into the development site UI has been perm
 4. **Supplier payment details via RPC** — Payment terms, bank details, and GSTIN are fetched server-side on vendor selection to avoid stale cache and security issues with client-side `frappe.db` calls.
 
 5. **Shipment subtype is dynamic** — Options in the `shipment_subtype` dropdown are programmatically set based on `shipment_type` selection, not stored as a static list in the DocType.
+
+---
+
+### 8. `equipment_management/doctype/equipment/populate_gst.py` [NEW]
+A one-time + repeatable data-population script.
+
+**Function: `populate_gst_from_hsn()`** *(whitelisted, System Manager only)*
+- Iterates all 3,290 Equipment records
+- Resolves the correct GST slab using a two-tier lookup:
+  1. **Specific HSN (8-digit)** — exact rate from official GST schedule
+  2. **Chapter (4-digit)** — default slab for the HS chapter
+  3. **Section (2-digit)** — last-resort fallback
+- Updates `gst_percentage` field in-place via `frappe.db.set_value`
+- Returns a summary `{total, updated, skipped, no_hsn, sample_updates}`
+
+**GST slab mapping summary applied:**
+| Slab | Item types |
+|---|---|
+| 5% | Vaccines, medicinal oxygen, diagnostic kits, solar panels |
+| 12% | Pharmaceuticals, medical/surgical instruments, X-ray (medical), LED lights |
+| 18% | Chemicals (Ch.28-29, 32-38), machinery (Ch.84-85), optical instruments (Ch.90) |
+| 28% | Earth-moving vehicles (Ch.87), perfumes/cosmetics |
+
+**Result:** 3280 records updated, 10 already correct, 0 without HSN codes.
+
+**Re-run anytime:**
+```bash
+bench --site development execute sarveksha_erp.equipment_management.doctype.equipment.populate_gst.populate_gst_from_hsn
+```
