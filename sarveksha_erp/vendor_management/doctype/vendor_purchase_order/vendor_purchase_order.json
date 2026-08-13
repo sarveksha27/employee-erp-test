@@ -11,6 +11,8 @@
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
+  "po_type",
+  "ref_number",
   "status",
   "revision",
   "col_break_header",
@@ -71,10 +73,13 @@
   "pi_date",
   "col_break_references",
   "expected_delivery",
+  "expected_delivery_time",
   "delivery_location",
   "warehouse",
   "port",
+  "cha",
   "shipment_type",
+  "shipment_subtype",
   "container_number",
   "sec_shipping_docs",
   "invoice_doc",
@@ -122,7 +127,9 @@
   "sec_remarks",
   "remarks",
   "attachments",
-  "amended_from"
+  "amended_from",
+  "sec_workflow_history",
+  "workflow_history_html"
  ],
  "fields": [
   {
@@ -132,6 +139,21 @@
    "label": "Series",
    "options": "SRI.PO.-.####\nSRI.RPO.-.####",
    "reqd": 1
+  },
+  {
+   "default": "Vendor PO",
+   "fieldname": "po_type",
+   "fieldtype": "Select",
+   "label": "PO Type",
+   "options": "Vendor PO\nInternal PO",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ref_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Reference Number",
+   "read_only": 1
   },
   {
    "default": "Draft",
@@ -509,6 +531,11 @@
    "label": "Expected Delivery Date"
   },
   {
+   "fieldname": "expected_delivery_time",
+   "fieldtype": "Time",
+   "label": "Expected Delivery Time"
+  },
+  {
    "fieldname": "delivery_location",
    "fieldtype": "Data",
    "label": "Delivery Location"
@@ -526,10 +553,21 @@
    "options": "Port"
   },
   {
+   "fieldname": "cha",
+   "fieldtype": "Link",
+   "label": "CHA",
+   "options": "Supplier"
+  },
+  {
    "fieldname": "shipment_type",
    "fieldtype": "Select",
    "label": "Shipment Type",
    "options": "FCL\nLCL\nContainerized\nFlat Rack\nOversized\nHazardous Cargo\nPart Shipment\nHeight Cargo\nBreak Bulk\nRoRo\nAir Freight\nExpress Courier"
+  },
+  {
+   "fieldname": "shipment_subtype",
+   "fieldtype": "Select",
+   "label": "Shipment Subtype"
   },
   {
    "fieldname": "container_number",
@@ -684,13 +722,15 @@
    "fieldname": "prepared_by",
    "fieldtype": "Link",
    "label": "Prepared By",
-   "options": "User"
+   "options": "User",
+   "read_only": 1
   },
   {
    "fieldname": "verified_by",
    "fieldtype": "Link",
    "label": "Verified By",
-   "options": "User"
+   "options": "User",
+   "read_only": 1
   },
   {
    "fieldname": "col_break_approval",
@@ -700,12 +740,14 @@
    "fieldname": "approved_by",
    "fieldtype": "Link",
    "label": "Approved By",
-   "options": "User"
+   "options": "User",
+   "read_only": 1
   },
   {
    "fieldname": "signatory",
    "fieldtype": "Data",
-   "label": "Authorized Signatory"
+   "label": "Authorized Signatory",
+   "read_only": 1
   },
   {
    "fieldname": "sec_verification_approval",
@@ -821,6 +863,16 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "sec_workflow_history",
+   "fieldtype": "Section Break",
+   "label": "PO Approval Audit Trail"
+  },
+  {
+   "fieldname": "workflow_history_html",
+   "fieldtype": "HTML",
+   "label": "Approval Audit Trail"
   }
  ],
  "grid_page_length": 50,

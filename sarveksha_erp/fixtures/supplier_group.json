@@ -190,17 +190,5 @@
   "parent_supplier_group": "All Supplier Groups",
   "payment_terms": null,
   "supplier_group_name": "Agriculture & Food"
- },
- {
-  "accounts": [],
-  "docstatus": 0,
-  "doctype": "Supplier Group",
-  "is_group": 0,
-  "modified": "2026-08-01 23:28:04.598640",
-  "name": "_Test Supplier Group",
-  "old_parent": "All Supplier Groups",
-  "parent_supplier_group": "All Supplier Groups",
-  "payment_terms": null,
-  "supplier_group_name": "_Test Supplier Group"
  }
 ]

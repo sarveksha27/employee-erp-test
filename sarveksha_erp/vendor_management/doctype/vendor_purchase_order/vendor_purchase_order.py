@@ -11,6 +11,12 @@ class VendorPurchaseOrder(Document):
 
     def validate(self):
         """Called on every Save. Validates data and recalculates totals."""
+        if self.is_new() or (self.workflow_state or "Draft") == "Draft":
+            self.ref_number = None
+
+        if self.is_new() or not self.prepared_by:
+            self.prepared_by = frappe.session.user or "Administrator"
+
         self.set_company_details()
         self.set_default_letter_head()
         self.set_default_terms()
@@ -25,7 +31,19 @@ class VendorPurchaseOrder(Document):
         self.calculate_grand_total()
         self.calculate_advance()
         self.validate_required_fields()
+        self.validate_unique_ref_number()
         self.sync_payment_check_fields()
+
+    def validate_unique_ref_number(self):
+        """Enforces uniqueness of approved PO reference numbers."""
+        if self.ref_number:
+            duplicate = frappe.db.get_value(
+                "Vendor Purchase Order",
+                {"ref_number": self.ref_number, "name": ["!=", self.name]},
+                "name"
+            )
+            if duplicate:
+                frappe.throw(_("Reference Number {0} is already used by {1}").format(self.ref_number, duplicate))
 
     def set_company_details(self):
         """Auto-set company address, PAN, GSTIN, default port, currency from Company Master."""
@@ -290,6 +308,7 @@ class VendorPurchaseOrder(Document):
                 self.verified_by = frappe.session.user
                 self.verified_on = now
                 self.verifier_status = "Returned to Generator"
+                self.revision = (self.revision or 0) + 1
 
             # Transition to Approved (Approver approved)
             elif new_state == "Approved":
@@ -297,12 +316,50 @@ class VendorPurchaseOrder(Document):
                 self.approved_on = now
                 self.approver_status = "Approved"
                 self.status = "Approved"
+                self.signatory = frappe.db.get_value("User", self.approved_by, "full_name") or self.approved_by
+                if not self.ref_number:
+                    self.assign_ref_number()
 
             # Transition from Verified (Yet to be approved) back to Generated (Yet to be Verified) (Approver returned to Verifier)
             elif new_state == "Generated (Yet to be Verified)" and old_state == "Verified (Yet to be approved)":
                 self.approved_by = frappe.session.user
                 self.approved_on = now
                 self.approver_status = "Returned to Verifier"
+                self.revision = (self.revision or 0) + 1
+
+    def assign_ref_number(self):
+        """Generate and assign a sequential reference number for approved POs."""
+        if self.ref_number:
+            return
+
+        if self.amended_from:
+            amended_from_doc = frappe.get_doc("Vendor Purchase Order", self.amended_from)
+            amended_ref = amended_from_doc.ref_number
+            if amended_ref:
+                if amended_from_doc.amended_from:
+                    # Parent was also amended, so amended_ref already has a suffix like -1, -2 etc.
+                    import re
+                    match = re.match(r"^(.*)-(\d+)$", amended_ref)
+                    if match:
+                        base, suffix = match.groups()
+                        self.ref_number = f"{base}-{int(suffix) + 1}"
+                    else:
+                        self.ref_number = f"{amended_ref}-1"
+                else:
+                    # Parent was not amended, so it is the original approved PO. Suffix is -1.
+                    self.ref_number = f"{amended_ref}-1"
+                return
+
+        # Generate a new reference number using the series
+        series_prefix = self.naming_series or "SRI.PO.-.####"
+        if ".-." in series_prefix:
+            ref_series = series_prefix.replace(".-.", ".REF.-.")
+        else:
+            ref_series = series_prefix.replace(".####", ".REF.####")
+
+        from frappe.model.naming import make_autoname
+        generated_ref = make_autoname(ref_series)
+        self.ref_number = generated_ref.replace(".REF", "").replace("REF", "")
 
     def before_submit(self):
         """Called just before the document is submitted (docstatus → 1)."""
@@ -439,6 +496,7 @@ class VendorPurchaseOrder(Document):
 
         # 1. Parent level financial/tax fields
         immutable_fields = [
+            ("ref_number", "Reference Number"),
             ("vendor", "Vendor"),
             ("company", "Company"),
             ("grand_total", "Grand Total"),
@@ -749,4 +807,131 @@ def get_company_details(company):
         "letter_head": letter_head
     }
 
+
+@frappe.whitelist()
+def get_supplier_payment_details(supplier):
+    if not supplier:
+        return {}
+
+    db_vals = frappe.db.get_value(
+        "Supplier",
+        supplier,
+        ["tax_id", "custom_pan", "custom_bank_name", "custom_account_number", "custom_ifsc", "payment_terms"]
+    )
+    if not db_vals:
+        return {}
+
+    tax_id, custom_pan, custom_bank_name, custom_account_number, custom_ifsc, payment_terms = db_vals
+
+    details = {
+        "tax_id": tax_id or "",
+        "custom_pan": custom_pan or "",
+        "custom_bank_name": custom_bank_name or "",
+        "custom_account_number": custom_account_number or "",
+        "custom_ifsc": custom_ifsc or "",
+        "payment_terms_template": payment_terms or "",
+        "payment_terms_description": "",
+        "advance_percentage": 0.0
+    }
+
+    if payment_terms:
+        # Fetch payment terms from the template
+        terms = frappe.get_all("Payment Terms Template Detail",
+                               filters={"parent": payment_terms},
+                               fields=["description", "invoice_portion", "payment_term", "credit_days"])
+        lines = []
+        advance_pct = 0.0
+        for t in terms:
+            portion = f"{flt(t.invoice_portion, 2)}%"
+            desc = t.description or t.payment_term or ""
+            lines.append(f"{portion}: {desc}")
+
+            # Count towards advance percentage if name/description contains "advance" or credit days is 0
+            name_lower = (t.payment_term or "").lower()
+            desc_lower = desc.lower()
+            if "advance" in name_lower or "advance" in desc_lower or t.credit_days == 0:
+                advance_pct += flt(t.invoice_portion)
+
+        details["payment_terms_description"] = "\n".join(lines)
+        details["advance_percentage"] = advance_pct
+
+    return details
+
+
+@frappe.whitelist()
+def get_workflow_activity_history(docname):
+    if not docname:
+        return []
+
+    # Get the document
+    doc = frappe.get_doc("Vendor Purchase Order", docname)
+
+    # Query all comments for the VPO
+    comments = frappe.get_all(
+        "Comment",
+        filters={
+            "reference_doctype": "Vendor Purchase Order",
+            "reference_name": docname,
+            "comment_type": ["in", ["Workflow", "Comment"]]
+        },
+        fields=["name", "owner", "comment_type", "content", "creation"],
+        order_by="creation asc"
+    )
+
+    history = []
+    
+    # 1. Add Creation/Prepared event
+    prep_user = doc.prepared_by or doc.owner
+    user_info = frappe.db.get_value("User", prep_user, ["first_name", "last_name"], as_dict=True)
+    user_name = f"{user_info.first_name} {user_info.last_name or ''}".strip() if user_info else prep_user
+    history.append({
+        "no": 1,
+        "datetime": frappe.utils.format_datetime(doc.creation, "yyyy-MM-dd HH:mm:ss"),
+        "user": user_name,
+        "email": prep_user,
+        "action": "Prepared / Created PO",
+        "state": "Draft",
+        "remarks": doc.remarks or ""
+    })
+
+    # 2. Add subsequent workflow transitions and comments
+    idx = 2
+    for c in comments:
+        user_info = frappe.db.get_value("User", c.owner, ["first_name", "last_name"], as_dict=True)
+        user_name = f"{user_info.first_name} {user_info.last_name or ''}".strip() if user_info else c.owner
+        
+        content_stripped = frappe.utils.strip_html(c.content or "")
+        
+        if c.comment_type == "Workflow":
+            action = "Workflow Transition"
+            state = content_stripped
+            remarks = ""
+            
+            # Map comments to the transition if we can identify it
+            if "Verified" in state:
+                remarks = doc.verifier_comments or ""
+            elif "Approved" in state:
+                remarks = doc.approver_comments or ""
+            elif "Return" in state:
+                if c.owner == doc.verified_by:
+                    remarks = doc.verifier_comments or ""
+                elif c.owner == doc.approved_by:
+                    remarks = doc.approver_comments or ""
+        else:
+            action = "Manual Comment"
+            state = doc.workflow_state or ""
+            remarks = content_stripped
+
+        history.append({
+            "no": idx,
+            "datetime": frappe.utils.format_datetime(c.creation, "yyyy-MM-dd HH:mm:ss"),
+            "user": user_name,
+            "email": c.owner,
+            "action": action,
+            "state": state,
+            "remarks": remarks
+        })
+        idx += 1
+
+    return history
 

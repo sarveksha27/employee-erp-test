@@ -158,6 +158,9 @@ frappe.ui.form.on('Vendor Purchase Order', {
         // Configure Verification & Approval Panel Dynamic Controls
         setup_verification_approval_panel(frm);
 
+        // Render custom remarks and revision number in the sidebar
+        render_sidebar_custom_info(frm);
+
         // Recalculate on every refresh to keep values consistent
         calculate_gst_and_totals(frm);
         set_port_filter(frm);
@@ -173,6 +176,12 @@ frappe.ui.form.on('Vendor Purchase Order', {
         } else {
             frm.set_df_property('terms_preview', 'options', '');
         }
+
+        // Set up Shipment Subtype visibility and options
+        handle_shipment_type_change(frm);
+
+        // Render Workflow Activity History
+        render_workflow_activity_history(frm);
     },
 
     // ─── COMPANY TRIGGER ──────────────────────────────────────
@@ -233,20 +242,36 @@ frappe.ui.form.on('Vendor Purchase Order', {
     vendor: function(frm) {
         if (!frm.doc.vendor) return;
 
-        frappe.db.get_value('Supplier', frm.doc.vendor,
-            ['tax_id', 'custom_pan', 'custom_bank_name', 'custom_account_number', 'custom_ifsc'],
-            function(r) {
-                if (!r) return;
-                if (r.tax_id) frm.set_value('vendor_gstin', r.tax_id);
-                if (r.custom_pan) frm.set_value('vendor_pan', r.custom_pan);
-                if (r.custom_bank_name) frm.set_value('vendor_bank_name', r.custom_bank_name);
-                if (r.custom_account_number) frm.set_value('vendor_account_number', r.custom_account_number);
-                if (r.custom_ifsc) frm.set_value('vendor_ifsc', r.custom_ifsc);
+        frappe.call({
+            method: 'sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.get_supplier_payment_details',
+            args: { supplier: frm.doc.vendor },
+            callback: function(r) {
+                if (r.message) {
+                    const data = r.message;
+                    if (data.tax_id) frm.set_value('vendor_gstin', data.tax_id);
+                    if (data.custom_pan) frm.set_value('vendor_pan', data.custom_pan);
+                    if (data.custom_bank_name) frm.set_value('vendor_bank_name', data.custom_bank_name);
+                    if (data.custom_account_number) frm.set_value('vendor_account_number', data.custom_account_number);
+                    if (data.custom_ifsc) frm.set_value('vendor_ifsc', data.custom_ifsc);
 
-                frm._vendor_gstin = r.tax_id || '';
-                calculate_gst_and_totals(frm);
+                    frm._vendor_gstin = data.tax_id || '';
+
+                    // Populate Payment Terms & Advance Percentage
+                    if (data.payment_terms_description) {
+                        frm.set_value('payment_terms', data.payment_terms_description);
+                    }
+                    if (data.advance_percentage !== undefined) {
+                        frm.set_value('advance_percentage', data.advance_percentage);
+                    }
+
+                    calculate_gst_and_totals(frm);
+                }
             }
-        );
+        });
+    },
+
+    shipment_type: function(frm) {
+        handle_shipment_type_change(frm);
     },
 
     // ─── PRICING TRIGGERS ─────────────────────────────────────
@@ -534,7 +559,191 @@ function setup_verification_approval_panel(frm) {
     }
 
     // 4. Ensure audit metadata fields are permanently read-only
-    ['verified_by', 'verified_on', 'verifier_status', 'approved_by', 'approved_on', 'approver_status', 'prepared_by'].forEach(field => {
+    ['verified_by', 'verified_on', 'verifier_status', 'approved_by', 'approved_on', 'approver_status', 'prepared_by', 'signatory'].forEach(field => {
         frm.set_df_property(field, 'read_only', 1);
     });
 }
+
+function render_sidebar_custom_info(frm) {
+    if (!frm.sidebar || !frm.sidebar.sidebar) return;
+
+    const sidebar_menu = frm.sidebar.sidebar.find('.sidebar-menu');
+    if (!sidebar_menu.length) return;
+
+    // Clear any previously appended custom info
+    sidebar_menu.find('.custom-sidebar-info').remove();
+
+    // 1. Revision Number
+    const revision = frm.doc.revision;
+    if (revision !== undefined && revision !== null) {
+        sidebar_menu.append(`
+            <li class="custom-sidebar-info" style="border-top: 1px dashed var(--border-color); margin-top: 8px; padding-top: 8px;">
+                <strong>${__('Revision No')}:</strong> ${revision}
+            </li>
+        `);
+    }
+
+    // 2. Remarks (if any)
+    if (frm.doc.remarks) {
+        sidebar_menu.append(`
+            <li class="custom-sidebar-info" style="margin-top: 4px;">
+                <strong>${__('Remarks')}:</strong> <br><span class="text-muted">${frappe.utils.escape_html(frm.doc.remarks)}</span>
+            </li>
+        `);
+    }
+
+    // 3. Verifier Comments (if any)
+    if (frm.doc.verifier_comments) {
+        sidebar_menu.append(`
+            <li class="custom-sidebar-info" style="margin-top: 4px;">
+                <strong>${__('Verifier Comments')}:</strong> <br><span class="text-muted">${frappe.utils.escape_html(frm.doc.verifier_comments)}</span>
+            </li>
+        `);
+    }
+
+    // 4. Approver Comments (if any)
+    if (frm.doc.approver_comments) {
+        sidebar_menu.append(`
+            <li class="custom-sidebar-info" style="margin-top: 4px;">
+                <strong>${__('Approver Comments')}:</strong> <br><span class="text-muted">${frappe.utils.escape_html(frm.doc.approver_comments)}</span>
+            </li>
+        `);
+    }
+}
+
+function handle_shipment_type_change(frm) {
+    let shipment_type = frm.doc.shipment_type;
+    let subtype_options = [];
+
+    if (shipment_type === 'Containerized') {
+        subtype_options = [
+            '',
+            '20 gp container',
+            '40 gp container',
+            '20 hq container',
+            '40 hq container',
+            '20 SOC container',
+            '40 SOC container'
+        ];
+    } else if (shipment_type === 'Flat Rack') {
+        subtype_options = [
+            '',
+            '20 Flat track',
+            '40 Flat track'
+        ];
+    } else if (shipment_type === 'Oversized') {
+        subtype_options = [
+            '',
+            '20 ODC',
+            '40 ODC'
+        ];
+    }
+
+    if (subtype_options.length > 0) {
+        frm.set_df_property('shipment_subtype', 'options', subtype_options.join('\n'));
+        frm.set_df_property('shipment_subtype', 'hidden', 0);
+        frm.set_df_property('shipment_subtype', 'reqd', 1);
+    } else {
+        frm.set_value('shipment_subtype', '');
+        frm.set_df_property('shipment_subtype', 'hidden', 1);
+        frm.set_df_property('shipment_subtype', 'reqd', 0);
+    }
+}
+
+function render_workflow_activity_history(frm) {
+    if (frm.doc.__islocal || !frm.doc.name) {
+        frm.set_df_property('workflow_history_html', 'options', '');
+        return;
+    }
+
+    frappe.call({
+        method: 'sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.get_workflow_activity_history',
+        args: { docname: frm.doc.name },
+        callback: function(r) {
+            if (r.message && r.message.length > 0) {
+                let html = `
+                    <div style="margin-bottom: 10px; text-align: right;">
+                        <button class="btn btn-xs btn-default btn-export-excel" style="font-weight: 500; font-size: 11px;">
+                            <i class="fa fa-download" style="margin-right: 4px; color: #15803d;"></i> Export to Excel
+                        </button>
+                    </div>
+                    <div class="table-responsive" style="border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden;">
+                        <table class="table table-bordered table-condensed" style="margin: 0; background: #fff; font-size: 12px; color: #374151; table-layout: fixed; width: 100%;">
+                            <colgroup>
+                                <col style="width: 4%">
+                                <col style="width: 16%">
+                                <col style="width: 20%">
+                                <col style="width: 22%">
+                                <col style="width: 38%">
+                            </colgroup>
+                            <thead>
+                                <tr style="background: #1e3a5f; color: #fff; font-weight: 600;">
+                                    <th style="padding: 8px 10px;">#</th>
+                                    <th style="padding: 8px 10px;">Date &amp; Time</th>
+                                    <th style="padding: 8px 10px;">User</th>
+                                    <th style="padding: 8px 10px;">Workflow State</th>
+                                    <th style="padding: 8px 10px;">Remarks / Comments</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                r.message.forEach((row, idx) => {
+                    let rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+                    html += `
+                        <tr style="background: ${rowBg};">
+                            <td style="padding: 7px 10px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280;">${row.no}</td>
+                            <td style="padding: 7px 10px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #374151;">${row.datetime}</td>
+                            <td style="padding: 7px 10px; border-top: 1px solid #e5e7eb;">
+                                <div style="font-weight: 600; color: #111827;">${row.user}</div>
+                                <div style="font-size: 10px; color: #9ca3af;">${row.email}</div>
+                            </td>
+                            <td style="padding: 7px 10px; border-top: 1px solid #e5e7eb;">
+                                <span style="display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; background: #dbeafe; color: #1e40af;">${row.state}</span>
+                            </td>
+                            <td style="padding: 7px 10px; border-top: 1px solid #e5e7eb; white-space: pre-wrap; word-wrap: break-word; color: #374151;">${row.remarks || '<span style="color:#d1d5db;">—</span>'}</td>
+                        </tr>
+                    `;
+                });
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                frm.set_df_property('workflow_history_html', 'options', html);
+                
+                // Bind click event to export button
+                setTimeout(() => {
+                    $(frm.wrapper).find('.btn-export-excel').off('click').on('click', function() {
+                        export_history_to_excel(frm.doc.name, r.message);
+                    });
+                }, 150);
+            } else {
+                frm.set_df_property('workflow_history_html', 'options', '');
+            }
+        }
+    });
+}
+
+function export_history_to_excel(po_name, data) {
+    let csv = 'No,Date & Time,User Name,User Email,Action,Workflow State,Remarks / Comments\n';
+    data.forEach(row => {
+        let remarks = (row.remarks || '').replace(/"/g, '""');
+        let user = (row.user || '').replace(/"/g, '""');
+        let action = (row.action || '').replace(/"/g, '""');
+        let state = (row.state || '').replace(/"/g, '""');
+        csv += `${row.no},"${row.datetime}","${user}","${row.email}","${action}","${state}","${remarks}"\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${po_name}_workflow_history.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
