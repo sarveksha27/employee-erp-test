@@ -186,3 +186,40 @@ class IntegrationTestVendorPurchaseOrder(IntegrationTestCase):
 		# Clean up
 		frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
 		frappe.delete_doc("UOM", test_uom, ignore_permissions=True)
+
+	def test_get_workflow_activity_history(self):
+		"""Verify that get_workflow_activity_history returns correct workflow transitions."""
+		from sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order import get_workflow_activity_history
+
+		po = frappe.new_doc("Vendor Purchase Order")
+		po.company = "_Test Company"
+		po.vendor = "_Test Supplier"
+		po.quantity = 1.0
+		po.exchange_rate = 1.0
+		po.workflow_state = "Draft"
+		po.save(ignore_permissions=True)
+
+		# Transition to Generated (Yet to be Verified)
+		po.workflow_state = "Generated (Yet to be Verified)"
+		po.save(ignore_permissions=True)
+
+		# Add a manual comment
+		comment = frappe.new_doc("Comment")
+		comment.comment_type = "Comment"
+		comment.reference_doctype = "Vendor Purchase Order"
+		comment.reference_name = po.name
+		comment.content = "Please verify the shipment container size."
+		comment.insert(ignore_permissions=True)
+
+		# Fetch history
+		history = get_workflow_activity_history(po.name)
+		
+		# Assert at least two entries: Draft -> Generated and the manual comment
+		self.assertTrue(len(history) >= 2)
+		self.assertEqual(history[0]["state"], "Draft")
+		
+		comment_entry = next((item for item in history if "Please verify the shipment container" in item["remarks"]), None)
+		self.assertIsNotNone(comment_entry)
+
+		# Clean up
+		frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)

@@ -29,15 +29,47 @@ app_license = "mit"
 # app_include_js = "/assets/sarveksha_erp/js/sarveksha_erp.js"
 
 fixtures = [
-    {"dt": "Company"},
-    {"dt": "Fiscal Year"},
-    {"dt": "Supplier Group"},
-    {"dt": "Supplier"},
+    {
+        "dt": "Company",
+        "filters": [
+            ["name", "not like", "\\_Test%"],
+            ["name", "not like", "%Test%"],
+            ["name", "not in", ["Parent Group Company India", "Child Company India", "Child Company US", "Trial Balance Company"]]
+        ]
+    },
+    {
+        "dt": "Fiscal Year",
+        "filters": [
+            ["name", "not like", "\\_Test%"]
+        ]
+    },
+    {
+        "dt": "Supplier Group",
+        "filters": [
+            ["name", "not like", "\\_Test%"]
+        ]
+    },
+    {
+        "dt": "Supplier",
+        "filters": [
+            ["name", "not like", "\\_Test%"]
+        ]
+    },
     {"dt": "Custom Field"},
     {"dt": "Equipment"},
-    {"dt": "Contact"},
+    {
+        "dt": "Contact",
+        "filters": [
+            ["name", "not like", "\\_Test%"]
+        ]
+    },
     {"dt": "Bank"},
-    {"dt": "Bank Account"},
+    {
+        "dt": "Bank Account",
+        "filters": [
+            ["name", "not like", "\\_Test%"]
+        ]
+    },
     {"dt": "Letter Head"},
     {"dt": "Print Format"},
     {"dt": "Property Setter"},
