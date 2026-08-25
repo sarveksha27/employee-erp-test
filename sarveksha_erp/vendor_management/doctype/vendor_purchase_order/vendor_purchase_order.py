@@ -43,7 +43,12 @@ class VendorPurchaseOrder(Document):
                 "name"
             )
             if duplicate:
-                frappe.throw(_("Reference Number {0} is already used by {1}").format(self.ref_number, duplicate))
+                frappe.throw(
+                    _("Reference Number {0} is already assigned to {1}. "
+                      "Each approved PO must have a unique reference number.")
+                    .format(self.ref_number, duplicate),
+                    frappe.UniqueValidationError
+                )
 
     def set_company_details(self):
         """Auto-set company address, PAN, GSTIN, default port, currency from Company Master."""
@@ -359,7 +364,7 @@ class VendorPurchaseOrder(Document):
 
         from frappe.model.naming import make_autoname
         generated_ref = make_autoname(ref_series)
-        self.ref_number = generated_ref.replace(".REF", "").replace("REF", "")
+        self.ref_number = generated_ref
 
     def before_submit(self):
         """Called just before the document is submitted (docstatus → 1)."""

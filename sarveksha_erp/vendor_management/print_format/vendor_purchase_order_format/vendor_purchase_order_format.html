@@ -147,7 +147,7 @@
           {% if doc.vendor_pan %}<br><span class="lbl">PAN:</span> {{ doc.vendor_pan }}{% endif %}
         </td>
         <td class="lbl" style="border-bottom:none;">Ref No. :-</td>
-        <td style="border-bottom:none; border-left:1px solid #000;">{{ doc.name }}</td>
+        <td style="border-bottom:none; border-left:1px solid #000;">{{ doc.ref_number or doc.name }}</td>
       </tr>
       <tr>
         <td class="lbl" style="border-top:1px solid #000; border-bottom:none;">Date :-</td>
