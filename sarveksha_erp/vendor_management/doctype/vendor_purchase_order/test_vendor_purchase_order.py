@@ -223,3 +223,146 @@ class IntegrationTestVendorPurchaseOrder(IntegrationTestCase):
 
 		# Clean up
 		frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+	def approve_vpo(self, po):
+		"""Helper to transition a PO to Approved state step by step."""
+		po.workflow_state = "Generated (Yet to be Verified)"
+		po.save(ignore_permissions=True)
+		po.workflow_state = "Verified (Yet to be approved)"
+		po.save(ignore_permissions=True)
+		po.workflow_state = "Approved"
+		po.docstatus = 1
+		po.save(ignore_permissions=True)
+
+	def test_ref_number_generation(self):
+		"""Verify that a distinct, sequential reference number with REF substring is generated on approval."""
+		po = frappe.new_doc("Vendor Purchase Order")
+		po.company = "_Test Company"
+		po.vendor = "_Test Supplier"
+		po.quantity = 1.0
+		po.rate = 100.0
+		po.exchange_rate = 1.0
+		po.workflow_state = "Draft"
+		po.save(ignore_permissions=True)
+
+		self.assertIsNone(po.ref_number)
+
+		# Transition Draft -> Generated
+		po.workflow_state = "Generated (Yet to be Verified)"
+		po.save(ignore_permissions=True)
+		self.assertIsNone(po.ref_number)
+
+		# Transition Generated -> Verified
+		po.workflow_state = "Verified (Yet to be approved)"
+		po.save(ignore_permissions=True)
+		self.assertIsNone(po.ref_number)
+
+		# Transition Verified -> Approved
+		po.workflow_state = "Approved"
+		po.docstatus = 1
+		po.save(ignore_permissions=True)
+
+		self.assertIsNotNone(po.ref_number)
+		self.assertTrue("REF" in po.ref_number)
+		self.assertTrue(po.ref_number.startswith("SRIPOREF-"))
+
+		# Clean up
+		po.docstatus = 2
+		po.save(ignore_permissions=True)
+		frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+	def test_ref_number_uniqueness(self):
+		"""Verify uniqueness of reference numbers and that duplicates raise UniqueValidationError."""
+		po1 = frappe.new_doc("Vendor Purchase Order")
+		po1.company = "_Test Company"
+		po1.vendor = "_Test Supplier"
+		po1.quantity = 1.0
+		po1.rate = 100.0
+		po1.exchange_rate = 1.0
+		po1.workflow_state = "Draft"
+		po1.save(ignore_permissions=True)
+		self.approve_vpo(po1)
+
+		po2 = frappe.new_doc("Vendor Purchase Order")
+		po2.company = "_Test Company"
+		po2.vendor = "_Test Supplier"
+		po2.quantity = 1.0
+		po2.rate = 100.0
+		po2.exchange_rate = 1.0
+		po2.workflow_state = "Draft"
+		po2.save(ignore_permissions=True)
+		
+		# Transition po2 to Approved but KEEP docstatus=0 (Draft) so it doesn't trigger UpdateAfterSubmitError on edit
+		po2.workflow_state = "Generated (Yet to be Verified)"
+		po2.save(ignore_permissions=True)
+		po2.workflow_state = "Verified (Yet to be approved)"
+		po2.save(ignore_permissions=True)
+		po2.workflow_state = "Approved"
+		po2.save(ignore_permissions=True)
+
+		self.assertNotEqual(po1.ref_number, po2.ref_number)
+
+		# Attempt to duplicate the reference number
+		po2.ref_number = po1.ref_number
+		self.assertRaises(frappe.UniqueValidationError, po2.save, ignore_permissions=True)
+
+		# Clean up
+		po1.docstatus = 2
+		po1.save(ignore_permissions=True)
+		frappe.delete_doc("Vendor Purchase Order", po1.name, ignore_permissions=True)
+		frappe.delete_doc("Vendor Purchase Order", po2.name, ignore_permissions=True)
+
+	def test_ref_number_amendment(self):
+		"""Verify amendment handling correctly appends -1, -2 suffixes to the reference number."""
+		po = frappe.new_doc("Vendor Purchase Order")
+		po.company = "_Test Company"
+		po.vendor = "_Test Supplier"
+		po.quantity = 1.0
+		po.rate = 100.0
+		po.exchange_rate = 1.0
+		po.workflow_state = "Draft"
+		po.save(ignore_permissions=True)
+		self.approve_vpo(po)
+
+		ref_original = po.ref_number
+		self.assertIsNotNone(ref_original)
+
+		# Cancel the original PO to allow amendment
+		po.docstatus = 2
+		po.save(ignore_permissions=True)
+
+		# Create first amendment
+		po_amended = frappe.copy_doc(po)
+		po_amended.name = None
+		po_amended.amended_from = po.name
+		po_amended.docstatus = 0
+		po_amended.workflow_state = "Draft"
+		po_amended.ref_number = None
+		po_amended.save(ignore_permissions=True)
+		self.approve_vpo(po_amended)
+
+		self.assertEqual(po_amended.ref_number, f"{ref_original}-1")
+
+		# Cancel the first amendment to allow second amendment
+		po_amended.docstatus = 2
+		po_amended.save(ignore_permissions=True)
+
+		# Create second amendment (amendment of the amendment)
+		po_amended_2 = frappe.copy_doc(po_amended)
+		po_amended_2.name = None
+		po_amended_2.amended_from = po_amended.name
+		po_amended_2.docstatus = 0
+		po_amended_2.workflow_state = "Draft"
+		po_amended_2.ref_number = None
+		po_amended_2.save(ignore_permissions=True)
+		self.approve_vpo(po_amended_2)
+
+		self.assertEqual(po_amended_2.ref_number, f"{ref_original}-2")
+
+		# Clean up (in reverse order to avoid LinkExistsError)
+		po_amended_2.docstatus = 2
+		po_amended_2.save(ignore_permissions=True)
+		frappe.delete_doc("Vendor Purchase Order", po_amended_2.name, ignore_permissions=True)
+		frappe.delete_doc("Vendor Purchase Order", po_amended.name, ignore_permissions=True)
+		frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
