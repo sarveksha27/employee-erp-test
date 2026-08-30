@@ -1,7 +1,7 @@
 {
  "app": "sarveksha_erp",
  "charts": [],
- "content": "[{\"id\": \"h1_shortcuts\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Quick Access</b></span>\", \"col\": 12}}, {\"id\": \"sc_vendor_payment\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Vendor Payment\", \"col\": 4}}, {\"id\": \"sc_supplier\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Supplier\", \"col\": 4}}, {\"id\": \"sc_company\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Company\", \"col\": 4}}, {\"id\": \"sc_vendor_purchase_order\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Vendor Purchase Order\", \"col\": 4}}, {\"id\": \"sc_equipment\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Equipment\", \"col\": 4}}, {\"id\": \"cd_vendor_portal\", \"type\": \"card\", \"data\": {\"card_name\": \"Vendor Portal\", \"col\": 4}}]",
+ "content": "[{\"id\":\"h1_shortcuts\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"sc_vendor_payment\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Vendor Payment\",\"col\":4}},{\"id\":\"sc_supplier\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Supplier\",\"col\":4}},{\"id\":\"sc_company\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Company\",\"col\":4}},{\"id\":\"sc_equipment\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Equipment\",\"col\":4}},{\"id\":\"cd_vendor_portal\",\"type\":\"card\",\"data\":{\"card_name\":\"Vendor Portal\",\"col\":4}}]",
  "creation": "2026-07-18 02:51:07.906210",
  "custom_blocks": [],
  "docstatus": 0,
@@ -18,7 +18,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Vendor Portal",
-   "link_count": 0,
+   "link_count": 6,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -46,7 +46,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Vendor Purchase Orders",
+   "label": "Vendor Purchase Order",
    "link_count": 0,
    "link_to": "Vendor Purchase Order",
    "link_type": "DocType",
@@ -62,9 +62,29 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "External PO",
+   "link_count": 0,
+   "link_to": "Vendor Purchase Order",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Internal PO",
+   "link_count": 0,
+   "link_to": "Vendor Purchase Order",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-07-26 19:54:09.719335",
+ "modified": "2026-08-30 12:02:15.636853",
  "modified_by": "Administrator",
  "module": "Vendor Management",
  "name": "Vendor Management",
@@ -102,14 +122,7 @@
    "type": "DocType"
   },
   {
-   "color": "gray",
-   "doc_view": "",
-   "label": "Vendor Purchase Order",
-   "link_to": "Vendor Purchase Order",
-   "type": "DocType"
-  },
-  {
-   "color": "gray",
+   "color": "#e31b1b",
    "doc_view": "",
    "label": "Equipment",
    "link_to": "Equipment",
