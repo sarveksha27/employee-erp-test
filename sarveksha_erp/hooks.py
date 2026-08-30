@@ -79,7 +79,8 @@ fixtures = [
     {"dt": "Workflow"},
     {"dt": "Workflow State"},
     {"dt": "Workflow Action Master"},
-    {"dt": "Custom DocPerm"}
+    {"dt": "Custom DocPerm"},
+    {"dt": "Client Script", "filters": [["name", "=", "Vendor PO List Buttons"]]}
 ]
 
 # include js, css files in header of web template
