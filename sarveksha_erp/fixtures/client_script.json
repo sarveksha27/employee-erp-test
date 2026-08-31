@@ -1,0 +1,13 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Vendor Purchase Order",
+  "enabled": 1,
+  "modified": "2026-08-30 22:36:41.349591",
+  "module": null,
+  "name": "Vendor PO List Buttons",
+  "script": "frappe.listview_settings['Vendor Purchase Order'].onload = function(listview) {\r\n    if (frappe.user.has_role('PO Generator') || frappe.user.has_role('System Manager')) {\r\n        listview.page.add_inner_button('New External PO', function() {\r\n            frappe.new_doc('Vendor Purchase Order', {po_type: 'Vendor PO'});\r\n        });\r\n        listview.page.add_inner_button('New Internal PO', function() {\r\n            frappe.new_doc('Vendor Purchase Order', {\r\n                po_type: 'Internal PO',\r\n                vendor: 'Sarveksha Realty and Inframine LLP',\r\n                company: ''\r\n            });\r\n        });\r\n    }\r\n};",
+  "view": "List"
+ }
+]

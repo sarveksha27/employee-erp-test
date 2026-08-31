@@ -29,14 +29,14 @@ app_license = "mit"
 # app_include_js = "/assets/sarveksha_erp/js/sarveksha_erp.js"
 
 fixtures = [
-    {
-        "dt": "Company",
-        "filters": [
-            ["name", "not like", "\\_Test%"],
-            ["name", "not like", "%Test%"],
-            ["name", "not in", ["Parent Group Company India", "Child Company India", "Child Company US", "Trial Balance Company"]]
-        ]
-    },
+    # {
+    #     "dt": "Company",
+    #     "filters": [
+    #         ["name", "not like", "\\_Test%"],
+    #         ["name", "not like", "%Test%"],
+    #         ["name", "not in", ["Parent Group Company India", "Child Company India", "Child Company US", "Trial Balance Company"]]
+    #     ]
+    # },
     {
         "dt": "Fiscal Year",
         "filters": [
@@ -79,7 +79,8 @@ fixtures = [
     {"dt": "Workflow"},
     {"dt": "Workflow State"},
     {"dt": "Workflow Action Master"},
-    {"dt": "Custom DocPerm"}
+    {"dt": "Custom DocPerm"},
+    {"dt": "Client Script", "filters": [["name", "=", "Vendor PO List Buttons"]]}
 ]
 
 # include js, css files in header of web template
