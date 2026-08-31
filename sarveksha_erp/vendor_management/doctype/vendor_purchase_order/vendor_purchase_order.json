@@ -65,6 +65,10 @@
   "col_break_other_charges",
   "packing_charges",
   "other_charges",
+  "logistics_cost",
+  "sec_internal_margin",
+  "internal_margin_percentage",
+  "internal_margin_amount",
   "grand_total",
   "sec_references",
   "quotation_ref",
@@ -488,6 +492,39 @@
    "fieldtype": "Currency",
    "label": "Other Charges",
    "options": "currency"
+  },
+  {
+   "bold": 1,
+   "description": "Auto-calculated: Freight + Insurance + Packing + Other Charges",
+   "fieldname": "logistics_cost",
+   "fieldtype": "Currency",
+   "label": "Total Logistics Cost",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_internal_margin",
+   "fieldtype": "Section Break",
+   "label": "Internal Margin (Internal PO Only)",
+   "depends_on": "eval:doc.po_type==='Internal PO'"
+  },
+  {
+   "default": "5.0",
+   "depends_on": "eval:doc.po_type==='Internal PO'",
+   "description": "Applied on (Taxable Value + Logistics Cost) for Internal POs only.",
+   "fieldname": "internal_margin_percentage",
+   "fieldtype": "Percent",
+   "label": "Internal Margin %"
+  },
+  {
+   "bold": 1,
+   "depends_on": "eval:doc.po_type==='Internal PO'",
+   "description": "Auto-calculated: (Taxable Value + Logistics Cost) × Internal Margin %",
+   "fieldname": "internal_margin_amount",
+   "fieldtype": "Currency",
+   "label": "Internal Margin Amount",
+   "options": "currency",
+   "read_only": 1
   },
   {
    "bold": 1,

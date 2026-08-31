@@ -288,6 +288,17 @@ frappe.ui.form.on('Vendor Purchase Order', {
         }
         calculate_gst_and_totals(frm);
     },
+
+    po_type: function(frm) {
+        // Recalculate whenever PO Type changes (External vs Internal)
+        // This shows/hides margin fields and updates grand total
+        calculate_gst_and_totals(frm);
+        frm.refresh_fields(['sec_internal_margin', 'internal_margin_percentage', 'internal_margin_amount', 'logistics_cost']);
+    },
+
+    internal_margin_percentage: function(frm) {
+        calculate_gst_and_totals(frm);
+    },
     // ─── INDIVIDUAL EQUIPMENT ENTRY TRIGGERS ──────────────────
     equipment: function(frm) {
         if (!frm.doc.equipment) return;
@@ -428,81 +439,136 @@ frappe.ui.form.on('Vendor Purchase Order Item', {
 });
 
 // ─── MASTER CALCULATION ENGINE ────────────────────────────────
+// ─── MASTER CALCULATION ENGINE ────────────────────────────────
 function calculate_gst_and_totals(frm) {
     const is_lut = frm.doc.is_lut_applicable;
-    
+    const is_internal = (frm.doc.po_type || '') === 'Internal PO';
+
     let total_taxable_value = 0;
     let total_item_tax = 0;
+
+    // We need to handle LUT reversion asynchronously for items with Equipment master
+    // To keep it synchronous-safe, we collect items needing reversion and use a queue
+    const reversion_promises = [];
 
     if (frm.doc.items && frm.doc.items.length > 0) {
         frm.doc.items.forEach(row => {
             if (is_lut) {
                 row.gst_percentage = 0.1;
+            } else {
+                // ── LUT REVERSION ─────────────────────────────────────────────
+                // If the item's GST% is exactly 0.1, it was set by LUT.
+                // Restore from Equipment master (async but we handle it after)
+                if (flt(row.gst_percentage) === 0.1 && row.equipment) {
+                    reversion_promises.push(
+                        frappe.db.get_value('Equipment', row.equipment, 'gst_percentage')
+                            .then(r => {
+                                const master_gst = (r && r.message && flt(r.message.gst_percentage) > 0)
+                                    ? flt(r.message.gst_percentage)
+                                    : 18.0;
+                                row.gst_percentage = master_gst;
+                            })
+                    );
+                }
             }
-            const rate = flt(row.rate) || 0;
-            const qty = flt(row.quantity) || 1;
-            const discount_pct = flt(row.discount_percent) || 0;
-            const gst_pct = flt(row.gst_percentage) || 0;
-
-            const base_amount = rate * qty;
-            const discount_amount = base_amount * (discount_pct / 100);
-            const taxable_amount = base_amount - discount_amount;
-            const tax_amount = taxable_amount * (gst_pct / 100);
-            const total_amount = taxable_amount + tax_amount;
-
-            row.taxable_amount = flt(taxable_amount, 2);
-            row.tax_amount = flt(tax_amount, 2);
-            row.total_amount = flt(total_amount, 2);
-
-            total_taxable_value += row.taxable_amount;
-            total_item_tax += row.tax_amount;
         });
-        frm.refresh_field('items');
     }
 
-    const freight = flt(frm.doc.freight) || 0;
-    const insurance = flt(frm.doc.insurance) || 0;
-    const packing = flt(frm.doc.packing_charges) || 0;
-    const other = flt(frm.doc.other_charges) || 0;
-    const advance_pct = flt(frm.doc.advance_percentage) || 0;
+    const _do_calculate = () => {
+        let tv = 0;
+        let tt = 0;
 
-    // GST Type Determination
-    const vendor_gstin = (frm.doc.vendor_gstin || frm._vendor_gstin || '');
-    const company_gstin = (frm.doc.company_gstin || frm._company_gstin || '');
+        if (frm.doc.items && frm.doc.items.length > 0) {
+            frm.doc.items.forEach(row => {
+                const rate = flt(row.rate) || 0;
+                const qty = flt(row.quantity) || 1;
+                const discount_pct = flt(row.discount_percent) || 0;
+                const gst_pct = flt(row.gst_percentage) || 0;
 
-    let gst_type = 'IGST';
-    let cgst = 0, sgst = 0, igst = 0;
+                const base_amount = rate * qty;
+                const discount_amount = base_amount * (discount_pct / 100);
+                const taxable_amount = base_amount - discount_amount;
+                const tax_amount = taxable_amount * (gst_pct / 100);
+                const total_amount = taxable_amount + tax_amount;
 
-    if (is_lut) {
-        gst_type = 'IGST';
-        igst = total_item_tax;
-        cgst = 0;
-        sgst = 0;
-    } else if (vendor_gstin.length >= 2 && company_gstin.length >= 2 && vendor_gstin.substring(0, 2) === company_gstin.substring(0, 2)) {
-        gst_type = 'CGST + SGST';
-        cgst = total_item_tax / 2;
-        sgst = total_item_tax / 2;
-        igst = 0;
+                row.taxable_amount = flt(taxable_amount, 2);
+                row.tax_amount = flt(tax_amount, 2);
+                row.total_amount = flt(total_amount, 2);
+
+                tv += row.taxable_amount;
+                tt += row.tax_amount;
+            });
+            frm.refresh_field('items');
+        }
+
+        total_taxable_value = tv;
+        total_item_tax = tt;
+
+        const freight = flt(frm.doc.freight) || 0;
+        const insurance = flt(frm.doc.insurance) || 0;
+        const packing = flt(frm.doc.packing_charges) || 0;
+        const other = flt(frm.doc.other_charges) || 0;
+        const advance_pct = flt(frm.doc.advance_percentage) || 0;
+
+        // Logistics cost aggregation
+        const logistics_cost = flt(freight + insurance + packing + other, 2);
+
+        // GST Type Determination
+        const vendor_gstin = (frm.doc.vendor_gstin || frm._vendor_gstin || '');
+        const company_gstin = (frm.doc.company_gstin || frm._company_gstin || '');
+
+        let gst_type = 'IGST';
+        let cgst = 0, sgst = 0, igst = 0;
+
+        if (is_lut) {
+            gst_type = 'IGST';
+            igst = total_item_tax;
+        } else if (vendor_gstin.length >= 2 && company_gstin.length >= 2 && vendor_gstin.substring(0, 2) === company_gstin.substring(0, 2)) {
+            gst_type = 'CGST + SGST';
+            cgst = total_item_tax / 2;
+            sgst = total_item_tax / 2;
+        } else {
+            gst_type = 'IGST';
+            igst = total_item_tax;
+        }
+
+        // Internal Margin (Internal PO only)
+        let internal_margin_amount = 0;
+        let internal_margin_pct = 0;
+        if (is_internal) {
+            internal_margin_pct = flt(frm.doc.internal_margin_percentage) || 5.0;
+            internal_margin_amount = flt((total_taxable_value + logistics_cost) * (internal_margin_pct / 100), 2);
+        }
+
+        const grand_total = flt(total_taxable_value + total_item_tax + logistics_cost + internal_margin_amount, 2);
+        const advance_amount = flt(grand_total * (advance_pct / 100), 2);
+        const balance_due = flt(grand_total - advance_amount, 2);
+
+        frm.set_value('taxable_value', flt(total_taxable_value, 2));
+        frm.set_value('logistics_cost', logistics_cost);
+        frm.set_value('gst_type', gst_type);
+        frm.set_value('cgst_amount', flt(cgst, 2));
+        frm.set_value('sgst_amount', flt(sgst, 2));
+        frm.set_value('igst_amount', flt(igst, 2));
+        frm.set_value('tax_amount', flt(total_item_tax, 2));
+        if (is_internal) {
+            frm.set_value('internal_margin_percentage', internal_margin_pct);
+            frm.set_value('internal_margin_amount', internal_margin_amount);
+        } else {
+            frm.set_value('internal_margin_percentage', 0);
+            frm.set_value('internal_margin_amount', 0);
+        }
+        frm.set_value('grand_total', grand_total);
+        frm.set_value('advance_amount', advance_amount);
+        frm.set_value('balance_due', balance_due);
+    };
+
+    // If there are LUT reversion fetches pending, wait for them then calculate
+    if (reversion_promises.length > 0) {
+        Promise.all(reversion_promises).then(_do_calculate);
     } else {
-        gst_type = 'IGST';
-        igst = total_item_tax;
-        cgst = 0;
-        sgst = 0;
+        _do_calculate();
     }
-
-    const grand_total = total_taxable_value + total_item_tax + freight + insurance + packing + other;
-    const advance_amount = grand_total * (advance_pct / 100);
-    const balance_due = grand_total - advance_amount;
-
-    frm.set_value('taxable_value', flt(total_taxable_value, 2));
-    frm.set_value('gst_type', gst_type);
-    frm.set_value('cgst_amount', flt(cgst, 2));
-    frm.set_value('sgst_amount', flt(sgst, 2));
-    frm.set_value('igst_amount', flt(igst, 2));
-    frm.set_value('tax_amount', flt(total_item_tax, 2));
-    frm.set_value('grand_total', flt(grand_total, 2));
-    frm.set_value('advance_amount', flt(advance_amount, 2));
-    frm.set_value('balance_due', flt(balance_due, 2));
 }
 
 function set_port_filter(frm) {

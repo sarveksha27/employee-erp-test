@@ -548,21 +548,44 @@ class VendorPurchaseOrder(Document):
 
     def calculate_grand_total(self):
         """
-        Grand Total = Sum(Item Taxable Values + Item Taxes) + Freight + Insurance + Packing + Other
+        Grand Total:
+        - External PO: Taxable Value + Tax + Logistics Cost
+        - Internal PO: Taxable Value + Tax + Logistics Cost + (Taxable Value + Logistics Cost) × Internal Margin %
+        
+        LUT Rule: If is_lut_applicable, all items are taxed at 0.1%.
+        LUT Reversion: If is_lut_applicable is False and item has no custom gst_percentage
+        override, fetch from Equipment master to revert correctly.
         """
         freight = flt(self.freight)
         insurance = flt(self.insurance)
         packing = flt(self.packing_charges)
         other = flt(self.other_charges)
 
+        # Aggregate logistics cost (always visible, useful for both PO types)
+        self.logistics_cost = flt(freight + insurance + packing + other, 2)
+
         total_taxable_value = 0.0
         total_item_tax = 0.0
 
         if self.items:
             for item in self.items:
-                # Override GST percentage to 0.1% if LUT is applicable
                 if self.is_lut_applicable:
+                    # LUT overrides ALL items to 0.1%
                     item.gst_percentage = 0.1
+                else:
+                    # ── LUT REVERSION FIX ──────────────────────────────────────
+                    # When LUT is unchecked, do NOT leave gst_percentage at 0.1.
+                    # Restore from Equipment master if the item's current value is
+                    # 0.1 (indicating it was set by a previous LUT application).
+                    # If the Equipment master has no GST% set, fall back to 18%.
+                    current_gst = flt(item.gst_percentage)
+                    if current_gst == 0.1:
+                        master_gst = 18.0  # safe default
+                        if item.equipment and frappe.db.exists("Equipment", item.equipment):
+                            eq_gst = frappe.db.get_value("Equipment", item.equipment, "gst_percentage")
+                            if eq_gst is not None and flt(eq_gst) > 0:
+                                master_gst = flt(eq_gst)
+                        item.gst_percentage = master_gst
 
                 rate = flt(item.rate)
                 qty = flt(item.quantity) or 1
@@ -572,7 +595,7 @@ class VendorPurchaseOrder(Document):
                 base_amount = rate * qty
                 discount_amount = base_amount * (discount_pct / 100.0)
                 taxable_amount = base_amount - discount_amount
-                
+
                 item.taxable_amount = flt(taxable_amount, 2)
                 item.tax_amount = flt(taxable_amount * (gst_pct / 100.0), 2)
                 item.total_amount = flt(item.taxable_amount + item.tax_amount, 2)
@@ -612,7 +635,7 @@ class VendorPurchaseOrder(Document):
         # Determine GST Type (Intra-state vs Inter-state)
         vendor_gstin = self.vendor_gstin or ""
         company_gstin = self.company_gstin or ""
-        
+
         if self.is_lut_applicable:
             gst_type = "IGST"
         else:
@@ -620,7 +643,7 @@ class VendorPurchaseOrder(Document):
             if len(vendor_gstin) >= 2 and len(company_gstin) >= 2:
                 if vendor_gstin[:2] == company_gstin[:2]:
                     gst_type = "CGST + SGST"
-        
+
         self.gst_type = gst_type
 
         # Calculate GST amounts
@@ -635,8 +658,30 @@ class VendorPurchaseOrder(Document):
             self.igst_amount = flt(total_item_tax, 2)
             self.tax_amount = flt(self.igst_amount, 2)
 
+        # ── INTERNAL MARGIN (Internal PO only) ─────────────────────────────
+        is_internal = (self.po_type or "") == "Internal PO"
+        if is_internal:
+            margin_pct = flt(self.internal_margin_percentage)
+            if margin_pct <= 0:
+                # Default to 5% for Internal POs if not explicitly set
+                margin_pct = 5.0
+                self.internal_margin_percentage = margin_pct
+            self.internal_margin_amount = flt(
+                (total_taxable_value + self.logistics_cost) * (margin_pct / 100.0), 2
+            )
+        else:
+            # External PO — zero out margin fields
+            self.internal_margin_percentage = 0.0
+            self.internal_margin_amount = 0.0
+
         # Grand Total
-        self.grand_total = flt(self.taxable_value + self.tax_amount + freight + insurance + packing + other, 2)
+        self.grand_total = flt(
+            self.taxable_value
+            + self.tax_amount
+            + self.logistics_cost
+            + self.internal_margin_amount,
+            2
+        )
 
     def calculate_advance(self):
         """
