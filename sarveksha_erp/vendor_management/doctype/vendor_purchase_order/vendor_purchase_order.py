@@ -17,6 +17,7 @@ class VendorPurchaseOrder(Document):
         if self.is_new() or not self.prepared_by:
             self.prepared_by = frappe.session.user or "Administrator"
 
+        self.validate_entity_policy()
         self.set_company_details()
         self.set_default_letter_head()
         self.set_default_terms()
@@ -25,6 +26,8 @@ class VendorPurchaseOrder(Document):
         self.validate_generator_edit_rights()
         self.validate_payment_permissions()
         self.validate_audit_comments_edit_rights()
+        self.validate_quotation_audit_integrity()
+        self.validate_quotation_governance()
         self.track_workflow_audit_trail()
         self.sanitize_text_fields()
         self.validate_non_negative_values()
@@ -33,6 +36,76 @@ class VendorPurchaseOrder(Document):
         self.validate_required_fields()
         self.validate_unique_ref_number()
         self.sync_payment_check_fields()
+
+    SRI_ENTITY_NAME = "Sarveksha Realty and Inframine LLP"
+
+    def validate_entity_policy(self):
+        """Enforce company/supplier separation for Internal POs and active suppliers for External POs."""
+        if not self.company or not self.vendor:
+            return
+
+        company_is_sri = self._is_sri_entity(self.company)
+        supplier_name = frappe.db.get_value("Supplier", self.vendor, "supplier_name") or self.vendor
+        supplier_is_sri = self._is_sri_entity(supplier_name)
+
+        if self.po_type == "Internal PO":
+            if not supplier_is_sri:
+                frappe.throw(
+                    _("Internal POs can be issued only to {0}.").format(self.SRI_ENTITY_NAME),
+                    frappe.ValidationError,
+                )
+            if company_is_sri:
+                frappe.throw(
+                    _("{0} cannot issue an Internal PO to itself. Select a child company.").format(
+                        self.SRI_ENTITY_NAME
+                    ),
+                    frappe.ValidationError,
+                )
+        elif self.po_type == "Vendor PO" and frappe.db.get_value("Supplier", self.vendor, "disabled"):
+            frappe.throw(_("External POs can be issued only to active, authorized suppliers."), frappe.ValidationError)
+
+    @classmethod
+    def _is_sri_entity(cls, value):
+        return (value or "").strip().casefold() == cls.SRI_ENTITY_NAME.casefold()
+
+    def validate_quotation_governance(self):
+        """Require complete quotation evidence when an External PO leaves Draft or is submitted."""
+        if self.po_type != "Vendor PO" or not self._requires_quotation_evidence():
+            return
+
+        if not self.quotation_comparison_sheet:
+            frappe.throw(
+                _("Attach the Quotation Comparison Sheet before forwarding an External PO."),
+                frappe.ValidationError,
+            )
+        if len(self.quotations or []) < 3:
+            frappe.throw(
+                _("Add at least three distinct vendor quotations before forwarding an External PO."),
+                frappe.ValidationError,
+            )
+
+        suppliers = [row.supplier for row in self.quotations]
+        if len(set(suppliers)) != len(suppliers):
+            frappe.throw(_("Each quotation must be from a distinct supplier."), frappe.ValidationError)
+
+    def _requires_quotation_evidence(self):
+        previous = self.get_doc_before_save()
+        leaving_draft = previous and (previous.workflow_state or "Draft") == "Draft" \
+            and self.workflow_state == "Generated (Yet to be Verified)"
+        return bool(leaving_draft or self.docstatus == 1)
+
+    def validate_quotation_audit_integrity(self):
+        """Quotation evidence remains visible but immutable after the Draft stage."""
+        previous = self.get_doc_before_save()
+        if not previous or (previous.workflow_state or "Draft") == "Draft":
+            return
+
+        protected_fields = ("quotations", "quotation_comparison_sheet")
+        if any(self.has_value_changed(fieldname) for fieldname in protected_fields):
+            frappe.throw(
+                _("Quotation records and the Comparison Sheet are read-only after the Draft stage."),
+                frappe.PermissionError,
+            )
 
     def validate_unique_ref_number(self):
         """Enforces uniqueness of approved PO reference numbers."""

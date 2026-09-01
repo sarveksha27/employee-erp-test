@@ -1,0 +1,63 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-09-02 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "supplier",
+  "quotation_reference",
+  "quotation_date",
+  "quotation_amount",
+  "quotation_pdf"
+ ],
+ "fields": [
+  {
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Supplier",
+   "options": "Supplier",
+   "reqd": 1
+  },
+  {
+   "fieldname": "quotation_reference",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Quotation Reference Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "quotation_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Quotation Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "quotation_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Quotation Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "quotation_pdf",
+   "fieldtype": "Attach",
+   "label": "Quotation PDF",
+   "reqd": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-02 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vendor Management",
+ "name": "Vendor Purchase Order Quotation",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

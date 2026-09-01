@@ -14,15 +14,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.537659",
   "name": "Global Infrastructure - Kotak Mahindra Bank",
   "party": "Global Infrastructure",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -39,15 +37,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.558092",
   "name": "Action Construction Equipment - ICICI Bank Limited",
   "party": "Action Construction Equipment",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -64,15 +60,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.576430",
   "name": "Bissa Engg. - HDFC Bank Ltd",
   "party": "Bissa Engg.",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -89,15 +83,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.587845",
   "name": "CruxWeld - ICICI Bank",
   "party": "CruxWeld",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -114,15 +106,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.594697",
   "name": "Energy Compressor - Kotak Mahindra Bank",
   "party": "Energy Compressor",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -139,15 +129,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.776368",
   "name": "Badri Corporation - State Bank of India",
   "party": "Badri Corporation",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -164,15 +152,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.783701",
   "name": "ARS International - State Bank of India",
   "party": "ARS International",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -189,15 +175,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.795394",
   "name": "Chopra Enterprises - Axis Bank",
   "party": "Chopra Enterprises",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -214,15 +198,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.812075",
   "name": "Marine Hardware Syndicate - ICICI Bank",
   "party": "Marine Hardware Syndicate",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -239,15 +221,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.820894",
   "name": "Tata Motors - Standard Chartered Bank",
   "party": "Tata Motors",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -264,15 +244,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.829939",
   "name": "Yantralink - HDFC Bank Ltd",
   "party": "Yantralink",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -289,15 +267,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.838055",
   "name": "RR Technologies - State Bank of India",
   "party": "RR Technologies",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -314,15 +290,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.846817",
   "name": "Prime Rigs - Kotak Mahindra Bank",
   "party": "Prime Rigs",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -339,15 +313,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.857963",
   "name": "Indus Furnaces - Indian Overseas Bank",
   "party": "Indus Furnaces",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -364,15 +336,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.865170",
   "name": "Vinspire Agrotech Pvt Limited - ICICI Bank Limited",
   "party": "Vinspire Agrotech Pvt Limited",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -389,15 +359,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.874238",
   "name": "Classic Instruments - Union Bank of India",
   "party": "Classic Instruments",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -414,15 +382,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.881258",
   "name": "OM Enterprises - ICICI Bank",
   "party": "OM Enterprises",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -439,15 +405,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.888645",
   "name": "Central Drug House - Bank of India",
   "party": "Central Drug House",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -464,15 +428,13 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.896365",
   "name": "Aavya Logistics - DBS Bank",
   "party": "Aavya Logistics",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  },
  {
   "account": null,
@@ -489,14 +451,12 @@
   "iban": "",
   "integration_id": null,
   "is_company_account": 0,
-  "is_credit_card": 0,
   "is_default": 1,
   "last_integration_date": null,
   "mask": null,
   "modified": "2026-07-18 02:22:20.910349",
   "name": "Bipun Consultancy - State Bank of India",
   "party": "Bipun Consultancy",
-  "party_type": "Supplier",
-  "statement_password": null
+  "party_type": "Supplier"
  }
 ]

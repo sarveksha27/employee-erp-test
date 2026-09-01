@@ -30,6 +30,8 @@ frappe.ui.form.on('Vendor Purchase Order', {
 
         // Render custom buttons based on workflow state & user roles
         const state = frm.doc.workflow_state || 'Draft';
+        set_quotation_governance_access(frm, state);
+        set_entity_policy_filters(frm);
         const user_roles = frappe.user_roles;
         const is_manager = user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
 
@@ -290,6 +292,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
     },
 
     po_type: function(frm) {
+        set_entity_policy_filters(frm);
         // Recalculate whenever PO Type changes (External vs Internal)
         // This shows/hides margin fields and updates grand total
         calculate_gst_and_totals(frm);
@@ -813,3 +816,31 @@ function export_history_to_excel(po_name, data) {
     }
 }
 
+
+
+function set_quotation_governance_access(frm, state) {
+    const is_locked = !frm.is_new() && state !== 'Draft';
+    ['quotations', 'quotation_comparison_sheet'].forEach(fieldname => {
+        frm.set_df_property(fieldname, 'read_only', is_locked ? 1 : 0);
+    });
+
+    const quotation_grid = frm.get_field('quotations') && frm.get_field('quotations').grid;
+    if (quotation_grid) {
+        quotation_grid.cannot_add_rows = is_locked;
+        quotation_grid.cannot_delete_rows = is_locked;
+        quotation_grid.refresh();
+    }
+}
+
+
+function set_entity_policy_filters(frm) {
+    const sri_entity = 'Sarveksha Realty and Inframine LLP';
+    if (frm.doc.po_type === 'Internal PO') {
+        frm.set_query('vendor', () => ({ filters: { supplier_name: sri_entity, disabled: 0 } }));
+        frm.set_query('company', () => ({ filters: [['name', '!=', sri_entity]] }));
+        return;
+    }
+
+    frm.set_query('vendor', () => ({ filters: { disabled: 0 } }));
+    frm.set_query('company', () => ({}));
+}

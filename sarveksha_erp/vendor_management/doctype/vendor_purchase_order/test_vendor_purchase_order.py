@@ -1,5 +1,6 @@
 import frappe
-from frappe.tests import IntegrationTestCase
+from unittest.mock import patch
+from frappe.tests.utils import FrappeTestCase
 from sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order import has_permission
 
 # Mock _get_fiscal_years to ignore company constraints in test runs
@@ -15,10 +16,67 @@ erpnext.accounts.utils._get_fiscal_years = mock_get_fiscal_years
 
 
 
-class IntegrationTestVendorPurchaseOrder(IntegrationTestCase):
+class TestVendorPurchaseOrder(FrappeTestCase):
 	"""
 	Integration tests for VendorPurchaseOrder workflow, approval panel, and permissions.
 	"""
+
+	def test_internal_po_entity_policy(self):
+		"""Internal POs may target SRI only and must originate from a child company."""
+		po = frappe.new_doc("Vendor Purchase Order")
+		po.po_type = "Internal PO"
+		po.company = "Sarveksha Realty and Inframine LLP"
+		po.vendor = "SRI Supplier"
+
+		with patch.object(frappe.db, "get_value", return_value="Sarveksha Realty and Inframine LLP"):
+			with self.assertRaises(frappe.ValidationError):
+				po.validate_entity_policy()
+
+		po.company = "Sarveksha Child Entity"
+		with patch.object(frappe.db, "get_value", return_value="External Supplier"):
+			with self.assertRaises(frappe.ValidationError):
+				po.validate_entity_policy()
+
+	def test_external_po_allows_active_supplier(self):
+		"""External POs remain available to every company when the supplier is active."""
+		po = frappe.new_doc("Vendor Purchase Order")
+		po.po_type = "Vendor PO"
+		po.company = "Sarveksha Realty and Inframine LLP"
+		po.vendor = "Authorized Overseas Supplier"
+
+		with patch.object(frappe.db, "get_value", return_value=0):
+			po.validate_entity_policy()
+
+	def test_external_po_requires_complete_distinct_quotations(self):
+		"""Forwarding an External PO requires a comparison sheet and three different quotes."""
+		po = frappe.new_doc("Vendor Purchase Order")
+		po.po_type = "Vendor PO"
+		po.workflow_state = "Generated (Yet to be Verified)"
+		po.get_doc_before_save = lambda: frappe._dict(workflow_state="Draft")
+
+		with self.assertRaises(frappe.ValidationError):
+			po.validate_quotation_governance()
+
+		po.quotation_comparison_sheet = "/files/comparison.pdf"
+		po.quotations = [
+			frappe._dict(supplier="Supplier A"),
+			frappe._dict(supplier="Supplier B"),
+			frappe._dict(supplier="Supplier C"),
+		]
+		po.validate_quotation_governance()
+
+		po.quotations[2].supplier = "Supplier A"
+		with self.assertRaises(frappe.ValidationError):
+			po.validate_quotation_governance()
+
+	def test_quotation_evidence_is_immutable_after_draft(self):
+		"""Reviewers can see quotation evidence but cannot modify it after Draft."""
+		po = frappe.new_doc("Vendor Purchase Order")
+		po.get_doc_before_save = lambda: frappe._dict(workflow_state="Generated (Yet to be Verified)")
+		po.has_value_changed = lambda fieldname: fieldname == "quotations"
+
+		with self.assertRaises(frappe.PermissionError):
+			po.validate_quotation_audit_integrity()
 
 	def test_print_permission_restriction(self):
 		"""Verify print permission is rejected for non-approved states and restricted by role."""
