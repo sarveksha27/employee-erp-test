@@ -593,6 +593,13 @@ class VendorPurchaseOrder(Document):
         if flt(self.quantity) <= 0:
             frappe.throw(_("Quantity must be greater than zero."))
 
+        if hasattr(self, "items") and self.items:
+            for i, item in enumerate(self.items, 1):
+                if flt(item.rate) < 0:
+                    frappe.throw(_("Row #{0}: Unit Rate cannot be negative.").format(i))
+                if flt(item.quantity) <= 0:
+                    frappe.throw(_("Row #{0}: Quantity must be greater than zero.").format(i))
+
         if flt(self.discount_percent) < 0 or flt(self.discount_percent) > 100:
             frappe.throw(_("Discount % must be between 0 and 100."))
 

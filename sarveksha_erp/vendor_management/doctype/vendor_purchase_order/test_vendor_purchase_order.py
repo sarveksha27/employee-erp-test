@@ -1,4 +1,5 @@
 import frappe
+from frappe.utils import flt
 from unittest.mock import patch
 from frappe.tests.utils import FrappeTestCase
 from sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order import has_permission
@@ -620,6 +621,59 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 			self.assertTrue(len(logs) >= 2)
 		finally:
 			frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+	def test_logistics_expense_zero_and_negative_values(self):
+		"""
+		Phase 2 Task 1: Negative & Boundary Scenario Testing
+		- Test zero values in logistics fields (freight=0, insurance=0, packing_charges=0, other_charges=0):
+		  Verify document saves cleanly and calculates grand total correctly.
+		- Test negative values in logistics fields (freight=-50, insurance=-20, packing_charges=-10, other_charges=-5):
+		  Verify frappe.ValidationError is raised for each field.
+		"""
+		test_company = frappe.db.get_value("Company", {}, "name") or "_Test Company"
+		test_vendor = frappe.db.get_value("Supplier", {}, "name") or "_Test Supplier"
+
+		# 1. Zero values in logistics expense fields
+		po = frappe.new_doc("Vendor Purchase Order")
+		po.company = test_company
+		po.vendor = test_vendor
+		po.quantity = 2.0
+		po.rate = 500.0
+		po.exchange_rate = 1.0
+		po.freight = 0.0
+		po.insurance = 0.0
+		po.packing_charges = 0.0
+		po.other_charges = 0.0
+		po.workflow_state = "Draft"
+		po.save(ignore_permissions=True)
+
+		self.assertEqual(flt(po.freight), 0.0)
+		self.assertEqual(flt(po.insurance), 0.0)
+		self.assertEqual(flt(po.packing_charges), 0.0)
+		self.assertEqual(flt(po.other_charges), 0.0)
+		self.assertTrue(flt(po.grand_total) > 0)
+
+		# 2. Negative values in freight
+		po.freight = -100.0
+		self.assertRaises(frappe.ValidationError, po.save, ignore_permissions=True)
+		po.freight = 0.0
+
+		# Negative values in insurance
+		po.insurance = -50.0
+		self.assertRaises(frappe.ValidationError, po.save, ignore_permissions=True)
+		po.insurance = 0.0
+
+		# Negative values in packing_charges
+		po.packing_charges = -25.0
+		self.assertRaises(frappe.ValidationError, po.save, ignore_permissions=True)
+		po.packing_charges = 0.0
+
+		# Negative values in other_charges
+		po.other_charges = -10.0
+		self.assertRaises(frappe.ValidationError, po.save, ignore_permissions=True)
+		po.other_charges = 0.0
+
+		frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
 
 
 
