@@ -1,37 +1,94 @@
 {% set company = frappe.get_doc("Company", doc.company) %}
 {% set vendor = frappe.get_doc("Supplier", doc.vendor) %}
-{% set vendor_address_name = frappe.db.get_value("Dynamic Link", {"link_doctype": "Supplier", "link_name": doc.vendor, "parenttype": "Address"}, "parent") %}
+{% set vendor_address_name = frappe.db.get_value("Dynamic Link", {"link_doctype": "Supplier", "link_name": doc.vendor,
+"parenttype": "Address"}, "parent") %}
 {% set addr = frappe.get_doc("Address", vendor_address_name) if vendor_address_name else None %}
 
 {# ── AUTO-SELECT LETTERHEAD ── #}
 {% if doc.letter_head and frappe.db.exists("Letter Head", doc.letter_head) %}
-  {% set lh_doc = frappe.get_doc("Letter Head", doc.letter_head) %}
+{% set lh_doc = frappe.get_doc("Letter Head", doc.letter_head) %}
 {% elif company.default_letter_head and frappe.db.exists("Letter Head", company.default_letter_head) %}
-  {% set lh_doc = frappe.get_doc("Letter Head", company.default_letter_head) %}
+{% set lh_doc = frappe.get_doc("Letter Head", company.default_letter_head) %}
 {% else %}
-  {# Fallback: search for any active Letter Head matching the company name #}
-  {% set _lh_name = frappe.db.get_value("Letter Head", {"disabled": 0, "is_default": 1}, "name") %}
-  {% if _lh_name %}
-    {% set lh_doc = frappe.get_doc("Letter Head", _lh_name) %}
-  {% else %}
-    {% set lh_doc = None %}
-  {% endif %}
+{% set _lh_name = frappe.db.get_value("Letter Head", {"disabled": 0, "is_default": 1}, "name") %}
+{% if _lh_name %}
+{% set lh_doc = frappe.get_doc("Letter Head", _lh_name) %}
+{% else %}
+{% set lh_doc = None %}
+{% endif %}
 {% endif %}
 {% set letterhead_img = lh_doc.image if (lh_doc and lh_doc.image) else "" %}
 
-
+<script>
+  (function () {
+    if (typeof window !== 'undefined' && window.location && window.location.href) {
+      var href = window.location.href;
+      if (href.indexOf('/printview') !== -1 && href.indexOf('doctype=Vendor%20Purchase%20Order') !== -1) {
+        var match = href.match(/name=([^&]+)/);
+        if (match && match[1]) {
+          var poName = decodeURIComponent(match[1]);
+          var targetUrl = "/api/method/frappe.utils.print_format.download_pdf?doctype=Vendor%20Purchase%20Order&name=" + encodeURIComponent(poName);
+          if (href.indexOf('redirected=1') === -1) {
+            window.location.replace(targetUrl);
+          }
+        }
+      }
+    }
+  })();
+</script>
 
 <style>
-  * { box-sizing: border-box; }
-  body, div, td, th, p {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 11px;
-    color: #000;
-    line-height: 1.4;
+  @page {
+    size: A4;
+    margin: 10mm 12mm 15mm 12mm !important;
   }
-  p { margin: 6px 0; }
 
-  /* Fixed-layout tables — columns NEVER shift regardless of content */
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 11px !important;
+    color: #000 !important;
+    line-height: 1.4 !important;
+    background: #ffffff !important;
+  }
+
+  p {
+    margin: 6px 0;
+  }
+
+  /* Hide default Frappe headers to avoid duplicate rendering */
+  .letter-head,
+  .print-heading,
+  .letter-head-footer {
+    display: none !important;
+  }
+
+  .po-print-wrapper {
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  /* Crop full-page A4 letterhead image to show pristine top header banner */
+  .lh-header-crop {
+    width: 100%;
+    height: 145px;
+    overflow: hidden;
+    margin-bottom: 15px;
+  }
+
+  .lh-header-crop img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* Fixed-layout formal tables matching exact original specification */
   table.fixed {
     width: 100%;
     table-layout: fixed;
@@ -39,91 +96,76 @@
     margin-bottom: 12px;
     word-wrap: break-word;
   }
-  table.fixed th, table.fixed td {
-    border: 1px solid #000;
-    padding: 5px 7px;
-    vertical-align: top;
+
+  table.fixed th,
+  table.fixed td {
+    border: 1px solid #000 !important;
+    padding: 5px 7px !important;
+    vertical-align: top !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 11px !important;
+    color: #000 !important;
   }
+
   table.fixed thead th {
-    background: #f0f0f0;
-    font-weight: bold;
+    background: #f0f0f0 !important;
+    font-weight: bold !important;
     text-align: left;
   }
-  table.fixed .right { text-align: right; }
-  table.fixed .center { text-align: center; }
-  /* Bold label helper — used throughout the template */
-  .lbl { font-weight: bold; }
+
+  table.fixed .right {
+    text-align: right;
+  }
+
+  table.fixed .center {
+    text-align: center;
+  }
+
+  .lbl {
+    font-weight: bold !important;
+  }
+
   .section-head {
-    background: #f0f0f0;
-    font-weight: bold;
-    padding: 5px 8px;
-    border: 1px solid #000;
-    border-bottom: none;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .letter-head, .print-heading { display: none !important; }
-
-  /* ── WEB PREVIEW (Screen): Repeats on virtual paper ── */
-  @media screen {
-    .print-format {
-      background-image: url('{{ (frappe.utils.get_url() + letterhead_img) | replace(" ", "%20") }}') !important;
-      background-size: 100% 297mm !important;
-      background-repeat: repeat-y !important;
-      background-position: top center !important;
-      padding: 0 !important;
-    }
-    .print-bg-fixed { display: none !important; }
+    background: #f0f0f0 !important;
+    font-weight: bold !important;
+    padding: 5px 8px !important;
+    border: 1px solid #000 !important;
+    border-bottom: none !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
   }
 
-  /* ── PRINT / PDF: Forces full-page background on EVERY physical page ── */
-  @media print {
-    @page { margin: 0 !important; size: A4; }
-    html, body { margin: 0 !important; padding: 0 !important; }
-    tr, td, th, p { page-break-inside: avoid; }
-    .print-format {
-      background-image: url('{{ (frappe.utils.get_url() + letterhead_img) | replace(" ", "%20") }}') !important;
-      background-size: 100% 297mm !important;
-      background-repeat: repeat-y !important;
-      background-position: top center !important;
-      background-color: transparent !important;
-      padding: 0 !important;
-    }
-    .print-bg-fixed { display: none !important; }
+  tr {
+    page-break-inside: avoid !important;
+  }
+
+  .footer-text {
+    text-align: center;
+    font-size: 9px;
+    color: #333;
+    margin-top: 25px;
+    border-top: 1px solid #ccc;
+    padding-top: 6px;
+    font-family: Arial, Helvetica, sans-serif !important;
   }
 </style>
 
-<!-- ── PRINT BACKGROUND WRAPPER ── -->
-<div class="print-bg-fixed"></div>
+<div class="po-print-wrapper">
 
-<!-- ── MASTER WRAPPER (Dodges header/footer graphics on all pages) ── -->
-<table style="width:100%; border:none; margin:0; padding:0; border-collapse:collapse;">
-  <thead style="display:table-header-group;">
-    <tr><td style="height:190px; border:none; padding:0;"></td></tr>
-  </thead>
-  <tfoot style="display:table-footer-group;">
-    <tr>
-      <td style="border:none; padding:0 25px; vertical-align:bottom; text-align:center;">
-        {% if lh_doc and lh_doc.footer %}
-          {{ lh_doc.footer }}
-        {% else %}
-          <div style="height:40px;"></div>
-        {% endif %}
-      </td>
-    </tr>
-  </tfoot>
-  <tbody>
-    <tr>
-      <!-- Added 25px side padding so text doesn't touch the absolute edge of the page -->
-      <td style="border:none; padding:0 25px;">
-        <div style="font-family:Arial,Helvetica,sans-serif; font-size:11px; color:#000;">
+  <!-- ── LETTERHEAD BANNER (PAGE 1 TOP) ── -->
+  {% if letterhead_img %}
+  <div class="lh-header-crop">
+    <img src="{{ frappe.utils.get_url() + letterhead_img }}" alt="Letter Head">
+  </div>
+  {% endif %}
 
-  <!-- ── PO TITLE ─────────────────────────────────────── -->
-  <p style="text-align:center; font-size:14px; font-weight:bold; text-decoration:underline; margin:0 0 12px 0; letter-spacing:1px;">PURCHASE ORDER</p>
+  <!-- ── PO TITLE ── -->
+  <p
+    style="text-align:center; font-size:14px; font-weight:bold; text-decoration:underline; margin:0 0 12px 0; letter-spacing:1px;">
+    PURCHASE ORDER</p>
 
-
-  <!-- ── VENDOR (LEFT) + PO META (RIGHT) ──────────────── -->
+  <!-- ── VENDOR (LEFT) + PO META (RIGHT) ── -->
   <table class="fixed" style="margin-bottom:12px;">
     <colgroup>
       <col style="width:58%">
@@ -132,75 +174,105 @@
     </colgroup>
     <tbody>
       <tr>
-        <td rowspan="6" style="vertical-align:top; border-right:2px solid #000;">
+        <td rowspan="6" style="vertical-align:top; border-right:2px solid #000 !important;">
           <span class="lbl">{{ vendor.supplier_name }}</span><br>
           {% if addr %}
-            {% if addr.address_line1 %}{{ addr.address_line1 }},<br>{% endif %}
-            {% if addr.address_line2 %}{{ addr.address_line2 }},<br>{% endif %}
-            {% if addr.city %}{{ addr.city }}{% if addr.pincode %} – {{ addr.pincode }}{% endif %}.<br>{% endif %}
-            {% if addr.state %}{{ addr.state }},<br>{% endif %}
-            {% if addr.country %}{{ addr.country }}.<br>{% endif %}
+          {% if addr.address_line1 %}{{ addr.address_line1 }},<br>{% endif %}
+          {% if addr.address_line2 %}{{ addr.address_line2 }},<br>{% endif %}
+          {% if addr.city %}{{ addr.city }}{% if addr.pincode %} – {{ addr.pincode }}{% endif %}.<br>{% endif %}
+          {% if addr.state %}{{ addr.state }},<br>{% endif %}
+          {% if addr.country %}{{ addr.country }}.<br>{% endif %}
           {% else %}
-            (No address on file)<br>
+          (No address on file)<br>
           {% endif %}
           {% if doc.vendor_gstin %}<br><span class="lbl">GSTIN:</span> {{ doc.vendor_gstin }}{% endif %}
           {% if doc.vendor_pan %}<br><span class="lbl">PAN:</span> {{ doc.vendor_pan }}{% endif %}
         </td>
-        <td class="lbl" style="border-bottom:none;">Ref No. :-</td>
-        <td style="border-bottom:none; border-left:1px solid #000;">{{ doc.ref_number or doc.name }}</td>
+        <td class="lbl" style="border-bottom:none !important;">Ref No. :-</td>
+        <td style="border-bottom:none !important; border-left:1px solid #000 !important;">{{ doc.ref_number or doc.name
+          }}</td>
       </tr>
       <tr>
-        <td class="lbl" style="border-top:1px solid #000; border-bottom:none;">Date :-</td>
-        <td style="border-top:1px solid #000; border-bottom:none; border-left:1px solid #000;">{{ doc.get_formatted("po_date") }}</td>
+        <td class="lbl" style="border-top:1px solid #000 !important; border-bottom:none !important;">Date :-</td>
+        <td
+          style="border-top:1px solid #000 !important; border-bottom:none !important; border-left:1px solid #000 !important;">
+          {{ doc.get_formatted("po_date") }}</td>
       </tr>
       <tr>
-        <td class="lbl" style="border-top:1px solid #000; border-bottom:none;">Quotation No. :-</td>
-        <td style="border-top:1px solid #000; border-bottom:none; border-left:1px solid #000;">{{ doc.quotation_ref or "—" }}</td>
+        <td class="lbl" style="border-top:1px solid #000 !important; border-bottom:none !important;">Quotation No. :-
+        </td>
+        <td
+          style="border-top:1px solid #000 !important; border-bottom:none !important; border-left:1px solid #000 !important;">
+          {{ doc.quotation_ref or "—" }}</td>
       </tr>
       <tr>
-        <td class="lbl" style="border-top:1px solid #000; border-bottom:none;">Quotation Date :-</td>
-        <td style="border-top:1px solid #000; border-bottom:none; border-left:1px solid #000;">{{ doc.get_formatted("quotation_date") or "—" }}</td>
+        <td class="lbl" style="border-top:1px solid #000 !important; border-bottom:none !important;">Quotation Date :-
+        </td>
+        <td
+          style="border-top:1px solid #000 !important; border-bottom:none !important; border-left:1px solid #000 !important;">
+          {{ doc.get_formatted("quotation_date") or "—" }}</td>
       </tr>
       <tr>
-        <td class="lbl" style="border-top:1px solid #000; border-bottom:none;">PI No. :-</td>
-        <td style="border-top:1px solid #000; border-bottom:none; border-left:1px solid #000;">{{ doc.pi_number or "—" }}</td>
+        <td class="lbl" style="border-top:1px solid #000 !important; border-bottom:none !important;">PI No. :-</td>
+        <td
+          style="border-top:1px solid #000 !important; border-bottom:none !important; border-left:1px solid #000 !important;">
+          {{ doc.pi_number or "—" }}</td>
       </tr>
       <tr>
-        <td class="lbl" style="border-top:1px solid #000;">Currency :-</td>
-        <td style="border-top:1px solid #000; border-left:1px solid #000;">{{ doc.currency }} (Rate: {{ doc.exchange_rate or 1 }})</td>
+        <td class="lbl" style="border-top:1px solid #000 !important;">Currency :-</td>
+        <td style="border-top:1px solid #000 !important; border-left:1px solid #000 !important;">{{ doc.currency }}
+          (Rate: {{ doc.exchange_rate or 1 }})</td>
       </tr>
     </tbody>
   </table>
 
-  <!-- ── SALUTATION ─────────────────────────────────────── -->
+  <!-- ── SALUTATION ── -->
   <p>Dear Sir/Ma'am,</p>
-  <p>We are pleased to release this Purchase Order for the supply of <strong>{{ doc.equipment_name or doc.item_code or "the specified goods" }}</strong>. Details and specifications are as per below. Please send your acceptance confirmation via return email for further processing.</p>
+  <p>We are pleased to release this Purchase Order for the supply of <strong>{{ doc.equipment_name or doc.item_code or
+      "the specified goods" }}</strong>. Details and specifications are as per below. Please send your acceptance
+    confirmation via return email for further processing.</p>
 
-  <!-- ── PRE-CONDITIONS ─────────────────────────────────── -->
+  <!-- ── PRE-CONDITIONS ── -->
   <table class="fixed" style="margin-bottom:12px;">
     <tbody>
       <tr>
         <td>
           The bill should be raised in the name of <strong>{{ company.company_name }}</strong>.
           {% if doc.company_address %}
-            <br><span style="color:#333; font-size:10px;">{{ doc.company_address | replace("\n", "<br>") }}</span>
+          <br><span style="color:#333; font-size:10px;">{{ doc.company_address | replace("\n", "<br>") }}</span>
           {% else %}
-            {% if doc.company_gstin %}<br><strong>GSTIN:</strong> {{ doc.company_gstin }}{% endif %}
-            {% if doc.company_pan %}<br><strong>PAN:</strong> {{ doc.company_pan }}{% endif %}
-            {% if company.registration_details %}<br><span style="font-size:10px;">{{ company.registration_details }}</span>{% endif %}
+          {% if doc.company_gstin %}<br><strong>GSTIN:</strong> {{ doc.company_gstin }}{% endif %}
+          {% if doc.company_pan %}<br><strong>PAN:</strong> {{ doc.company_pan }}{% endif %}
+          {% if company.registration_details %}<br><span style="font-size:10px;">{{ company.registration_details
+            }}</span>{% endif %}
           {% endif %}
         </td>
       </tr>
-      <tr><td style="border-top:none;">The bill and delivery challan must clearly mention the Purchase Order number.</td></tr>
-      <tr><td style="border-top:none;">The bill must clearly mention the applicable HSN/SAC codes as required under GST law.</td></tr>
-      <tr><td style="border-top:none;">Original signed invoice and relevant documents must be provided at the time of material delivery.</td></tr>
-      <tr><td style="border-top:none;">If nothing contrary is heard within 24 hours from receipt of this PO, it will be understood that the Purchase Order is accepted by you.</td></tr>
-      <tr><td style="border-top:none;">This Purchase Order shall be subject to the jurisdiction of the Company's registered office.</td></tr>
+      <tr>
+        <td style="border-top:none !important;">The bill and delivery challan must clearly mention the Purchase Order
+          number.</td>
+      </tr>
+      <tr>
+        <td style="border-top:none !important;">The bill must clearly mention the applicable HSN/SAC codes as required
+          under GST law.</td>
+      </tr>
+      <tr>
+        <td style="border-top:none !important;">Original signed invoice and relevant documents must be provided at the
+          time of material delivery.</td>
+      </tr>
+      <tr>
+        <td style="border-top:none !important;">If nothing contrary is heard within 24 hours from receipt of this PO, it
+          will be understood that the Purchase Order is accepted by you.</td>
+      </tr>
+      <tr>
+        <td style="border-top:none !important;">This Purchase Order shall be subject to the jurisdiction of the
+          Company's registered office.</td>
+      </tr>
     </tbody>
   </table>
 
-  <!-- ── ITEM TABLE ─────────────────────────────────────── -->
-  <table class="fixed">
+  <!-- ── ITEM TABLE ── -->
+  <table class="fixed" style="margin-bottom:12px;">
     <colgroup>
       <col style="width:5%">
       <col style="width:30%">
@@ -225,211 +297,323 @@
     </thead>
     <tbody>
       {% if doc.items and doc.items|length > 0 %}
-        {% for item in doc.items %}
-        <tr>
-          <td class="center" style="border-top:none;">{{ loop.index }}</td>
-          <td style="border-top:none;">
-            <strong>{{ item.equipment_name or item.equipment or "—" }}</strong><br>
-            {% if item.brand %}Brand: {{ item.brand }} | {% endif %}
-            {% if item.manufacturer %}Mfr: {{ item.manufacturer }}<br>{% endif %}
-            {% if item.specification %}<span style="font-size:10px;">{{ item.specification }}</span>{% endif %}
-          </td>
-          <td class="center" style="border-top:none;">{{ item.hsn_code or "—" }}</td>
-          <td class="center" style="border-top:none;">{{ item.brand or "—" }}</td>
-          <td class="center" style="border-top:none;">{{ item.unit or "Nos" }}</td>
-          <td class="center" style="border-top:none;">{{ item.quantity }}</td>
-          <td class="right" style="border-top:none;">{{ doc.currency }} {{ frappe.utils.fmt_money(item.rate, currency=doc.currency) }}</td>
-          <td class="right" style="border-top:none;">{{ doc.currency }} {{ frappe.utils.fmt_money(item.taxable_amount, currency=doc.currency) }}</td>
-        </tr>
-        {% endfor %}
+      {% for item in doc.items %}
+      <tr>
+        <td class="center" style="border-top:none !important;">{{ loop.index }}</td>
+        <td style="border-top:none !important;">
+          <strong>{{ item.equipment_name or item.equipment or "—" }}</strong><br>
+          {% if item.brand %}Brand: {{ item.brand }} | {% endif %}
+          {% if item.manufacturer %}Mfr: {{ item.manufacturer }}<br>{% endif %}
+          {% if item.specification %}<span style="font-size:10px;">{{ item.specification }}</span>{% endif %}
+        </td>
+        <td class="center" style="border-top:none !important;">{{ item.hsn_code or "—" }}</td>
+        <td class="center" style="border-top:none !important;">{{ item.brand or "—" }}</td>
+        <td class="center" style="border-top:none !important;">{{ item.unit or "Nos" }}</td>
+        <td class="center" style="border-top:none !important;">{{ item.quantity }}</td>
+        <td class="right" style="border-top:none !important;">{{ doc.currency }} {{ frappe.utils.fmt_money(item.rate,
+          currency=doc.currency) }}</td>
+        <td class="right" style="border-top:none !important;">{{ doc.currency }} {{
+          frappe.utils.fmt_money(item.taxable_amount, currency=doc.currency) }}</td>
+      </tr>
+      {% endfor %}
       {% else %}
-        <tr>
-          <td class="center" style="border-top:none;">1</td>
-          <td style="border-top:none;">
-            <strong>{{ doc.equipment_name or doc.equipment or "—" }}</strong><br>
-            {% if doc.manufacturer %}Mfr: {{ doc.manufacturer }}<br>{% endif %}
-            {% if doc.country_of_origin %}Origin: {{ doc.country_of_origin }}<br>{% endif %}
-            {% if doc.specification %}<span style="font-size:10px;">{{ doc.specification }}</span>{% endif %}
-          </td>
-          <td class="center" style="border-top:none;">{{ doc.hsn_code or "—" }}</td>
-          <td class="center" style="border-top:none;">{{ doc.brand or "—" }}</td>
-          <td class="center" style="border-top:none;">{{ doc.unit or "Nos" }}</td>
-          <td class="center" style="border-top:none;">{{ doc.quantity }}</td>
-          <td class="right" style="border-top:none;">{{ doc.get_formatted("rate") }}</td>
-          <td class="right" style="border-top:none;">{{ doc.get_formatted("taxable_value") }}</td>
-        </tr>
+      <tr>
+        <td class="center" style="border-top:none !important;">1</td>
+        <td style="border-top:none !important;">
+          <strong>{{ doc.equipment_name or doc.equipment or "—" }}</strong><br>
+          {% if doc.manufacturer %}Mfr: {{ doc.manufacturer }}<br>{% endif %}
+          {% if doc.country_of_origin %}Origin: {{ doc.country_of_origin }}<br>{% endif %}
+          {% if doc.specification %}<span style="font-size:10px;">{{ doc.specification }}</span>{% endif %}
+        </td>
+        <td class="center" style="border-top:none !important;">{{ doc.hsn_code or "—" }}</td>
+        <td class="center" style="border-top:none !important;">{{ doc.brand or "—" }}</td>
+        <td class="center" style="border-top:none !important;">{{ doc.unit or "Nos" }}</td>
+        <td class="center" style="border-top:none !important;">{{ doc.quantity }}</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("rate") }}</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("taxable_value") }}</td>
+      </tr>
       {% endif %}
 
       <!-- Tax rows -->
       {% if doc.gst_type == "CGST + SGST" %}
       <tr>
-        <td colspan="7" class="right lbl" style="border-top:none;">CGST @ {{ doc.gst_percentage / 2 }}%</td>
-        <td class="right" style="border-top:none;">{{ doc.get_formatted("cgst_amount") }}</td>
+        <td colspan="7" class="right lbl" style="border-top:none !important;">CGST @ {{ doc.gst_percentage / 2 }}%</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("cgst_amount") }}</td>
       </tr>
       <tr>
-        <td colspan="7" class="right lbl" style="border-top:none;">SGST @ {{ doc.gst_percentage / 2 }}%</td>
-        <td class="right" style="border-top:none;">{{ doc.get_formatted("sgst_amount") }}</td>
+        <td colspan="7" class="right lbl" style="border-top:none !important;">SGST @ {{ doc.gst_percentage / 2 }}%</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("sgst_amount") }}</td>
       </tr>
       {% else %}
       <tr>
-        <td colspan="7" class="right lbl" style="border-top:none;">IGST @ {{ doc.gst_percentage }}%</td>
-        <td class="right" style="border-top:none;">{{ doc.get_formatted("igst_amount") }}</td>
+        <td colspan="7" class="right lbl" style="border-top:none !important;">IGST @ {{ doc.gst_percentage }}%</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("igst_amount") }}</td>
       </tr>
       {% endif %}
 
       {% if doc.freight and doc.freight > 0 %}
       <tr>
-        <td colspan="7" class="right" style="border-top:none;">Freight Charges</td>
-        <td class="right" style="border-top:none;">{{ doc.get_formatted("freight") }}</td>
+        <td colspan="7" class="right" style="border-top:none !important;">Freight Charges</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("freight") }}</td>
       </tr>
       {% endif %}
       {% if doc.insurance and doc.insurance > 0 %}
       <tr>
-        <td colspan="7" class="right" style="border-top:none;">Insurance</td>
-        <td class="right" style="border-top:none;">{{ doc.get_formatted("insurance") }}</td>
+        <td colspan="7" class="right" style="border-top:none !important;">Insurance</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("insurance") }}</td>
       </tr>
       {% endif %}
       {% if doc.packing_charges and doc.packing_charges > 0 %}
       <tr>
-        <td colspan="7" class="right" style="border-top:none;">Packing Charges</td>
-        <td class="right" style="border-top:none;">{{ doc.get_formatted("packing_charges") }}</td>
+        <td colspan="7" class="right" style="border-top:none !important;">Packing Charges</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("packing_charges") }}</td>
       </tr>
       {% endif %}
       {% if doc.other_charges and doc.other_charges > 0 %}
       <tr>
-        <td colspan="7" class="right" style="border-top:none;">Other Charges</td>
-        <td class="right" style="border-top:none;">{{ doc.get_formatted("other_charges") }}</td>
+        <td colspan="7" class="right" style="border-top:none !important;">Other Charges</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("other_charges") }}</td>
       </tr>
       {% endif %}
 
       <!-- Totals -->
       <tr>
-        <td colspan="7" class="right lbl" style="border-top:none;">TOTAL</td>
-        <td class="right lbl" style="border-top:none;">{{ doc.get_formatted("grand_total") }}</td>
+        <td colspan="7" class="right lbl" style="border-top:none !important;">TOTAL</td>
+        <td class="right lbl" style="border-top:none !important;">{{ doc.get_formatted("grand_total") }}</td>
       </tr>
       <tr>
-        <td colspan="7" class="right lbl" style="border-top:none; background:#f0f0f0;">Total Payable Amount</td>
-        <td class="right lbl" style="border-top:none; background:#f0f0f0;">{{ doc.get_formatted("grand_total") }}</td>
+        <td colspan="7" class="right lbl" style="border-top:none !important; background:#f0f0f0 !important;">Total
+          Payable Amount</td>
+        <td class="right lbl" style="border-top:none !important; background:#f0f0f0 !important;">{{
+          doc.get_formatted("grand_total") }}</td>
       </tr>
     </tbody>
   </table>
 
-  <!-- ── PAYMENT + LOGISTICS (SIDE BY SIDE) ─────────────── -->
-  <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin-bottom:12px; table-layout:fixed;">
-    <colgroup><col style="width:50%"><col style="width:2px"><col style="width:50%"></colgroup>
+  <!-- ── PAYMENT + LOGISTICS (SIDE BY SIDE) ── -->
+  <table width="100%" cellspacing="0" cellpadding="0"
+    style="border-collapse:collapse; margin-bottom:12px; table-layout:fixed;">
+    <colgroup>
+      <col style="width:50%">
+      <col style="width:2px">
+      <col style="width:50%">
+    </colgroup>
     <tr>
       <!-- Payment -->
-      <td style="vertical-align:top; padding-right:5px;">
+      <td style="vertical-align:top; padding-right:5px; border:none !important;">
         <div class="section-head">PAYMENT DETAILS</div>
         <table class="fixed" style="margin-bottom:0;">
-          <colgroup><col style="width:45%"><col style="width:55%"></colgroup>
+          <colgroup>
+            <col style="width:45%">
+            <col style="width:55%">
+          </colgroup>
           <tbody>
-            <tr><td class="lbl">Payment Terms</td><td>{{ doc.payment_terms or "—" }}</td></tr>
-            <tr><td class="lbl" style="border-top:none;">Advance %</td><td style="border-top:none;">{{ doc.advance_percentage or 0 }}%</td></tr>
-            <tr><td class="lbl" style="border-top:none;">Advance Amount</td><td style="border-top:none;">{{ doc.get_formatted("advance_amount") }}</td></tr>
-            <tr><td class="lbl" style="border-top:none;">Balance Due</td><td class="lbl" style="border-top:none;">{{ doc.get_formatted("balance_due") }}</td></tr>
-            <tr><td class="lbl" style="border-top:none;">Vendor Bank</td><td style="border-top:none;">{{ doc.vendor_bank_name or "—" }}</td></tr>
-            <tr><td class="lbl" style="border-top:none;">A/C No.</td><td style="border-top:none;">{{ doc.vendor_account_number or "—" }}</td></tr>
-            <tr><td class="lbl" style="border-top:none;">IFSC Code</td><td style="border-top:none;">{{ doc.vendor_ifsc or "—" }}</td></tr>
+            <tr>
+              <td class="lbl">Payment Terms</td>
+              <td>{{ doc.payment_terms or "—" }}</td>
+            </tr>
+            <tr>
+              <td class="lbl" style="border-top:none !important;">Advance %</td>
+              <td style="border-top:none !important;">{{ doc.advance_percentage or 0 }}%</td>
+            </tr>
+            <tr>
+              <td class="lbl" style="border-top:none !important;">Advance Amount</td>
+              <td style="border-top:none !important;">{{ doc.get_formatted("advance_amount") }}</td>
+            </tr>
+            <tr>
+              <td class="lbl" style="border-top:none !important;">Balance Due</td>
+              <td class="lbl" style="border-top:none !important;">{{ doc.get_formatted("balance_due") }}</td>
+            </tr>
+            <tr>
+              <td class="lbl" style="border-top:none !important;">Vendor Bank</td>
+              <td style="border-top:none !important;">{{ doc.vendor_bank_name or "—" }}</td>
+            </tr>
+            <tr>
+              <td class="lbl" style="border-top:none !important;">A/C No.</td>
+              <td style="border-top:none !important;">{{ doc.vendor_account_number or "—" }}</td>
+            </tr>
+            <tr>
+              <td class="lbl" style="border-top:none !important;">IFSC Code</td>
+              <td style="border-top:none !important;">{{ doc.vendor_ifsc or "—" }}</td>
+            </tr>
           </tbody>
         </table>
       </td>
-      <td></td>
+      <td style="border:none !important;"></td>
       <!-- Logistics -->
-      <td style="vertical-align:top; padding-left:5px;">
+      <td style="vertical-align:top; padding-left:5px; border:none !important;">
         <div class="section-head">LOGISTICS &amp; SHIPPING</div>
         <table class="fixed" style="margin-bottom:0;">
-          <colgroup><col style="width:45%"><col style="width:55%"></colgroup>
+          <colgroup>
+            <col style="width:45%">
+            <col style="width:55%">
+          </colgroup>
           <tbody>
-            <tr><td class="lbl">Port of Shipment</td><td>{{ doc.port or company.custom_default_port or "—" }}</td></tr>
-            <tr><td class="lbl" style="border-top:none;">Shipment Type</td><td style="border-top:none;">{{ doc.shipment_type or "—" }}</td></tr>
-            <tr><td class="lbl" style="border-top:none;">Expected Delivery</td><td style="border-top:none;">{{ doc.get_formatted("expected_delivery") or "—" }}</td></tr>
-            <tr><td class="lbl" style="border-top:none;">Delivery Location</td><td style="border-top:none;">{{ doc.delivery_location or "—" }}</td></tr>
-            <tr><td class="lbl" style="border-top:none;">Container No.</td><td style="border-top:none;">{{ doc.container_number or "—" }}</td></tr>
-            <tr><td class="lbl" style="border-top:none;">SRI GSTIN</td><td style="border-top:none;">{{ company.tax_id or "—" }}</td></tr>
-            <tr><td class="lbl" style="border-top:none;">IEC Code</td><td style="border-top:none;">{{ company.custom_import_export_code or "AFTFS2557J" }}</td></tr>
+            <tr>
+              <td class="lbl">Port of Shipment</td>
+              <td>{{ doc.port or company.custom_default_port or "—" }}</td>
+            </tr>
+            <tr>
+              <td class="lbl" style="border-top:none !important;">Shipment Type</td>
+              <td style="border-top:none !important;">{{ doc.shipment_type or "—" }}</td>
+            </tr>
+            <tr>
+              <td class="lbl" style="border-top:none !important;">Expected Delivery</td>
+              <td style="border-top:none !important;">{{ doc.get_formatted("expected_delivery") or "—" }}</td>
+            </tr>
+            <tr>
+              <td class="lbl" style="border-top:none !important;">Delivery Location</td>
+              <td style="border-top:none !important;">{{ doc.delivery_location or "—" }}</td>
+            </tr>
+            <tr>
+              <td class="lbl" style="border-top:none !important;">Container No.</td>
+              <td style="border-top:none !important;">{{ doc.container_number or "—" }}</td>
+            </tr>
+            <tr>
+              <td class="lbl" style="border-top:none !important;">SRI GSTIN</td>
+              <td style="border-top:none !important;">{{ company.tax_id or "—" }}</td>
+            </tr>
+            <tr>
+              <td class="lbl" style="border-top:none !important;">IEC Code</td>
+              <td style="border-top:none !important;">{{ company.custom_import_export_code or "AFTFS2557J" }}</td>
+            </tr>
           </tbody>
         </table>
       </td>
     </tr>
   </table>
 
-  <!-- ── TERMS & CONDITIONS ─────────────────────────────── -->
+  <!-- ── TERMS & CONDITIONS ── -->
   {% if doc.standard_terms or doc.custom_terms %}
   <p style="margin:10px 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
-  <table class="fixed">
+  <table class="fixed" style="margin-bottom:12px;">
     <tbody>
-      <tr><td style="line-height:1.9;">
-        {% if doc.standard_terms %}
+      <tr>
+        <td style="line-height:1.9;">
+          {% if doc.standard_terms %}
           {% for row in doc.standard_terms %}
-            {% if row.standard_term and frappe.db.exists("Terms and Conditions", row.standard_term) %}
-              {% set st_doc = frappe.get_doc("Terms and Conditions", row.standard_term) %}
-              <div class="standard-terms-print" style="margin-bottom: 10px;">
-                <strong>{{ row.standard_term }}</strong>
-                <div>{{ st_doc.terms }}</div>
-              </div>
-            {% endif %}
+          {% if row.standard_term and frappe.db.exists("Terms and Conditions", row.standard_term) %}
+          {% set st_doc = frappe.get_doc("Terms and Conditions", row.standard_term) %}
+          <div class="standard-terms-print" style="margin-bottom: 10px;">
+            <strong>{{ row.standard_term }}</strong>
+            <div>{{ st_doc.terms }}</div>
+          </div>
+          {% endif %}
           {% endfor %}
-        {% endif %}
-        {% if doc.custom_terms %}
+          {% endif %}
+          {% if doc.custom_terms %}
           <div class="custom-terms-print" style="margin-top: 10px;">
             {{ doc.custom_terms }}
           </div>
-        {% endif %}
-      </td></tr>
+          {% endif %}
+        </td>
+      </tr>
     </tbody>
   </table>
   {% else %}
   <p style="margin:10px 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
-  <table class="fixed">
+  <table class="fixed" style="margin-bottom:12px;">
     <tbody>
-      <tr><td style="line-height:1.9;">
-        1) The prices are Nett &amp; Ex-Godown / Ex-Works unless otherwise specified.<br>
-        2) Discount: As mentioned in this Purchase Order.<br>
-        3) Packing Charges: As per actuals. Supplier must pack goods in a manner compliant with export norms and export-worthy standards.<br>
-        4) Freight / Delivery Charges will be Extra from origin to Port or SRI office, unless otherwise specified above.<br>
-        5) Third-party inspection charges if any will be extra, if applicable.<br>
-        6) All overseas bank charges outside India are on the buyer's account.<br>
-        7) Insurance charges, if any, will be Extra at actual unless specified above.<br>
-        8) Fumigation and other charges related to Export to Africa will be Extra at actual.<br>
-        9) Seller shall not be liable for delays due to force majeure conditions (includes shipping delays, war, strikes, etc.).<br>
-        10) Taxes: {{ doc.gst_type or "IGST" }} @ {{ doc.gst_percentage }}% as mentioned above. All other taxes as per government regulations at the time of delivery.<br>
-        11) Delivery: Ready Stock / Subject to prior sale availability. Delivery must be completed by the expected delivery date mentioned above.<br>
-        12) Payment: {{ doc.payment_terms or "As per mutual agreement." }}<br>
-        13) Order once placed shall not be cancelled. After receiving material, it will not be returned under any circumstances if the application is not fulfilled by the vendor or if it was wrongly ordered.<br>
-        14) Invoice must quote this PO number. Payment shall be made against valid GST invoice only.<br>
-        15) This Purchase Order shall be subject to the jurisdiction of the Company's registered office.
-      </td></tr>
+      <tr>
+        <td style="line-height:1.9;">
+          1) The prices are Nett &amp; Ex-Godown / Ex-Works unless otherwise specified.<br>
+          2) Discount: As mentioned in this Purchase Order.<br>
+          3) Packing Charges: As per actuals. Supplier must pack goods in a manner compliant with export norms and
+          export-worthy standards.<br>
+          4) Freight / Delivery Charges will be Extra from origin to Port or SRI office, unless otherwise specified
+          above.<br>
+          5) Third-party inspection charges if any will be extra, if applicable.<br>
+          6) All overseas bank charges outside India are on the buyer's account.<br>
+          7) Insurance charges, if any, will be Extra at actual unless specified above.<br>
+          8) Fumigation and other charges related to Export to Africa will be Extra at actual.<br>
+          9) Seller shall not be liable for delays due to force majeure conditions (includes shipping delays, war,
+          strikes, etc.).<br>
+          10) Taxes: {{ doc.gst_type or "IGST" }} @ {{ doc.gst_percentage }}% as mentioned above. All other taxes as per
+          government regulations at the time of delivery.<br>
+          11) Delivery: Ready Stock / Subject to prior sale availability. Delivery must be completed by the expected
+          delivery date mentioned above.<br>
+          12) Payment: {{ doc.payment_terms or "As per mutual agreement." }}<br>
+          13) Order once placed shall not be cancelled. After receiving material, it will not be returned under any
+          circumstances if the application is not fulfilled by the vendor or if it was wrongly ordered.<br>
+          14) Invoice must quote this PO number. Payment shall be made against valid GST invoice only.<br>
+          15) This Purchase Order shall be subject to the jurisdiction of the Company's registered office.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  {% endif %}
+
+  <!-- ── ATTACHED DETAILS / DOCUMENTS SECTION ── -->
+  {% set attached_docs = doc.get_attached_details() if doc.get_attached_details else [] %}
+  {% if attached_docs and attached_docs|length > 0 %}
+  <p style="margin:10px 0 4px 0;"><strong><u>Following details have been attached in the PO :-</u></strong></p>
+  <table class="fixed" style="margin-bottom:12px;">
+    <colgroup>
+      <col style="width:8%">
+      <col style="width:42%">
+      <col style="width:50%">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="center">S.No</th>
+        <th>Document Category / Label</th>
+        <th>File Name / Reference</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in attached_docs %}
+      <tr>
+        <td class="center" style="border-top:none !important;">{{ loop.index }}</td>
+        <td style="border-top:none !important;"><strong>{{ item.category }}</strong></td>
+        <td style="border-top:none !important;">{{ item.filename }}</td>
+      </tr>
+      {% endfor %}
     </tbody>
   </table>
   {% endif %}
 
   {% if doc.remarks %}
-  <div class="section-head" style="margin-top:10px;">NOTE</div>
-  <table class="fixed"><tbody><tr><td>{{ doc.remarks }}</td></tr></tbody></table>
+  <div class="section-head">NOTE</div>
+  <table class="fixed" style="margin-bottom:12px;">
+    <tbody>
+      <tr>
+        <td>{{ doc.remarks }}</td>
+      </tr>
+    </tbody>
+  </table>
   {% endif %}
 
-  <!-- ── SIGNATURES ─────────────────────────────────────── -->
-  <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin-top:40px; table-layout:fixed;">
-    <colgroup><col style="width:33%"><col style="width:34%"><col style="width:33%"></colgroup>
+  <!-- ── SIGNATURES ── -->
+  <table width="100%" cellspacing="0" cellpadding="0"
+    style="border-collapse:collapse; margin-top:30px; margin-bottom:15px; table-layout:fixed;">
+    <colgroup>
+      <col style="width:33%">
+      <col style="width:34%">
+      <col style="width:33%">
+    </colgroup>
     <tr>
-      <td style="text-align:center; border-top:1px solid #000; padding-top:6px;">
+      <td
+        style="text-align:center; border-top:1px solid #000 !important; padding-top:6px; border-left:none !important; border-right:none !important; border-bottom:none !important;">
         <strong>Prepared By</strong><br>
         <span style="font-size:10px; color:#555;">{{ doc.prepared_by or "—" }}</span>
       </td>
-      <td style="text-align:center; border-top:1px solid #000; padding-top:6px;">
+      <td
+        style="text-align:center; border-top:1px solid #000 !important; padding-top:6px; border-left:none !important; border-right:none !important; border-bottom:none !important;">
         <strong>Verified By</strong><br>
         <span style="font-size:10px; color:#555;">{{ doc.verified_by or "—" }}</span>
       </td>
-      <td style="text-align:center; border-top:1px solid #000; padding-top:6px;">
+      <td
+        style="text-align:center; border-top:1px solid #000 !important; padding-top:6px; border-left:none !important; border-right:none !important; border-bottom:none !important;">
         <strong>Authorized Signatory</strong><br>
         <span style="font-size:10px; color:#555;">For {{ company.company_name }}</span>
       </td>
     </tr>
   </table>
 
-        </div>
-      </td>
-    </tr>
-  </tbody>
-</table>
+  {% if lh_doc and lh_doc.footer %}
+  <div class="footer-text">
+    {{ lh_doc.footer }}
+  </div>
+  {% endif %}
+
+</div>

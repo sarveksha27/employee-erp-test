@@ -64,6 +64,74 @@ class VendorPurchaseOrder(Document):
         elif self.po_type == "Vendor PO" and frappe.db.get_value("Supplier", self.vendor, "disabled"):
             frappe.throw(_("External POs can be issued only to active, authorized suppliers."), frappe.ValidationError)
 
+    def get_attached_details(self):
+        """Returns a list of dicts describing attached documents categorized by label and filename."""
+        import os
+        attached = []
+        seen_urls = set()
+
+        labels = [
+            ("invoice_doc", "Invoice Document"),
+            ("shipping_bill", "Shipping Bill"),
+            ("bill_of_lading", "Bill of Lading"),
+            ("packing_list", "Packing List"),
+            ("commercial_invoice", "Commercial Invoice"),
+            ("certificate_of_origin", "Certificate of Origin"),
+            ("inspection_report", "Inspection Report"),
+            ("insurance_doc", "Insurance Document"),
+            ("cfa_doc", "CFA Document"),
+            ("quotation_comparison_sheet", "Quotation Comparison Sheet"),
+            ("attachments", "Supporting Document"),
+        ]
+
+        # 1. Known form fields
+        for fieldname, label in labels:
+            val = getattr(self, fieldname, None)
+            if val and isinstance(val, str) and val not in seen_urls:
+                fname = os.path.basename(val)
+                attached.append({
+                    "category": label,
+                    "filename": fname,
+                    "url": val,
+                })
+                seen_urls.add(val)
+
+        # 2. Child table vendor quotations
+        if hasattr(self, "quotations") and self.quotations:
+            for q in self.quotations:
+                q_pdf = getattr(q, "quotation_pdf", None)
+                if q_pdf and isinstance(q_pdf, str) and q_pdf not in seen_urls:
+                    fname = os.path.basename(q_pdf)
+                    supplier = getattr(q, "supplier", "") or "Vendor"
+                    attached.append({
+                        "category": f"Vendor Quotation ({supplier})",
+                        "filename": fname,
+                        "url": q_pdf,
+                    })
+                    seen_urls.add(q_pdf)
+
+        # 3. Sidebar attachments via File doctype
+        sidebar_files = frappe.get_all(
+            "File",
+            filters={
+                "attached_to_doctype": "Vendor Purchase Order",
+                "attached_to_name": self.name,
+            },
+            fields=["file_name", "file_url"],
+            order_by="creation asc",
+        )
+        for sf in sidebar_files:
+            if sf.file_url and sf.file_url not in seen_urls:
+                fname = sf.file_name or os.path.basename(sf.file_url)
+                attached.append({
+                    "category": "Attachment",
+                    "filename": fname,
+                    "url": sf.file_url,
+                })
+                seen_urls.add(sf.file_url)
+
+        return attached
+
     @classmethod
     def _is_sri_entity(cls, value):
         return (value or "").strip().casefold() == cls.SRI_ENTITY_NAME.casefold()

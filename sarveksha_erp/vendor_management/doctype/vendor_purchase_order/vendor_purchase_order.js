@@ -127,11 +127,19 @@ frappe.ui.form.on('Vendor Purchase Order', {
         const is_approved = (frm.doc.workflow_state === 'Approved' || frm.doc.docstatus === 1);
         const can_print = is_approved && (user_roles.includes('PO Generator') || is_manager);
 
+        const open_compiled_pdf = function() {
+            const pdf_url = frappe.urllib.get_full_url(
+                `/api/method/frappe.utils.print_format.download_pdf?doctype=Vendor%20Purchase%20Order&name=${encodeURIComponent(frm.doc.name)}`
+            );
+            window.open(pdf_url, '_blank');
+        };
+
         if (can_print) {
-            frm.add_custom_button(__('Print PO'), function() {
-                frappe.set_route('print', 'Vendor Purchase Order', frm.doc.name);
-            });
+            frm.add_custom_button(__('Print PO'), open_compiled_pdf);
             frm.change_custom_button_type(__('Print PO'), null, 'primary');
+
+            // Intercept standard Frappe print actions
+            frm.print_doc = open_compiled_pdf;
         }
 
         if (!can_print) {
@@ -144,6 +152,21 @@ frappe.ui.form.on('Vendor Purchase Order', {
             frm.page.show_menu_item(__('PDF'));
             if (frm.page.btn_print) frm.page.btn_print.show();
             if (frm.page.set_print_btn_display) frm.page.set_print_btn_display(true);
+
+            setTimeout(() => {
+                if (frm.page) {
+                    frm.page.menu.find('[data-label="Print"]').off('click').on('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        open_compiled_pdf();
+                    });
+                    frm.page.menu.find('[data-label="PDF"]').off('click').on('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        open_compiled_pdf();
+                    });
+                }
+            }, 300);
         }
 
         // Hide "+ New" button for Verifiers/Approvers in Form View

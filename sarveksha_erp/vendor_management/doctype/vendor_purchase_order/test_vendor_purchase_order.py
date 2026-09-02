@@ -21,6 +21,14 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 	Integration tests for VendorPurchaseOrder workflow, approval panel, and permissions.
 	"""
 
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.test_company = frappe.db.get_value("Company", {}, "name") or "_Test Company"
+		cls.test_vendor = frappe.db.get_value("Supplier", {}, "name") or "_Test Supplier"
+		suppliers = [s.name for s in frappe.get_all("Supplier", limit=3)]
+		cls.test_suppliers = suppliers if len(suppliers) >= 3 else [cls.test_vendor, cls.test_vendor, cls.test_vendor]
+
 	def test_internal_po_entity_policy(self):
 		"""Internal POs may target SRI only and must originate from a child company."""
 		po = frappe.new_doc("Vendor Purchase Order")
@@ -119,8 +127,9 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 	def test_audit_trail_tracking(self):
 		"""Verify audit fields update correctly when workflow state changes."""
 		po = frappe.new_doc("Vendor Purchase Order")
-		po.company = "_Test Company"
-		po.vendor = "_Test Supplier"
+		po.po_type = "Internal PO"
+		po.company = "Child Company India"
+		po.vendor = "Sarveksha Realty and Inframine LLP"
 		po.quantity = 1.0
 		po.exchange_rate = 1.0
 		po.workflow_state = "Draft"
@@ -149,8 +158,8 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 	def test_payment_status_modification_restriction(self):
 		"""Verify only Procurement Manager (and admins) can modify payment status fields."""
 		po = frappe.new_doc("Vendor Purchase Order")
-		po.company = "_Test Company"
-		po.vendor = "_Test Supplier"
+		po.company = self.test_company
+		po.vendor = self.test_vendor
 		po.quantity = 1.0
 		po.exchange_rate = 1.0
 		po.workflow_state = "Draft"
@@ -183,8 +192,8 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 			# Test as PO Verifier
 			frappe.set_user("po_verifier@sarveksha.com")
 			po = frappe.new_doc("Vendor Purchase Order")
-			po.company = "_Test Company"
-			po.vendor = "_Test Supplier"
+			po.company = self.test_company
+			po.vendor = self.test_vendor
 			po.quantity = 1.0
 			po.exchange_rate = 1.0
 			po.workflow_state = "Draft"
@@ -193,8 +202,8 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 			# Test as PO Approver
 			frappe.set_user("po_approver@sarveksha.com")
 			po_app = frappe.new_doc("Vendor Purchase Order")
-			po_app.company = "_Test Company"
-			po_app.vendor = "_Test Supplier"
+			po_app.company = self.test_company
+			po_app.vendor = self.test_vendor
 			po_app.quantity = 1.0
 			po_app.exchange_rate = 1.0
 			po_app.workflow_state = "Draft"
@@ -217,8 +226,8 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 			frappe.delete_doc("UOM", test_uom, ignore_permissions=True)
 		
 		po = frappe.new_doc("Vendor Purchase Order")
-		po.company = "_Test Company"
-		po.vendor = "_Test Supplier"
+		po.company = self.test_company
+		po.vendor = self.test_vendor
 		po.quantity = 1.0
 		po.exchange_rate = 1.0
 		po.workflow_state = "Draft"
@@ -250,8 +259,31 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		from sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order import get_workflow_activity_history
 
 		po = frappe.new_doc("Vendor Purchase Order")
-		po.company = "_Test Company"
-		po.vendor = "_Test Supplier"
+		po.company = self.test_company
+		po.vendor = self.test_vendor
+		po.po_type = "Vendor PO"
+		po.quotation_comparison_sheet = "/files/sheet.pdf"
+		po.append("quotations", {
+			"supplier": self.test_suppliers[0],
+			"quotation_reference": "Q-001",
+			"quotation_date": "2026-08-30",
+			"quotation_amount": 1000.0,
+			"quotation_pdf": "/files/q1.pdf"
+		})
+		po.append("quotations", {
+			"supplier": self.test_suppliers[1],
+			"quotation_reference": "Q-002",
+			"quotation_date": "2026-08-30",
+			"quotation_amount": 1100.0,
+			"quotation_pdf": "/files/q2.pdf"
+		})
+		po.append("quotations", {
+			"supplier": self.test_suppliers[2],
+			"quotation_reference": "Q-003",
+			"quotation_date": "2026-08-30",
+			"quotation_amount": 1200.0,
+			"quotation_pdf": "/files/q3.pdf"
+		})
 		po.quantity = 1.0
 		po.exchange_rate = 1.0
 		po.workflow_state = "Draft"
@@ -284,6 +316,9 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 
 	def approve_vpo(self, po):
 		"""Helper to transition a PO to Approved state step by step."""
+		po.po_type = "Internal PO"
+		po.company = "Child Company India"
+		po.vendor = "Sarveksha Realty and Inframine LLP"
 		po.workflow_state = "Generated (Yet to be Verified)"
 		po.save(ignore_permissions=True)
 		po.workflow_state = "Verified (Yet to be approved)"
@@ -295,8 +330,9 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 	def test_ref_number_generation(self):
 		"""Verify that a distinct, sequential reference number with REF substring is generated on approval."""
 		po = frappe.new_doc("Vendor Purchase Order")
-		po.company = "_Test Company"
-		po.vendor = "_Test Supplier"
+		po.po_type = "Internal PO"
+		po.company = "Child Company India"
+		po.vendor = "Sarveksha Realty and Inframine LLP"
 		po.quantity = 1.0
 		po.rate = 100.0
 		po.exchange_rate = 1.0
@@ -332,8 +368,9 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 	def test_ref_number_uniqueness(self):
 		"""Verify uniqueness of reference numbers and that duplicates raise UniqueValidationError."""
 		po1 = frappe.new_doc("Vendor Purchase Order")
-		po1.company = "_Test Company"
-		po1.vendor = "_Test Supplier"
+		po1.po_type = "Internal PO"
+		po1.company = "Child Company India"
+		po1.vendor = "Sarveksha Realty and Inframine LLP"
 		po1.quantity = 1.0
 		po1.rate = 100.0
 		po1.exchange_rate = 1.0
@@ -342,8 +379,9 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		self.approve_vpo(po1)
 
 		po2 = frappe.new_doc("Vendor Purchase Order")
-		po2.company = "_Test Company"
-		po2.vendor = "_Test Supplier"
+		po2.po_type = "Internal PO"
+		po2.company = "Child Company India"
+		po2.vendor = "Sarveksha Realty and Inframine LLP"
 		po2.quantity = 1.0
 		po2.rate = 100.0
 		po2.exchange_rate = 1.0
@@ -373,8 +411,8 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 	def test_ref_number_amendment(self):
 		"""Verify amendment handling correctly appends -1, -2 suffixes to the reference number."""
 		po = frappe.new_doc("Vendor Purchase Order")
-		po.company = "_Test Company"
-		po.vendor = "_Test Supplier"
+		po.company = self.test_company
+		po.vendor = self.test_vendor
 		po.quantity = 1.0
 		po.rate = 100.0
 		po.exchange_rate = 1.0
@@ -423,4 +461,165 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		frappe.delete_doc("Vendor Purchase Order", po_amended_2.name, ignore_permissions=True)
 		frappe.delete_doc("Vendor Purchase Order", po_amended.name, ignore_permissions=True)
 		frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+	def test_pdf_merging_multi_file_concatenation(self):
+		"""
+		Multi-File Concatenation Test:
+		Attach a multi-page PDF, PNG image, and JPEG image to a PO.
+		Verify that merge_po_attachments successfully stitches them into a combined PDF.
+		"""
+		from io import BytesIO
+		from PIL import Image
+		from pypdf import PdfReader, PdfWriter
+		from sarveksha_erp.vendor_management.doctype.vendor_purchase_order.pdf_handler import merge_po_attachments
+
+		test_company = frappe.db.get_value("Company", {}, "name") or "_Test Company"
+		test_vendor = frappe.db.get_value("Supplier", {}, "name") or "_Test Supplier"
+
+		# Create a dummy base PO PDF
+		base_writer = PdfWriter()
+		base_writer.add_blank_page(width=612, height=792)
+		base_pdf_io = BytesIO()
+		base_writer.write(base_pdf_io)
+		base_pdf_bytes = base_pdf_io.getvalue()
+
+		# Create a dummy PO record
+		po = frappe.new_doc("Vendor Purchase Order")
+		po.company = test_company
+		po.vendor = test_vendor
+		po.quantity = 1.0
+		po.rate = 100.0
+		po.exchange_rate = 1.0
+		po.workflow_state = "Draft"
+		po.save(ignore_permissions=True)
+
+		try:
+			# 1. Attach a 2-page PDF document
+			attach_pdf_writer = PdfWriter()
+			attach_pdf_writer.add_blank_page(width=612, height=792)
+			attach_pdf_writer.add_blank_page(width=612, height=792)
+			attach_pdf_io = BytesIO()
+			attach_pdf_writer.write(attach_pdf_io)
+
+			file_pdf = frappe.get_doc({
+				"doctype": "File",
+				"file_name": "tech_spec.pdf",
+				"attached_to_doctype": "Vendor Purchase Order",
+				"attached_to_name": po.name,
+				"content": attach_pdf_io.getvalue(),
+				"is_private": 1
+			})
+			file_pdf.insert(ignore_permissions=True)
+
+			# 2. Attach a PNG image
+			png_img = Image.new("RGB", (300, 300), color="blue")
+			png_io = BytesIO()
+			png_img.save(png_io, format="PNG")
+
+			file_png = frappe.get_doc({
+				"doctype": "File",
+				"file_name": "site_diagram.png",
+				"attached_to_doctype": "Vendor Purchase Order",
+				"attached_to_name": po.name,
+				"content": png_io.getvalue(),
+				"is_private": 1
+			})
+			file_png.insert(ignore_permissions=True)
+
+			# 3. Attach a JPEG image
+			jpg_img = Image.new("RGB", (300, 300), color="red")
+			jpg_io = BytesIO()
+			jpg_img.save(jpg_io, format="JPEG")
+
+			file_jpg = frappe.get_doc({
+				"doctype": "File",
+				"file_name": "quotation_scan.jpg",
+				"attached_to_doctype": "Vendor Purchase Order",
+				"attached_to_name": po.name,
+				"content": jpg_io.getvalue(),
+				"is_private": 1
+			})
+			file_jpg.insert(ignore_permissions=True)
+
+			# Merge attachments
+			merged_bytes = merge_po_attachments(po, base_pdf_bytes)
+
+			# Verify total page count: 1 base page + 2 PDF pages + 1 PNG page + 1 JPG page = 5 pages
+			merged_reader = PdfReader(BytesIO(merged_bytes))
+			self.assertEqual(len(merged_reader.pages), 5)
+		finally:
+			frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+	def test_pdf_merging_corrupted_file_defensive_handling(self):
+		"""
+		Corrupted / Invalid File Handling Test:
+		Attach an intentionally damaged PDF and an unsupported .txt file to a PO.
+		Verify that the system logs the issue and generates the rest of the PO bundle without crashing.
+		"""
+		from io import BytesIO
+		from pypdf import PdfReader, PdfWriter
+		from sarveksha_erp.vendor_management.doctype.vendor_purchase_order.pdf_handler import merge_po_attachments
+
+		test_company = frappe.db.get_value("Company", {}, "name") or "_Test Company"
+		test_vendor = frappe.db.get_value("Supplier", {}, "name") or "_Test Supplier"
+
+		# Create a dummy base PO PDF
+		base_writer = PdfWriter()
+		base_writer.add_blank_page(width=612, height=792)
+		base_pdf_io = BytesIO()
+		base_writer.write(base_pdf_io)
+		base_pdf_bytes = base_pdf_io.getvalue()
+
+		po = frappe.new_doc("Vendor Purchase Order")
+		po.company = test_company
+		po.vendor = test_vendor
+		po.quantity = 1.0
+		po.rate = 100.0
+		po.exchange_rate = 1.0
+		po.workflow_state = "Draft"
+		po.save(ignore_permissions=True)
+
+		try:
+			# Attach corrupted image (unsupported image bytes)
+			file_corrupt = frappe.get_doc({
+				"doctype": "File",
+				"file_name": "corrupted_scan.png",
+				"attached_to_doctype": "Vendor Purchase Order",
+				"attached_to_name": po.name,
+				"content": b"NOT_A_REAL_PNG_HEADER_CORRUPTED_BYTES",
+				"is_private": 1
+			})
+			file_corrupt.insert(ignore_permissions=True)
+
+			# Attach unsupported .txt file
+			file_txt = frappe.get_doc({
+				"doctype": "File",
+				"file_name": "notes.txt",
+				"attached_to_doctype": "Vendor Purchase Order",
+				"attached_to_name": po.name,
+				"content": b"Plain text content that should be skipped during PDF merge.",
+				"is_private": 1
+			})
+			file_txt.insert(ignore_permissions=True)
+
+			# Merge attachments - should NOT raise an unhandled exception
+			merged_bytes = merge_po_attachments(po, base_pdf_bytes)
+
+			# Base PDF page remains intact
+			merged_reader = PdfReader(BytesIO(merged_bytes))
+			self.assertEqual(len(merged_reader.pages), 1)
+
+			# Verify Error Logs were created in Frappe
+			logs = frappe.get_all(
+				"Error Log",
+				filters={
+					"reference_doctype": "Vendor Purchase Order",
+					"reference_name": po.name
+				}
+			)
+			self.assertTrue(len(logs) >= 2)
+		finally:
+			frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+
 
