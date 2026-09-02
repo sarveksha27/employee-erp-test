@@ -25,6 +25,7 @@
   "default_port",
   "sec_vendor",
   "vendor",
+  "vendor_address",
   "vendor_gstin",
   "vendor_pan",
   "col_break_vendor",
@@ -153,6 +154,7 @@
    "fieldtype": "Select",
    "label": "PO Type",
    "options": "Vendor PO\nInternal PO",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -236,6 +238,12 @@
    "label": "Vendor",
    "options": "Supplier",
    "reqd": 1
+  },
+  {
+   "fieldname": "vendor_address",
+   "fieldtype": "Small Text",
+   "label": "Vendor Address",
+   "read_only": 1
   },
   {
    "fetch_from": "vendor.tax_id",

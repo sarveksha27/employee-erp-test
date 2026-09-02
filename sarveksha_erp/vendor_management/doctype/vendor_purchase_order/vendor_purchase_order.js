@@ -28,6 +28,9 @@ frappe.ui.form.on('Vendor Purchase Order', {
         frm.toggle_display('status', false);
         frm.toggle_display('workflow_state', false);
 
+        // Always lock PO Type so selection cannot be changed during drafting or editing
+        frm.set_df_property('po_type', 'read_only', 1);
+
         // Render custom buttons based on workflow state & user roles
         const state = frm.doc.workflow_state || 'Draft';
         set_quotation_governance_access(frm, state);
@@ -263,9 +266,31 @@ frappe.ui.form.on('Vendor Purchase Order', {
         });
     },
 
+    // ─── ON FORM LOAD / INITIALIZATION ───────────────────────
+    onload: function(frm) {
+        if (frm.is_new()) {
+            let po_category = frappe.route_options && (frappe.route_options.po_category || frappe.route_options.po_type);
+            if (!po_category && window.location.search) {
+                let params = new URLSearchParams(window.location.search);
+                po_category = params.get('po_category') || params.get('po_type');
+            }
+            if (po_category) {
+                if (po_category.includes('Internal')) {
+                    frm.set_value('po_type', 'Internal PO');
+                    frm.set_value('vendor', 'Sarveksha Realty and Inframine LLP');
+                } else if (po_category.includes('External') || po_category.includes('Vendor')) {
+                    frm.set_value('po_type', 'Vendor PO');
+                }
+            }
+        }
+    },
+
     // ─── VENDOR TRIGGER ───────────────────────────────────────
     vendor: function(frm) {
-        if (!frm.doc.vendor) return;
+        if (!frm.doc.vendor) {
+            frm.set_value('vendor_address', '');
+            return;
+        }
 
         frappe.call({
             method: 'sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.get_supplier_payment_details',
@@ -278,6 +303,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
                     if (data.custom_bank_name) frm.set_value('vendor_bank_name', data.custom_bank_name);
                     if (data.custom_account_number) frm.set_value('vendor_account_number', data.custom_account_number);
                     if (data.custom_ifsc) frm.set_value('vendor_ifsc', data.custom_ifsc);
+                    if (data.vendor_address !== undefined) frm.set_value('vendor_address', data.vendor_address);
 
                     frm._vendor_gstin = data.tax_id || '';
 

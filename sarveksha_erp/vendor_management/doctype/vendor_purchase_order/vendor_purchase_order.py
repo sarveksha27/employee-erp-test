@@ -1034,12 +1034,32 @@ def get_supplier_payment_details(supplier):
 
     tax_id, custom_pan, custom_bank_name, custom_account_number, custom_ifsc, payment_terms = db_vals
 
+    vendor_address_display = ""
+    vendor_address_name = frappe.db.get_value(
+        "Dynamic Link",
+        {"link_doctype": "Supplier", "link_name": supplier, "parenttype": "Address"},
+        "parent"
+    )
+    if vendor_address_name and frappe.db.exists("Address", vendor_address_name):
+        addr = frappe.get_doc("Address", vendor_address_name)
+        parts = []
+        if addr.address_line1: parts.append(addr.address_line1)
+        if addr.address_line2: parts.append(addr.address_line2)
+        city_pin = []
+        if addr.city: city_pin.append(addr.city)
+        if addr.pincode: city_pin.append(f"- {addr.pincode}")
+        if city_pin: parts.append(" ".join(city_pin))
+        if addr.state: parts.append(addr.state)
+        if addr.country: parts.append(addr.country)
+        vendor_address_display = ", ".join(parts)
+
     details = {
         "tax_id": tax_id or "",
         "custom_pan": custom_pan or "",
         "custom_bank_name": custom_bank_name or "",
         "custom_account_number": custom_account_number or "",
         "custom_ifsc": custom_ifsc or "",
+        "vendor_address": vendor_address_display,
         "payment_terms_template": payment_terms or "",
         "payment_terms_description": "",
         "advance_percentage": 0.0
