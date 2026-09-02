@@ -168,8 +168,21 @@ class VendorPurchaseOrder(Document):
         if not previous or (previous.workflow_state or "Draft") == "Draft":
             return
 
-        protected_fields = ("quotations", "quotation_comparison_sheet")
-        if any(self.has_value_changed(fieldname) for fieldname in protected_fields):
+        if (self.quotation_comparison_sheet or "") != (previous.quotation_comparison_sheet or ""):
+            frappe.throw(
+                _("Quotation records and the Comparison Sheet are read-only after the Draft stage."),
+                frappe.PermissionError,
+            )
+
+        prev_quotes = [
+            (q.get("supplier"), q.get("quotation_reference"), flt(q.get("quotation_amount")), q.get("quotation_pdf"))
+            for q in (previous.get("quotations") or [])
+        ]
+        curr_quotes = [
+            (q.get("supplier"), q.get("quotation_reference"), flt(q.get("quotation_amount")), q.get("quotation_pdf"))
+            for q in (self.get("quotations") or [])
+        ]
+        if prev_quotes != curr_quotes:
             frappe.throw(
                 _("Quotation records and the Comparison Sheet are read-only after the Draft stage."),
                 frappe.PermissionError,
