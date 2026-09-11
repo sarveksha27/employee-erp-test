@@ -5,7 +5,7 @@ import os
 from io import BytesIO
 from typing import Literal
 from PIL import Image
-from pypdf import PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter, PageObject, Transformation
 
 import frappe
 from frappe.translate import print_language
@@ -24,8 +24,11 @@ def download_pdf(
 	pdf_generator: Literal["wkhtmltopdf", "chrome"] | None = None,
 ):
 	"""
-	Overridden download_pdf method that automatically aggregates and stitches attached PDFs
-	and converts attached images into full-page PDF pages for Vendor Purchase Order documents.
+	Overridden download_pdf method that:
+	1. Renders the clean PDF using the customized print format.
+	2. Applies the full-page letterhead stationery initially as the background (100% unsqueezed A4),
+	   and prints all data directly over the image.
+	3. Stitches attached external PDFs/images for Vendor Purchase Orders.
 	"""
 	if pdf_generator is None:
 		pdf_generator = "wkhtmltopdf"
@@ -43,8 +46,22 @@ def download_pdf(
 			letterhead=letterhead,
 			no_letterhead=no_letterhead,
 			pdf_generator=pdf_generator,
+			pdf_options={"print-media-type": ""},
 		)
 
+	# 1. Apply full-page stationery image as background with data overlaid
+	if not no_letterhead:
+		try:
+			pdf_file = apply_stationery_background(doc, doctype, pdf_file)
+		except Exception as e:
+			frappe.log_error(
+				title=f"Stationery Background Error: {name}",
+				message=f"Error applying background for {name}: {str(e)}\n\n{frappe.get_traceback()}",
+				reference_doctype=doctype,
+				reference_name=name,
+			)
+
+	# 2. If Vendor Purchase Order, append any external quotation/inspection attachments
 	if doctype == "Vendor Purchase Order":
 		try:
 			pdf_file = merge_po_attachments(doc, pdf_file)
@@ -59,6 +76,117 @@ def download_pdf(
 	frappe.local.response.filename = "{name}.pdf".format(name=name.replace(" ", "-").replace("/", "-"))
 	frappe.local.response.filecontent = pdf_file
 	frappe.local.response.type = "pdf"
+
+
+def get_letterhead_image_path(doctype: str, doc) -> str | None:
+	"""
+	Resolves the disk file path of the full-page stationery image for the document.
+	"""
+	lh_img = None
+	if doctype == "Proforma Invoice":
+		lh_name = "India (Sarveksha Realty)"
+		if frappe.db.exists("Letter Head", lh_name):
+			lh_img = frappe.db.get_value("Letter Head", lh_name, "image")
+		if not lh_img:
+			lh_img = "/files/letterhead_sri_india.png"
+	elif doctype == "Vendor Purchase Order":
+		lh_name = getattr(doc, "letter_head", None)
+		if not lh_name and getattr(doc, "company", None):
+			lh_name = frappe.db.get_value("Company", doc.company, "default_letter_head")
+		if not lh_name:
+			lh_name = frappe.db.get_value("Letter Head", {"disabled": 0, "is_default": 1}, "name")
+		if lh_name and frappe.db.exists("Letter Head", lh_name):
+			lh_img = frappe.db.get_value("Letter Head", lh_name, "image")
+	else:
+		lh_name = getattr(doc, "letter_head", None)
+		if not lh_name and getattr(doc, "company", None):
+			lh_name = frappe.db.get_value("Company", doc.company, "default_letter_head")
+		if lh_name and frappe.db.exists("Letter Head", lh_name):
+			lh_img = frappe.db.get_value("Letter Head", lh_name, "image")
+
+	if not lh_img:
+		return None
+
+	clean_url = lh_img.lstrip("/")
+	paths_to_try = [
+		frappe.get_site_path("public", clean_url),
+		frappe.get_site_path(clean_url),
+		frappe.get_site_path("public", "files", os.path.basename(clean_url)),
+		os.path.join(frappe.get_site_path(), "public", clean_url),
+		os.path.join(frappe.get_site_path(), clean_url),
+	]
+	for p in paths_to_try:
+		if os.path.exists(p):
+			return p
+
+	return None
+
+
+def create_a4_stationery_page(img_path: str) -> PageObject | None:
+	"""
+	Converts a high-resolution full-page letterhead stationery image (PNG, JPEG)
+	into an exact standard A4 PDF page (595.28 x 841.89 pt) without squeezing, distortion,
+	or PyPDF clipping artifacts.
+	"""
+	if not img_path or not os.path.exists(img_path):
+		return None
+	try:
+		src_img = Image.open(img_path).convert("RGB")
+		dpi_x = (src_img.width / A4_WIDTH) * 72.0
+		dpi_y = (src_img.height / A4_HEIGHT) * 72.0
+		dpi = (dpi_x + dpi_y) / 2.0
+		buf = BytesIO()
+		src_img.save(buf, format="PDF", resolution=dpi)
+		buf.seek(0)
+		reader = PdfReader(buf)
+		page = reader.pages[0]
+		page.mediabox.lower_left = (0, 0)
+		page.mediabox.upper_right = (A4_WIDTH, A4_HEIGHT)
+		return page
+	except Exception as e:
+		frappe.log_error(
+			title="Stationery Background Generation Error",
+			message=f"Failed creating stationery page from {img_path}: {str(e)}",
+		)
+		return None
+
+
+def apply_stationery_background(doc, doctype: str, pdf_bytes: bytes) -> bytes:
+	"""
+	Stamps the full-page stationery background image under each page of the generated PDF document.
+	The content (tables, text, numbers) is printed directly over the stationery background with 100%
+	transparency, ensuring no white card or rectangle obscures the letterhead.
+	"""
+	img_path = get_letterhead_image_path(doctype, doc)
+	if not img_path:
+		return pdf_bytes
+
+	try:
+		reader = PdfReader(BytesIO(pdf_bytes))
+		writer = PdfWriter()
+
+		for page in reader.pages:
+			norm_content = normalize_page_to_a4(page)
+			bg_page = create_a4_stationery_page(img_path)
+			if bg_page:
+				canvas = PageObject.create_blank_page(width=A4_WIDTH, height=A4_HEIGHT)
+				canvas.merge_page(bg_page)
+				canvas.merge_page(norm_content)
+				writer.add_page(canvas)
+			else:
+				writer.add_page(norm_content)
+
+		out = BytesIO()
+		writer.write(out)
+		return out.getvalue()
+	except Exception as e:
+		frappe.log_error(
+			title=f"Stationery Background Overlay Error ({getattr(doc, 'name', 'Document')})",
+			message=f"Failed overlaying stationery background: {str(e)}\n\n{frappe.get_traceback()}",
+			reference_doctype=doctype,
+			reference_name=getattr(doc, "name", str(doc)),
+		)
+		return pdf_bytes
 
 
 def get_file_bytes_from_url_or_doc(file_url: str, file_doc=None) -> bytes:
@@ -139,6 +267,39 @@ def convert_image_to_a4_pdf(content: bytes) -> bytes:
 	return buf.getvalue()
 
 
+A4_WIDTH = 595.28
+A4_HEIGHT = 841.89
+
+
+def normalize_page_to_a4(page: PageObject) -> PageObject:
+	"""
+	Ensures every page has identical A4 size (595.28 x 841.89 pt).
+	Scales and centers content if the source page has different dimensions.
+	"""
+	try:
+		src_width = float(page.mediabox.width)
+		src_height = float(page.mediabox.height)
+	except Exception:
+		return page
+
+	# Check if page is already A4 portrait within 1.5 point tolerance
+	if abs(src_width - A4_WIDTH) <= 1.5 and abs(src_height - A4_HEIGHT) <= 1.5:
+		return page
+
+	scale = min(A4_WIDTH / max(src_width, 1), A4_HEIGHT / max(src_height, 1))
+	new_w = src_width * scale
+	new_h = src_height * scale
+
+	tx = (A4_WIDTH - new_w) / 2.0
+	ty = (A4_HEIGHT - new_h) / 2.0
+
+	a4_page = PageObject.create_blank_page(width=A4_WIDTH, height=A4_HEIGHT)
+	transform = Transformation().scale(scale).translate(tx=tx, ty=ty)
+	page.add_transformation(transform)
+	a4_page.merge_page(page)
+	return a4_page
+
+
 def get_all_attached_files(doc) -> list[tuple[str, str, bytes]]:
 	"""
 	Retrieves all attached files (filename, file_url, content) linked to a Vendor Purchase Order.
@@ -213,9 +374,11 @@ def merge_po_attachments(doc, base_pdf_bytes: bytes) -> bytes:
 	"""
 	pdf_writer = PdfWriter()
 
-	# 1. Append primary Vendor Purchase Order PDF
+	# 1. Append primary Vendor Purchase Order PDF (normalized to standard A4)
 	try:
-		pdf_writer.append(BytesIO(base_pdf_bytes))
+		base_reader = PdfReader(BytesIO(base_pdf_bytes))
+		for p in base_reader.pages:
+			pdf_writer.add_page(normalize_page_to_a4(p))
 	except Exception as e:
 		frappe.log_error(
 			title=f"PDF Merge: Invalid Base PO PDF ({doc.name})",
@@ -237,7 +400,8 @@ def merge_po_attachments(doc, base_pdf_bytes: bytes) -> bytes:
 				reader = PdfReader(BytesIO(content))
 				if len(reader.pages) == 0:
 					raise ValueError("Attached PDF file has no pages.")
-				pdf_writer.append(reader)
+				for p in reader.pages:
+					pdf_writer.add_page(normalize_page_to_a4(p))
 			except Exception as e:
 				frappe.log_error(
 					title=f"PDF Merge Error: Damaged PDF Attachment ({fname})",
@@ -251,7 +415,8 @@ def merge_po_attachments(doc, base_pdf_bytes: bytes) -> bytes:
 			try:
 				img_pdf_bytes = convert_image_to_a4_pdf(content)
 				img_reader = PdfReader(BytesIO(img_pdf_bytes))
-				pdf_writer.append(img_reader)
+				for p in img_reader.pages:
+					pdf_writer.add_page(normalize_page_to_a4(p))
 			except Exception as e:
 				frappe.log_error(
 					title=f"PDF Merge Error: Corrupted Image Attachment ({fname})",

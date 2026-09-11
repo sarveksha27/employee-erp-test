@@ -110,8 +110,6 @@
   "payment_fully_paid",
   "balance_due",
   "col_break_payment",
-  "second_payment",
-  "final_payment",
   "company_bank",
   "sec_approval",
   "prepared_by",
@@ -763,18 +761,6 @@
   {
    "fieldname": "col_break_payment",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "second_payment",
-   "fieldtype": "Currency",
-   "label": "Second Payment Amount",
-   "options": "currency"
-  },
-  {
-   "fieldname": "final_payment",
-   "fieldtype": "Currency",
-   "label": "Final Payment Amount",
-   "options": "currency"
   },
   {
    "description": "Bank account from which SRI pays the vendor",

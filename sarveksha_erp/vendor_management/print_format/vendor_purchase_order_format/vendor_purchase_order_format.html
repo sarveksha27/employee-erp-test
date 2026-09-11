@@ -19,47 +19,79 @@
 {% endif %}
 {% set letterhead_img = lh_doc.image if (lh_doc and lh_doc.image) else "" %}
 
-<script>
-  (function () {
-    if (typeof window !== 'undefined' && window.location && window.location.href) {
-      var href = window.location.href;
-      if (href.indexOf('/printview') !== -1 && href.indexOf('doctype=Vendor%20Purchase%20Order') !== -1) {
-        var match = href.match(/name=([^&]+)/);
-        if (match && match[1]) {
-          var poName = decodeURIComponent(match[1]);
-          var targetUrl = "/api/method/frappe.utils.print_format.download_pdf?doctype=Vendor%20Purchase%20Order&name=" + encodeURIComponent(poName);
-          if (href.indexOf('redirected=1') === -1) {
-            window.location.replace(targetUrl);
-          }
-        }
-      }
-    }
-  })();
-</script>
-
 <style>
   @page {
-    size: A4;
-    margin: 10mm 12mm 15mm 12mm !important;
+    size: A4 portrait;
+    width: 210mm;
+    height: 297mm;
+    margin-top: 48mm !important;
+    margin-bottom: 20mm !important;
+    margin-left: 14mm !important;
+    margin-right: 14mm !important;
   }
 
   * {
     box-sizing: border-box;
   }
 
+  /* ── 100% TRANSPARENT - ZERO WHITE BG ANYWHERE ── */
   html,
-  body {
+  body,
+  .print-format-gutter,
+  .page-break,
+  .po-print-wrapper {
     margin: 0 !important;
     padding: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
     font-family: Arial, Helvetica, sans-serif !important;
-    font-size: 11px !important;
+    font-size: 9.5px !important;
     color: #000 !important;
-    line-height: 1.4 !important;
-    background: #ffffff !important;
+    line-height: 1.3 !important;
+  }
+
+  .print-format {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin-top: 48mm !important;
+    margin-bottom: 20mm !important;
+    margin-left: 14mm !important;
+    margin-right: 14mm !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 9.5px !important;
+    color: #000 !important;
+    line-height: 1.3 !important;
+  }
+
+  @media screen {
+    .print-format-gutter {
+      background-color: transparent !important;
+      padding: 0 !important;
+    }
+    .print-format {
+      background-color: transparent !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      padding: 0 !important;
+      margin-top: 48mm !important;
+      margin-bottom: 20mm !important;
+      margin-left: 14mm !important;
+      margin-right: 14mm !important;
+      max-width: 100% !important;
+      min-height: auto !important;
+    }
   }
 
   p {
-    margin: 6px 0;
+    margin: 3px 0;
   }
 
   /* Hide default Frappe headers to avoid duplicate rendering */
@@ -70,22 +102,11 @@
   }
 
   .po-print-wrapper {
-    width: 100%;
-    margin: 0 auto;
-  }
-
-  /* Crop full-page A4 letterhead image to show pristine top header banner */
-  .lh-header-crop {
-    width: 100%;
-    height: 145px;
-    overflow: hidden;
-    margin-bottom: 15px;
-  }
-
-  .lh-header-crop img {
-    width: 100%;
-    height: auto;
-    display: block;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
   }
 
   /* Fixed-layout formal tables matching exact original specification */
@@ -93,22 +114,27 @@
     width: 100%;
     table-layout: fixed;
     border-collapse: collapse;
-    margin-bottom: 12px;
+    margin-bottom: 6px;
     word-wrap: break-word;
+    background: transparent !important;
+    background-color: transparent !important;
   }
 
   table.fixed th,
   table.fixed td {
     border: 1px solid #000 !important;
-    padding: 5px 7px !important;
+    padding: 3px 5px !important;
     vertical-align: top !important;
     font-family: Arial, Helvetica, sans-serif !important;
-    font-size: 11px !important;
+    font-size: 9px !important;
     color: #000 !important;
+    background: transparent !important;
+    background-color: transparent !important;
   }
 
   table.fixed thead th {
-    background: #f0f0f0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
     font-weight: bold !important;
     text-align: left;
   }
@@ -126,12 +152,13 @@
   }
 
   .section-head {
-    background: #f0f0f0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
     font-weight: bold !important;
-    padding: 5px 8px !important;
+    padding: 3px 6px !important;
     border: 1px solid #000 !important;
     border-bottom: none !important;
-    font-size: 11px !important;
+    font-size: 9px !important;
     text-transform: uppercase !important;
     letter-spacing: 0.5px !important;
   }
@@ -140,33 +167,27 @@
     page-break-inside: avoid !important;
   }
 
-  .footer-text {
-    text-align: center;
-    font-size: 9px;
-    color: #333;
-    margin-top: 25px;
-    border-top: 1px solid #ccc;
-    padding-top: 6px;
-    font-family: Arial, Helvetica, sans-serif !important;
+  .standard-terms-print ol,
+  .standard-terms-print ul {
+    margin-top: 2px !important;
+    margin-bottom: 4px !important;
+    padding-left: 18px !important;
+  }
+
+  .standard-terms-print li {
+    margin-bottom: 2px !important;
   }
 </style>
 
 <div class="po-print-wrapper">
 
-  <!-- ── LETTERHEAD BANNER (PAGE 1 TOP) ── -->
-  {% if letterhead_img %}
-  <div class="lh-header-crop">
-    <img src="{{ frappe.utils.get_url() + letterhead_img }}" alt="Letter Head">
-  </div>
-  {% endif %}
-
   <!-- ── PO TITLE ── -->
   <p
-    style="text-align:center; font-size:14px; font-weight:bold; text-decoration:underline; margin:0 0 12px 0; letter-spacing:1px;">
+    style="text-align:center; font-size:13px; font-weight:bold; text-decoration:underline; margin:0 0 6px 0; letter-spacing:1px;">
     PURCHASE ORDER</p>
 
   <!-- ── VENDOR (LEFT) + PO META (RIGHT) ── -->
-  <table class="fixed" style="margin-bottom:12px;">
+  <table class="fixed" style="margin-bottom:6px;">
     <colgroup>
       <col style="width:58%">
       <col style="width:22%">
@@ -233,17 +254,17 @@
     confirmation via return email for further processing.</p>
 
   <!-- ── PRE-CONDITIONS ── -->
-  <table class="fixed" style="margin-bottom:12px;">
+  <table class="fixed" style="margin-bottom:6px;">
     <tbody>
       <tr>
         <td>
           The bill should be raised in the name of <strong>{{ company.company_name }}</strong>.
           {% if doc.company_address %}
-          <br><span style="color:#333; font-size:10px;">{{ doc.company_address | replace("\n", "<br>") }}</span>
+          <br><span style="color:#333; font-size:8.5px;">{{ doc.company_address | replace("\n", "<br>") }}</span>
           {% else %}
           {% if doc.company_gstin %}<br><strong>GSTIN:</strong> {{ doc.company_gstin }}{% endif %}
           {% if doc.company_pan %}<br><strong>PAN:</strong> {{ doc.company_pan }}{% endif %}
-          {% if company.registration_details %}<br><span style="font-size:10px;">{{ company.registration_details
+          {% if company.registration_details %}<br><span style="font-size:8.5px;">{{ company.registration_details
             }}</span>{% endif %}
           {% endif %}
         </td>
@@ -272,7 +293,7 @@
   </table>
 
   <!-- ── ITEM TABLE ── -->
-  <table class="fixed" style="margin-bottom:12px;">
+  <table class="fixed" style="margin-bottom:6px;">
     <colgroup>
       <col style="width:5%">
       <col style="width:30%">
@@ -280,8 +301,8 @@
       <col style="width:9%">
       <col style="width:6%">
       <col style="width:6%">
-      <col style="width:16%">
-      <col style="width:16%">
+      <col style="width:17%">
+      <col style="width:18%">
     </colgroup>
     <thead>
       <tr>
@@ -304,7 +325,7 @@
           <strong>{{ item.equipment_name or item.equipment or "—" }}</strong><br>
           {% if item.brand %}Brand: {{ item.brand }} | {% endif %}
           {% if item.manufacturer %}Mfr: {{ item.manufacturer }}<br>{% endif %}
-          {% if item.specification %}<span style="font-size:10px;">{{ item.specification }}</span>{% endif %}
+          {% if item.specification %}<span style="font-size:8.5px;">{{ item.specification }}</span>{% endif %}
         </td>
         <td class="center" style="border-top:none !important;">{{ item.hsn_code or "—" }}</td>
         <td class="center" style="border-top:none !important;">{{ item.brand or "—" }}</td>
@@ -323,7 +344,7 @@
           <strong>{{ doc.equipment_name or doc.equipment or "—" }}</strong><br>
           {% if doc.manufacturer %}Mfr: {{ doc.manufacturer }}<br>{% endif %}
           {% if doc.country_of_origin %}Origin: {{ doc.country_of_origin }}<br>{% endif %}
-          {% if doc.specification %}<span style="font-size:10px;">{{ doc.specification }}</span>{% endif %}
+          {% if doc.specification %}<span style="font-size:8.5px;">{{ doc.specification }}</span>{% endif %}
         </td>
         <td class="center" style="border-top:none !important;">{{ doc.hsn_code or "—" }}</td>
         <td class="center" style="border-top:none !important;">{{ doc.brand or "—" }}</td>
@@ -334,14 +355,15 @@
       </tr>
       {% endif %}
 
-      <!-- Tax rows -->
+      <!-- Tax rows (Only if GST is applicable) -->
+      {% if doc.gst_type and doc.gst_type != "None" and doc.tax_amount and doc.tax_amount > 0 %}
       {% if doc.gst_type == "CGST + SGST" %}
       <tr>
-        <td colspan="7" class="right lbl" style="border-top:none !important;">CGST @ {{ doc.gst_percentage / 2 }}%</td>
+        <td colspan="7" class="right lbl" style="border-top:none !important;">CGST @ {{ (doc.gst_percentage / 2) | round(2) }}%</td>
         <td class="right" style="border-top:none !important;">{{ doc.get_formatted("cgst_amount") }}</td>
       </tr>
       <tr>
-        <td colspan="7" class="right lbl" style="border-top:none !important;">SGST @ {{ doc.gst_percentage / 2 }}%</td>
+        <td colspan="7" class="right lbl" style="border-top:none !important;">SGST @ {{ (doc.gst_percentage / 2) | round(2) }}%</td>
         <td class="right" style="border-top:none !important;">{{ doc.get_formatted("sgst_amount") }}</td>
       </tr>
       {% else %}
@@ -349,6 +371,7 @@
         <td colspan="7" class="right lbl" style="border-top:none !important;">IGST @ {{ doc.gst_percentage }}%</td>
         <td class="right" style="border-top:none !important;">{{ doc.get_formatted("igst_amount") }}</td>
       </tr>
+      {% endif %}
       {% endif %}
 
       {% if doc.freight and doc.freight > 0 %}
@@ -359,14 +382,14 @@
       {% endif %}
       {% if doc.insurance and doc.insurance > 0 %}
       <tr>
-        <td colspan="7" class="right" style="border-top:none !important;">Insurance</td>
+        <td colspan="7" class="right" style="border-top:none !important;">Insurance Charges</td>
         <td class="right" style="border-top:none !important;">{{ doc.get_formatted("insurance") }}</td>
       </tr>
       {% endif %}
-      {% if doc.packing_charges and doc.packing_charges > 0 %}
+      {% if doc.custom_charges and doc.custom_charges > 0 %}
       <tr>
-        <td colspan="7" class="right" style="border-top:none !important;">Packing Charges</td>
-        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("packing_charges") }}</td>
+        <td colspan="7" class="right" style="border-top:none !important;">Custom Clearance Charges</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("custom_charges") }}</td>
       </tr>
       {% endif %}
       {% if doc.other_charges and doc.other_charges > 0 %}
@@ -376,31 +399,30 @@
       </tr>
       {% endif %}
 
-      <!-- Totals -->
       <tr>
         <td colspan="7" class="right lbl" style="border-top:none !important;">TOTAL</td>
-        <td class="right lbl" style="border-top:none !important;">{{ doc.get_formatted("grand_total") }}</td>
+        <td class="right lbl" style="border-top:none !important;">{{ doc.currency }} {{
+          frappe.utils.fmt_money(doc.grand_total, currency=doc.currency) }}</td>
       </tr>
       <tr>
-        <td colspan="7" class="right lbl" style="border-top:none !important; background:#f0f0f0 !important;">Total
-          Payable Amount</td>
-        <td class="right lbl" style="border-top:none !important; background:#f0f0f0 !important;">{{
-          doc.get_formatted("grand_total") }}</td>
+        <td colspan="7" class="right lbl" style="border-top:none !important; font-size:10px;">Total Payable Amount</td>
+        <td class="right lbl" style="border-top:none !important; font-size:10px;">{{ doc.currency }} {{
+          frappe.utils.fmt_money(doc.grand_total, currency=doc.currency) }}</td>
       </tr>
     </tbody>
   </table>
 
   <!-- ── PAYMENT + LOGISTICS (SIDE BY SIDE) ── -->
   <table width="100%" cellspacing="0" cellpadding="0"
-    style="border-collapse:collapse; margin-bottom:12px; table-layout:fixed;">
+    style="border-collapse:collapse; margin-bottom:6px; table-layout:fixed; background:transparent !important;">
     <colgroup>
       <col style="width:50%">
-      <col style="width:2px">
+      <col style="width:4px">
       <col style="width:50%">
     </colgroup>
     <tr>
       <!-- Payment -->
-      <td style="vertical-align:top; padding-right:5px; border:none !important;">
+      <td style="vertical-align:top; padding-right:4px; border:none !important; background:transparent !important;">
         <div class="section-head">PAYMENT DETAILS</div>
         <table class="fixed" style="margin-bottom:0;">
           <colgroup>
@@ -439,9 +461,9 @@
           </tbody>
         </table>
       </td>
-      <td style="border:none !important;"></td>
+      <td style="border:none !important; background:transparent !important;"></td>
       <!-- Logistics -->
-      <td style="vertical-align:top; padding-left:5px; border:none !important;">
+      <td style="vertical-align:top; padding-left:4px; border:none !important; background:transparent !important;">
         <div class="section-head">LOGISTICS &amp; SHIPPING</div>
         <table class="fixed" style="margin-bottom:0;">
           <colgroup>
@@ -483,18 +505,21 @@
     </tr>
   </table>
 
-  <!-- ── TERMS & CONDITIONS ── -->
+  <!-- ── PAGE BREAK: CLEAN SPLIT TO PAGE 2 ── -->
+  <div style="page-break-before: always;"></div>
+
+  <!-- ── TERMS & CONDITIONS (PAGE 2) ── -->
   {% if doc.standard_terms or doc.custom_terms %}
-  <p style="margin:10px 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
-  <table class="fixed" style="margin-bottom:12px;">
+  <p style="margin:0 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
+  <table class="fixed" style="margin-bottom:8px;">
     <tbody>
       <tr>
-        <td style="line-height:1.9;">
+        <td style="line-height:1.4;">
           {% if doc.standard_terms %}
           {% for row in doc.standard_terms %}
           {% if row.standard_term and frappe.db.exists("Terms and Conditions", row.standard_term) %}
           {% set st_doc = frappe.get_doc("Terms and Conditions", row.standard_term) %}
-          <div class="standard-terms-print" style="margin-bottom: 10px;">
+          <div class="standard-terms-print" style="margin-bottom: 6px;">
             <strong>{{ row.standard_term }}</strong>
             <div>{{ st_doc.terms }}</div>
           </div>
@@ -502,7 +527,7 @@
           {% endfor %}
           {% endif %}
           {% if doc.custom_terms %}
-          <div class="custom-terms-print" style="margin-top: 10px;">
+          <div class="custom-terms-print" style="margin-top: 6px;">
             {{ doc.custom_terms }}
           </div>
           {% endif %}
@@ -511,43 +536,46 @@
     </tbody>
   </table>
   {% else %}
-  <p style="margin:10px 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
-  <table class="fixed" style="margin-bottom:12px;">
+  <p style="margin:0 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
+  <table class="fixed" style="margin-bottom:8px;">
     <tbody>
       <tr>
-        <td style="line-height:1.9;">
+        <td style="line-height:1.4;">
           1) The prices are Nett &amp; Ex-Godown / Ex-Works unless otherwise specified.<br>
           2) Discount: As mentioned in this Purchase Order.<br>
           3) Packing Charges: As per actuals. Supplier must pack goods in a manner compliant with export norms and
-          export-worthy standards.<br>
-          4) Freight / Delivery Charges will be Extra from origin to Port or SRI office, unless otherwise specified
-          above.<br>
-          5) Third-party inspection charges if any will be extra, if applicable.<br>
-          6) All overseas bank charges outside India are on the buyer's account.<br>
-          7) Insurance charges, if any, will be Extra at actual unless specified above.<br>
-          8) Fumigation and other charges related to Export to Africa will be Extra at actual.<br>
-          9) Seller shall not be liable for delays due to force majeure conditions (includes shipping delays, war,
-          strikes, etc.).<br>
-          10) Taxes: {{ doc.gst_type or "IGST" }} @ {{ doc.gst_percentage }}% as mentioned above. All other taxes as per
-          government regulations at the time of delivery.<br>
-          11) Delivery: Ready Stock / Subject to prior sale availability. Delivery must be completed by the expected
-          delivery date mentioned above.<br>
-          12) Payment: {{ doc.payment_terms or "As per mutual agreement." }}<br>
-          13) Order once placed shall not be cancelled. After receiving material, it will not be returned under any
-          circumstances if the application is not fulfilled by the vendor or if it was wrongly ordered.<br>
-          14) Invoice must quote this PO number. Payment shall be made against valid GST invoice only.<br>
-          15) This Purchase Order shall be subject to the jurisdiction of the Company's registered office.
+          handling safety.<br>
+          4) Inspection: Pre-dispatch inspection at supplier premises or at port if requested.<br>
+          5) Warranty: Standard manufacturer warranty applies from date of delivery and commissioning.<br>
+          6) Delivery Schedule: Goods must be dispatched on or before the committed delivery date.<br>
+          7) Jurisdiction: Subject to local registered office jurisdiction.
         </td>
       </tr>
     </tbody>
   </table>
   {% endif %}
 
-  <!-- ── ATTACHED DETAILS / DOCUMENTS SECTION ── -->
-  {% set attached_docs = doc.get_attached_details() if doc.get_attached_details else [] %}
-  {% if attached_docs and attached_docs|length > 0 %}
-  <p style="margin:10px 0 4px 0;"><strong><u>Following details have been attached in the PO :-</u></strong></p>
-  <table class="fixed" style="margin-bottom:12px;">
+  <!-- ── ATTACHED DOCUMENTS INDEX (IF ANY) ── -->
+  {% set attached_docs = [] %}
+  {% if doc.quotation_pdf %}
+  {% set _ = attached_docs.append({"category": "Vendor Quotation", "filename": doc.quotation_pdf.split('/')[-1]}) %}
+  {% endif %}
+  {% if doc.supplier_quotation_attachment %}
+  {% set _ = attached_docs.append({"category": "Supplier Quotation Document", "filename":
+  doc.supplier_quotation_attachment.split('/')[-1]}) %}
+  {% endif %}
+  {% if doc.quotation_comparision %}
+  {% set _ = attached_docs.append({"category": "Quotation Comparison Sheet", "filename":
+  doc.quotation_comparision.split('/')[-1]}) %}
+  {% endif %}
+  {% if doc.inspection_report %}
+  {% set _ = attached_docs.append({"category": "Pre-dispatch Inspection Report", "filename":
+  doc.inspection_report.split('/')[-1]}) %}
+  {% endif %}
+
+  {% if attached_docs | length > 0 %}
+  <div class="section-head">ATTACHED DOCUMENTS SUMMARY</div>
+  <table class="fixed" style="margin-bottom:8px;">
     <colgroup>
       <col style="width:8%">
       <col style="width:42%">
@@ -574,7 +602,7 @@
 
   {% if doc.remarks %}
   <div class="section-head">NOTE</div>
-  <table class="fixed" style="margin-bottom:12px;">
+  <table class="fixed" style="margin-bottom:8px;">
     <tbody>
       <tr>
         <td>{{ doc.remarks }}</td>
@@ -585,35 +613,29 @@
 
   <!-- ── SIGNATURES ── -->
   <table width="100%" cellspacing="0" cellpadding="0"
-    style="border-collapse:collapse; margin-top:30px; margin-bottom:15px; table-layout:fixed;">
+    style="border-collapse:collapse; margin-top:18px; margin-bottom:8px; table-layout:fixed; background:transparent !important;">
     <colgroup>
       <col style="width:33%">
       <col style="width:34%">
       <col style="width:33%">
     </colgroup>
-    <tr>
+    <tr style="background:transparent !important;">
       <td
-        style="text-align:center; border-top:1px solid #000 !important; padding-top:6px; border-left:none !important; border-right:none !important; border-bottom:none !important;">
+        style="text-align:center; border-top:1px solid #000 !important; padding-top:4px; border-left:none !important; border-right:none !important; border-bottom:none !important; background:transparent !important;">
         <strong>Prepared By</strong><br>
-        <span style="font-size:10px; color:#555;">{{ doc.prepared_by or "—" }}</span>
+        <span style="font-size:9px; color:#333;">{{ doc.prepared_by or "Administrator" }}</span>
       </td>
       <td
-        style="text-align:center; border-top:1px solid #000 !important; padding-top:6px; border-left:none !important; border-right:none !important; border-bottom:none !important;">
+        style="text-align:center; border-top:1px solid #000 !important; padding-top:4px; border-left:none !important; border-right:none !important; border-bottom:none !important; background:transparent !important;">
         <strong>Verified By</strong><br>
-        <span style="font-size:10px; color:#555;">{{ doc.verified_by or "—" }}</span>
+        <span style="font-size:9px; color:#333;">{{ doc.verified_by or "Administrator" }}</span>
       </td>
       <td
-        style="text-align:center; border-top:1px solid #000 !important; padding-top:6px; border-left:none !important; border-right:none !important; border-bottom:none !important;">
+        style="text-align:center; border-top:1px solid #000 !important; padding-top:4px; border-left:none !important; border-right:none !important; border-bottom:none !important; background:transparent !important;">
         <strong>Authorized Signatory</strong><br>
-        <span style="font-size:10px; color:#555;">For {{ company.company_name }}</span>
+        <span style="font-size:9px; color:#333;">For {{ company.company_name }}</span>
       </td>
     </tr>
   </table>
-
-  {% if lh_doc and lh_doc.footer %}
-  <div class="footer-text">
-    {{ lh_doc.footer }}
-  </div>
-  {% endif %}
 
 </div>

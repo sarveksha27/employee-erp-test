@@ -1,0 +1,500 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-09-12 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "pi_number",
+  "pi_date",
+  "status",
+  "sec_reference",
+  "internal_po",
+  "po_reference_no",
+  "po_date",
+  "col_parties",
+  "sec_parties",
+  "seller",
+  "seller_address",
+  "seller_gstin",
+  "seller_pan",
+  "seller_iec",
+  "col_buyer",
+  "buyer",
+  "buyer_address",
+  "notify_party",
+  "sec_shipping",
+  "port_of_loading",
+  "port_of_discharge",
+  "final_destination",
+  "col_currency",
+  "currency",
+  "exchange_rate",
+  "sec_items",
+  "items",
+  "sec_totals",
+  "total_item_amount",
+  "margin_percentage",
+  "margin_amount",
+  "col_logistics",
+  "freight",
+  "insurance",
+  "packing_charges",
+  "other_charges",
+  "total_logistics",
+  "sec_grand_total",
+  "grand_total",
+  "advance_percentage",
+  "advance_amount",
+  "amount_in_words",
+  "sec_bank",
+  "beneficiary_name",
+  "beneficiary_acc_no",
+  "beneficiary_bank",
+  "beneficiary_swift",
+  "col_nostro",
+  "nostro_bank",
+  "nostro_swift",
+  "sec_sign",
+  "prepared_by",
+  "authorized_signatory",
+  "remarks",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "default": "SRI/PI/.YYYY.-.####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "SRI/PI/.YYYY.-.####\nSRI/BOT/26-27/.###",
+   "reqd": 1
+  },
+  {
+   "fieldname": "pi_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Proforma Invoice No.",
+   "read_only": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "pi_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nIssued\nCancelled"
+  },
+  {
+   "fieldname": "sec_reference",
+   "fieldtype": "Section Break",
+   "label": "Internal Purchase Order Reference"
+  },
+  {
+   "description": "Select the Internal PO raised by the Child Company to SRI",
+   "fieldname": "internal_po",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Internal Purchase Order",
+   "options": "Vendor Purchase Order",
+   "reqd": 1
+  },
+  {
+   "fieldname": "po_reference_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "PO Reference Number",
+   "read_only": 1
+  },
+  {
+   "fieldname": "po_date",
+   "fieldtype": "Date",
+   "label": "PO Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_parties",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sec_parties",
+   "fieldtype": "Section Break",
+   "label": "Parties (Seller SRI & Buyer Child Company)"
+  },
+  {
+   "default": "Sarveksha Realty and Inframine LLP",
+   "fieldname": "seller",
+   "fieldtype": "Data",
+   "label": "Seller / Shipper",
+   "read_only": 1
+  },
+  {
+   "default": "No 303, Sparsh CHS, Plot no 101,102\nSect 44, Sea woods, Nerul\nNavi Mumbai: 400706",
+   "fieldname": "seller_address",
+   "fieldtype": "Small Text",
+   "label": "Seller Address",
+   "read_only": 1
+  },
+  {
+   "default": "27AAAFS2557J1ZB",
+   "fieldname": "seller_gstin",
+   "fieldtype": "Data",
+   "label": "Seller GSTIN",
+   "read_only": 1
+  },
+  {
+   "default": "AAAFS2557J",
+   "fieldname": "seller_pan",
+   "fieldtype": "Data",
+   "label": "Seller PAN",
+   "read_only": 1
+  },
+  {
+   "default": "AFTFS2557J",
+   "fieldname": "seller_iec",
+   "fieldtype": "Data",
+   "label": "Seller IEC Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_buyer",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "buyer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Buyer / Consignee",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "buyer_address",
+   "fieldtype": "Small Text",
+   "label": "Consignee Address",
+   "read_only": 1
+  },
+  {
+   "default": "Globe Multitrade & Service LLC\nOffice No. 112, AL Jabri Building,\nIndustrial Area, Sharjah (UAE)",
+   "fieldname": "notify_party",
+   "fieldtype": "Small Text",
+   "label": "Notify Party"
+  },
+  {
+   "fieldname": "sec_shipping",
+   "fieldtype": "Section Break",
+   "label": "Shipping & Destination"
+  },
+  {
+   "default": "Mundra",
+   "fieldname": "port_of_loading",
+   "fieldtype": "Data",
+   "label": "Port of Loading"
+  },
+  {
+   "fieldname": "port_of_discharge",
+   "fieldtype": "Data",
+   "label": "Port of Discharge"
+  },
+  {
+   "fieldname": "final_destination",
+   "fieldtype": "Data",
+   "label": "Final Destination"
+  },
+  {
+   "fieldname": "col_currency",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "USD",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "default": "1.0",
+   "fieldname": "exchange_rate",
+   "fieldtype": "Float",
+   "label": "Exchange Rate"
+  },
+  {
+   "fieldname": "sec_items",
+   "fieldtype": "Section Break",
+   "label": "Items / Goods"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Line Items",
+   "options": "Proforma Invoice Item"
+  },
+  {
+   "fieldname": "sec_totals",
+   "fieldtype": "Section Break",
+   "label": "Commercials & SRI Margin"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_item_amount",
+   "fieldtype": "Currency",
+   "label": "Total Items Base Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "default": "5.0",
+   "description": "Mandatory mark-up between 5% and 30%",
+   "fieldname": "margin_percentage",
+   "fieldtype": "Float",
+   "label": "Margin Percentage (%)",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "margin_amount",
+   "fieldtype": "Currency",
+   "label": "Margin Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_logistics",
+   "fieldtype": "Column Break",
+   "label": "Logistics Expenses (Manual Entry)"
+  },
+  {
+   "default": "0",
+   "description": "Enter freight manually (not auto-fetched from PO)",
+   "fieldname": "freight",
+   "fieldtype": "Currency",
+   "label": "Freight Charges",
+   "options": "currency"
+  },
+  {
+   "default": "0",
+   "description": "Enter insurance manually (not auto-fetched from PO)",
+   "fieldname": "insurance",
+   "fieldtype": "Currency",
+   "label": "Insurance Charges",
+   "options": "currency"
+  },
+  {
+   "default": "0",
+   "description": "Enter packing charges manually (not auto-fetched from PO)",
+   "fieldname": "packing_charges",
+   "fieldtype": "Currency",
+   "label": "Packing & Forwarding",
+   "options": "currency"
+  },
+  {
+   "default": "0",
+   "description": "Enter other charges manually (not auto-fetched from PO)",
+   "fieldname": "other_charges",
+   "fieldtype": "Currency",
+   "label": "Other Charges",
+   "options": "currency"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_logistics",
+   "fieldtype": "Currency",
+   "label": "Total Logistics Cost",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_grand_total",
+   "fieldtype": "Section Break",
+   "label": "Grand Total & Payment Terms"
+  },
+  {
+   "bold": 1,
+   "default": "0",
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Grand Total Payable",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "default": "100.0",
+   "fieldname": "advance_percentage",
+   "fieldtype": "Percent",
+   "label": "% Advance Required"
+  },
+  {
+   "default": "0",
+   "fieldname": "advance_amount",
+   "fieldtype": "Currency",
+   "label": "Advance Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount_in_words",
+   "fieldtype": "Small Text",
+   "label": "Amount in Words",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_bank",
+   "fieldtype": "Section Break",
+   "label": "Seller Bank & Remittance Instructions (SRI)"
+  },
+  {
+   "default": "SARVEKSHA REALTY AND INFRAMINE LLP",
+   "fieldname": "beneficiary_name",
+   "fieldtype": "Data",
+   "label": "Beneficiary Account Name"
+  },
+  {
+   "default": "409002556124",
+   "fieldname": "beneficiary_acc_no",
+   "fieldtype": "Data",
+   "label": "Beneficiary Account Number"
+  },
+  {
+   "default": "RBL Bank Ltd",
+   "fieldname": "beneficiary_bank",
+   "fieldtype": "Data",
+   "label": "Beneficiary Bank Name"
+  },
+  {
+   "default": "RATNINBBXXX",
+   "fieldname": "beneficiary_swift",
+   "fieldtype": "Data",
+   "label": "Beneficiary SWIFT Code"
+  },
+  {
+   "fieldname": "col_nostro",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "STANDARD CHARTERED BANK",
+   "fieldname": "nostro_bank",
+   "fieldtype": "Data",
+   "label": "Correspondent / Nostro Bank"
+  },
+  {
+   "default": "SCBLUS33XXX",
+   "fieldname": "nostro_swift",
+   "fieldtype": "Data",
+   "label": "Nostro SWIFT Code"
+  },
+  {
+   "fieldname": "sec_sign",
+   "fieldtype": "Section Break",
+   "label": "Signatory & Notes"
+  },
+  {
+   "fieldname": "prepared_by",
+   "fieldtype": "Data",
+   "label": "Prepared By",
+   "read_only": 1
+  },
+  {
+   "default": "For SARVEKSHA REALTY & INFRAMINE LLP",
+   "fieldname": "authorized_signatory",
+   "fieldtype": "Data",
+   "label": "Authorized Signatory"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks / Notes"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Proforma Invoice",
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 0,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-09-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vendor Management",
+ "name": "Proforma Invoice",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "PO Generator",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "PO Verifier",
+   "share": 1,
+   "submit": 0,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "PO Approver",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
