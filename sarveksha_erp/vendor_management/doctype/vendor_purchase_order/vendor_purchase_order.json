@@ -25,6 +25,7 @@
   "default_port",
   "sec_vendor",
   "vendor",
+  "vendor_address",
   "vendor_gstin",
   "vendor_pan",
   "col_break_vendor",
@@ -45,6 +46,9 @@
   "add_equipment_btn",
   "sec_equipment_summary",
   "items",
+  "sec_quotation_governance",
+  "quotation_comparison_sheet",
+  "quotations",
   "sec_pricing",
   "currency",
   "exchange_rate",
@@ -150,6 +154,7 @@
    "fieldtype": "Select",
    "label": "PO Type",
    "options": "Vendor PO\nInternal PO",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -235,6 +240,12 @@
    "reqd": 1
   },
   {
+   "fieldname": "vendor_address",
+   "fieldtype": "Small Text",
+   "label": "Vendor Address",
+   "read_only": 1
+  },
+  {
    "fetch_from": "vendor.tax_id",
    "fieldname": "vendor_gstin",
    "fieldtype": "Data",
@@ -284,6 +295,26 @@
    "fieldtype": "Table",
    "label": "Equipment Line Items",
    "options": "Vendor Purchase Order Item"
+  },
+  {
+   "fieldname": "sec_quotation_governance",
+   "fieldtype": "Section Break",
+   "label": "Quotation Governance",
+   "depends_on": "eval:doc.po_type==='Vendor PO'"
+  },
+  {
+   "fieldname": "quotation_comparison_sheet",
+   "fieldtype": "Attach",
+   "label": "Quotation Comparison Sheet",
+   "description": "Required before forwarding an External PO for verification.",
+   "depends_on": "eval:doc.po_type==='Vendor PO'"
+  },
+  {
+   "fieldname": "quotations",
+   "fieldtype": "Table",
+   "label": "Vendor Quotations",
+   "options": "Vendor Purchase Order Quotation",
+   "depends_on": "eval:doc.po_type==='Vendor PO'"
   },
   {
    "fieldname": "equipment",

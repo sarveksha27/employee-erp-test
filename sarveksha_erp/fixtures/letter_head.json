@@ -1,7 +1,7 @@
 [
  {
   "align": "Left",
-  "content": "<div style=\"text-align: left;\">\n<img src=\"/files/letterhead_sri_india.png\" alt=\"India (Sarveksha Realty)\"\nheight=\"\" style=\"height: px;\">\n</div>",
+  "content": "<div style=\"text-align: left;\">\n<img src=\"/files/letterhead_sri_india.png\" alt=\"India (Sarveksha Realty)\" height=\"\" style=\"height: px;\">\n</div>",
   "disabled": 0,
   "docstatus": 0,
   "doctype": "Letter Head",
@@ -24,11 +24,11 @@
  },
  {
   "align": "Left",
-  "content": "<div style=\"text-align: left;\">\n<img src=\"/files/letterhead_botswana.jpeg\" alt=\"Botswana (Sarveksha Botswana)\"\nheight=\"\" style=\"height: px;\">\n</div>",
+  "content": "<div style=\"text-align: left;\">\n<img src=\"/files/letterhead_botswana.jpeg\" alt=\"Botswana (Sarveksha Botswana)\" height=\"\" style=\"height: px;\">\n</div>",
   "disabled": 0,
   "docstatus": 0,
   "doctype": "Letter Head",
-  "footer": "<div style=\"text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;\"><strong>Sarveksha Botswana Proprietary Limited</strong><br>Equipment and Public Works; General Trading; Construction & Civil & Erection Work | UIN: BW00009608412</div>",
+  "footer": "<div style=\"text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;\"><strong>Sarveksha Botswana Proprietary Limited</strong><br>Equipment and Public Works; General Trading; Construction &amp; Civil &amp; Erection Work | UIN: BW00009608412</div>",
   "footer_align": "Left",
   "footer_image": null,
   "footer_image_height": 0.0,
@@ -47,7 +47,7 @@
  },
  {
   "align": "Left",
-  "content": "<div style=\"text-align: left;\">\n<img src=\"/files/letterhead_cameroon_mining.jpeg\" alt=\"Cameroon (Sarveksha Mining SARL)\"\nheight=\"\" style=\"height: px;\">\n</div>",
+  "content": "<div style=\"text-align: left;\">\n<img src=\"/files/letterhead_cameroon_mining.jpeg\" alt=\"Cameroon (Sarveksha Mining SARL)\" height=\"\" style=\"height: px;\">\n</div>",
   "disabled": 0,
   "docstatus": 0,
   "doctype": "Letter Head",
@@ -70,7 +70,7 @@
  },
  {
   "align": "Left",
-  "content": "<div style=\"text-align: left;\">\n<img src=\"/files/letterhead_cameroon_baani.jpeg\" alt=\"Cameroon (Baani Minerals)\"\nheight=\"\" style=\"height: px;\">\n</div>",
+  "content": "<div style=\"text-align: left;\">\n<img src=\"/files/letterhead_cameroon_baani.jpeg\" alt=\"Cameroon (Baani Minerals)\" height=\"\" style=\"height: px;\">\n</div>",
   "disabled": 0,
   "docstatus": 0,
   "doctype": "Letter Head",
@@ -93,11 +93,11 @@
  },
  {
   "align": "Left",
-  "content": "<div style=\"text-align: left;\">\n<img src=\"/files/letterhead_sierra_leone.jpeg\" alt=\"Sierra Leone (Sarveksha SL Limited)\"\nheight=\"\" style=\"height: px;\">\n</div>",
+  "content": "<div style=\"text-align: left;\">\n<img src=\"/files/letterhead_sierra_leone.jpeg\" alt=\"Sierra Leone (Sarveksha SL Limited)\" height=\"\" style=\"height: px;\">\n</div>",
   "disabled": 0,
   "docstatus": 0,
   "doctype": "Letter Head",
-  "footer": "<div style=\"text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;\"><strong>Sarveksha SL Limited</strong><br>Mining, Mineral Processing, Mining Services, Mineral Trading, Public Works; General Trading; Construction & Civil & Erection Work | Reg No: SL120624SARVE22162 | TIN NO: 1001412648</div>",
+  "footer": "<div style=\"text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;\"><strong>Sarveksha SL Limited</strong><br>Mining, Mineral Processing, Mining Services, Mineral Trading, Public Works; General Trading; Construction &amp; Civil &amp; Erection Work | Reg No: SL120624SARVE22162 | TIN NO: 1001412648</div>",
   "footer_align": "Left",
   "footer_image": null,
   "footer_image_height": 0.0,
@@ -116,7 +116,7 @@
  },
  {
   "align": "Left",
-  "content": "<div style=\"text-align: left;\">\n<img src=\"/files/letterhead_guinea_bstp.jpeg\" alt=\"Guinea (Sarveksha BSTP SAS)\"\nheight=\"\" style=\"height: px;\">\n</div>",
+  "content": "<div style=\"text-align: left;\">\n<img src=\"/files/letterhead_guinea_bstp.jpeg\" alt=\"Guinea (Sarveksha BSTP SAS)\" height=\"\" style=\"height: px;\">\n</div>",
   "disabled": 0,
   "docstatus": 0,
   "doctype": "Letter Head",

@@ -17,6 +17,7 @@ class VendorPurchaseOrder(Document):
         if self.is_new() or not self.prepared_by:
             self.prepared_by = frappe.session.user or "Administrator"
 
+        self.validate_entity_policy()
         self.set_company_details()
         self.set_default_letter_head()
         self.set_default_terms()
@@ -25,6 +26,8 @@ class VendorPurchaseOrder(Document):
         self.validate_generator_edit_rights()
         self.validate_payment_permissions()
         self.validate_audit_comments_edit_rights()
+        self.validate_quotation_audit_integrity()
+        self.validate_quotation_governance()
         self.track_workflow_audit_trail()
         self.sanitize_text_fields()
         self.validate_non_negative_values()
@@ -33,6 +36,157 @@ class VendorPurchaseOrder(Document):
         self.validate_required_fields()
         self.validate_unique_ref_number()
         self.sync_payment_check_fields()
+
+    SRI_ENTITY_NAME = "Sarveksha Realty and Inframine LLP"
+
+    def validate_entity_policy(self):
+        """Enforce company/supplier separation for Internal POs and active suppliers for External POs."""
+        if not self.company or not self.vendor:
+            return
+
+        company_is_sri = self._is_sri_entity(self.company)
+        supplier_name = frappe.db.get_value("Supplier", self.vendor, "supplier_name") or self.vendor
+        supplier_is_sri = self._is_sri_entity(supplier_name)
+
+        if self.po_type == "Internal PO":
+            if not supplier_is_sri:
+                frappe.throw(
+                    _("Internal POs can be issued only to {0}.").format(self.SRI_ENTITY_NAME),
+                    frappe.ValidationError,
+                )
+            if company_is_sri:
+                frappe.throw(
+                    _("{0} cannot issue an Internal PO to itself. Select a child company.").format(
+                        self.SRI_ENTITY_NAME
+                    ),
+                    frappe.ValidationError,
+                )
+        elif self.po_type == "Vendor PO" and frappe.db.get_value("Supplier", self.vendor, "disabled"):
+            frappe.throw(_("External POs can be issued only to active, authorized suppliers."), frappe.ValidationError)
+
+    def get_attached_details(self):
+        """Returns a list of dicts describing attached documents categorized by label and filename."""
+        import os
+        attached = []
+        seen_urls = set()
+
+        labels = [
+            ("invoice_doc", "Invoice Document"),
+            ("shipping_bill", "Shipping Bill"),
+            ("bill_of_lading", "Bill of Lading"),
+            ("packing_list", "Packing List"),
+            ("commercial_invoice", "Commercial Invoice"),
+            ("certificate_of_origin", "Certificate of Origin"),
+            ("inspection_report", "Inspection Report"),
+            ("insurance_doc", "Insurance Document"),
+            ("cfa_doc", "CFA Document"),
+            ("quotation_comparison_sheet", "Quotation Comparison Sheet"),
+            ("attachments", "Supporting Document"),
+        ]
+
+        # 1. Known form fields
+        for fieldname, label in labels:
+            val = getattr(self, fieldname, None)
+            if val and isinstance(val, str) and val not in seen_urls:
+                fname = os.path.basename(val)
+                attached.append({
+                    "category": label,
+                    "filename": fname,
+                    "url": val,
+                })
+                seen_urls.add(val)
+
+        # 2. Child table vendor quotations
+        if hasattr(self, "quotations") and self.quotations:
+            for q in self.quotations:
+                q_pdf = getattr(q, "quotation_pdf", None)
+                if q_pdf and isinstance(q_pdf, str) and q_pdf not in seen_urls:
+                    fname = os.path.basename(q_pdf)
+                    supplier = getattr(q, "supplier", "") or "Vendor"
+                    attached.append({
+                        "category": f"Vendor Quotation ({supplier})",
+                        "filename": fname,
+                        "url": q_pdf,
+                    })
+                    seen_urls.add(q_pdf)
+
+        # 3. Sidebar attachments via File doctype
+        sidebar_files = frappe.get_all(
+            "File",
+            filters={
+                "attached_to_doctype": "Vendor Purchase Order",
+                "attached_to_name": self.name,
+            },
+            fields=["file_name", "file_url"],
+            order_by="creation asc",
+        )
+        for sf in sidebar_files:
+            if sf.file_url and sf.file_url not in seen_urls:
+                fname = sf.file_name or os.path.basename(sf.file_url)
+                attached.append({
+                    "category": "Attachment",
+                    "filename": fname,
+                    "url": sf.file_url,
+                })
+                seen_urls.add(sf.file_url)
+
+        return attached
+
+    @classmethod
+    def _is_sri_entity(cls, value):
+        return (value or "").strip().casefold() == cls.SRI_ENTITY_NAME.casefold()
+
+    def validate_quotation_governance(self):
+        """Require complete quotation evidence when an External PO leaves Draft or is submitted."""
+        if self.po_type != "Vendor PO" or not self._requires_quotation_evidence():
+            return
+
+        if not self.quotation_comparison_sheet:
+            frappe.throw(
+                _("Attach the Quotation Comparison Sheet before forwarding an External PO."),
+                frappe.ValidationError,
+            )
+        if len(self.quotations or []) < 3:
+            frappe.throw(
+                _("Add at least three distinct vendor quotations before forwarding an External PO."),
+                frappe.ValidationError,
+            )
+
+        suppliers = [row.supplier for row in self.quotations]
+        if len(set(suppliers)) != len(suppliers):
+            frappe.throw(_("Each quotation must be from a distinct supplier."), frappe.ValidationError)
+
+    def _requires_quotation_evidence(self):
+        previous = self.get_doc_before_save()
+        leaving_draft = previous and (previous.workflow_state or "Draft") == "Draft" \
+            and self.workflow_state == "Generated (Yet to be Verified)"
+        return bool(leaving_draft or self.docstatus == 1)
+
+    def validate_quotation_audit_integrity(self):
+        """Quotation evidence remains visible but immutable after the Draft stage."""
+        previous = self.get_doc_before_save()
+        if not previous or (previous.workflow_state or "Draft") == "Draft":
+            return
+
+        if (self.quotation_comparison_sheet or "") != (previous.quotation_comparison_sheet or ""):
+            frappe.throw(
+                _("Quotation records and the Comparison Sheet are read-only after the Draft stage."),
+                frappe.PermissionError,
+            )
+
+        prev_quotes = [
+            (q.get("supplier"), q.get("quotation_reference"), flt(q.get("quotation_amount")), q.get("quotation_pdf"))
+            for q in (previous.get("quotations") or [])
+        ]
+        curr_quotes = [
+            (q.get("supplier"), q.get("quotation_reference"), flt(q.get("quotation_amount")), q.get("quotation_pdf"))
+            for q in (self.get("quotations") or [])
+        ]
+        if prev_quotes != curr_quotes:
+            frappe.throw(
+                _("Quotation records and the Comparison Sheet are read-only after the Draft stage."),
+                frappe.PermissionError,
+            )
 
     def validate_unique_ref_number(self):
         """Enforces uniqueness of approved PO reference numbers."""
@@ -451,6 +605,13 @@ class VendorPurchaseOrder(Document):
 
         if flt(self.quantity) <= 0:
             frappe.throw(_("Quantity must be greater than zero."))
+
+        if hasattr(self, "items") and self.items:
+            for i, item in enumerate(self.items, 1):
+                if flt(item.rate) < 0:
+                    frappe.throw(_("Row #{0}: Unit Rate cannot be negative.").format(i))
+                if flt(item.quantity) <= 0:
+                    frappe.throw(_("Row #{0}: Quantity must be greater than zero.").format(i))
 
         if flt(self.discount_percent) < 0 or flt(self.discount_percent) > 100:
             frappe.throw(_("Discount % must be between 0 and 100."))
@@ -873,12 +1034,32 @@ def get_supplier_payment_details(supplier):
 
     tax_id, custom_pan, custom_bank_name, custom_account_number, custom_ifsc, payment_terms = db_vals
 
+    vendor_address_display = ""
+    vendor_address_name = frappe.db.get_value(
+        "Dynamic Link",
+        {"link_doctype": "Supplier", "link_name": supplier, "parenttype": "Address"},
+        "parent"
+    )
+    if vendor_address_name and frappe.db.exists("Address", vendor_address_name):
+        addr = frappe.get_doc("Address", vendor_address_name)
+        parts = []
+        if addr.address_line1: parts.append(addr.address_line1)
+        if addr.address_line2: parts.append(addr.address_line2)
+        city_pin = []
+        if addr.city: city_pin.append(addr.city)
+        if addr.pincode: city_pin.append(f"- {addr.pincode}")
+        if city_pin: parts.append(" ".join(city_pin))
+        if addr.state: parts.append(addr.state)
+        if addr.country: parts.append(addr.country)
+        vendor_address_display = ", ".join(parts)
+
     details = {
         "tax_id": tax_id or "",
         "custom_pan": custom_pan or "",
         "custom_bank_name": custom_bank_name or "",
         "custom_account_number": custom_account_number or "",
         "custom_ifsc": custom_ifsc or "",
+        "vendor_address": vendor_address_display,
         "payment_terms_template": payment_terms or "",
         "payment_terms_description": "",
         "advance_percentage": 0.0

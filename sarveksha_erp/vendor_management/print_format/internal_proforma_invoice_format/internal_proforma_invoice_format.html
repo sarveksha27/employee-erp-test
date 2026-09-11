@@ -1,0 +1,329 @@
+{% set seller_company = frappe.get_doc("Company", "Sarveksha Realty and Inframine LLP") if frappe.db.exists("Company", "Sarveksha Realty and Inframine LLP") else None %}
+{% set buyer_company = frappe.get_doc("Company", doc.company) if doc.company else None %}
+{% set vendor = frappe.get_doc("Supplier", doc.vendor) if doc.vendor else None %}
+
+{# ── AUTO-SELECT LETTERHEAD ── #}
+{% if doc.letter_head and frappe.db.exists("Letter Head", doc.letter_head) %}
+  {% set lh_doc = frappe.get_doc("Letter Head", doc.letter_head) %}
+{% elif seller_company and seller_company.default_letter_head and frappe.db.exists("Letter Head", seller_company.default_letter_head) %}
+  {% set lh_doc = frappe.get_doc("Letter Head", seller_company.default_letter_head) %}
+{% else %}
+  {% set _lh_name = frappe.db.get_value("Letter Head", {"disabled": 0, "is_default": 1}, "name") %}
+  {% if _lh_name %}
+    {% set lh_doc = frappe.get_doc("Letter Head", _lh_name) %}
+  {% else %}
+    {% set lh_doc = None %}
+  {% endif %}
+{% endif %}
+{% set letterhead_img = lh_doc.image if (lh_doc and lh_doc.image) else "" %}
+
+<style>
+  @page {
+    size: A4;
+    margin: 10mm 12mm 15mm 12mm !important;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 11px !important;
+    color: #000 !important;
+    line-height: 1.4 !important;
+    background: #ffffff !important;
+  }
+
+  p { margin: 6px 0; }
+
+  .letter-head, .print-heading, .letter-head-footer {
+    display: none !important;
+  }
+
+  .po-print-wrapper {
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .lh-header-crop {
+    width: 100%;
+    height: 145px;
+    overflow: hidden;
+    margin-bottom: 15px;
+  }
+
+  .lh-header-crop img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  table.fixed {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+    word-wrap: break-word;
+  }
+
+  table.fixed th, table.fixed td {
+    border: 1px solid #000 !important;
+    padding: 5px 7px !important;
+    vertical-align: top !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 11px !important;
+    color: #000 !important;
+  }
+
+  table.fixed thead th {
+    background: #f0f0f0 !important;
+    font-weight: bold !important;
+    text-align: left;
+  }
+
+  table.fixed .right { text-align: right; }
+  table.fixed .center { text-align: center; }
+
+  .lbl { font-weight: bold !important; }
+
+  .section-head {
+    background: #f0f0f0 !important;
+    font-weight: bold !important;
+    padding: 5px 8px !important;
+    border: 1px solid #000 !important;
+    border-bottom: none !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  tr { page-break-inside: avoid !important; }
+
+  .footer-text {
+    text-align: center;
+    font-size: 9px;
+    color: #333;
+    margin-top: 25px;
+    border-top: 1px solid #ccc;
+    padding-top: 6px;
+    font-family: Arial, Helvetica, sans-serif !important;
+  }
+</style>
+
+<div class="po-print-wrapper">
+
+  <!-- ── LETTERHEAD BANNER ── -->
+  {% if letterhead_img %}
+  <div class="lh-header-crop">
+    <img src="{{ frappe.utils.get_url() + letterhead_img }}" alt="Letter Head">
+  </div>
+  {% endif %}
+
+  <!-- ── TITLE ── -->
+  <p style="text-align:center; font-size:16px; font-weight:bold; text-decoration:underline; margin:0 0 12px 0; letter-spacing:1.5px;">
+    PROFORMA INVOICE
+  </p>
+
+  <!-- ── SELLER (LEFT) vs BUYER & META (RIGHT) ── -->
+  <table class="fixed" style="margin-bottom:12px;">
+    <colgroup>
+      <col style="width:50%">
+      <col style="width:50%">
+    </colgroup>
+    <thead>
+      <tr>
+        <th style="background:#e8ecef !important;">SELLER (Parent Entity)</th>
+        <th style="background:#e8ecef !important;">BUYER (Ordering Entity) &amp; PI Ref</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="vertical-align:top;">
+          <span class="lbl" style="font-size:12px;">Sarveksha Realty and Inframine LLP</span><br>
+          {% if seller_company and seller_company.registration_details %}
+            {{ seller_company.registration_details }}<br>
+          {% else %}
+            Registered Office: Sarveksha Tower, Corporate Hub, India<br>
+          {% endif %}
+          <br>
+          <span class="lbl">GSTIN:</span> {{ (seller_company and seller_company.tax_id) or doc.vendor_gstin or "27AAAFS2557J1ZB" }}<br>
+          <span class="lbl">PAN:</span> {{ doc.vendor_pan or "AAAFS2557J" }}<br>
+          <span class="lbl">IEC Code:</span> {{ (seller_company and seller_company.custom_import_export_code) or "AFTFS2557J" }}
+        </td>
+        <td style="vertical-align:top;">
+          <span class="lbl" style="font-size:12px;">{{ buyer_company.company_name if buyer_company else doc.company }}</span><br>
+          {% if doc.company_address %}
+            {{ doc.company_address | replace("\n", "<br>") }}<br>
+          {% endif %}
+          {% if doc.company_gstin %}<span class="lbl">GSTIN:</span> {{ doc.company_gstin }}<br>{% endif %}
+          {% if doc.company_pan %}<span class="lbl">PAN:</span> {{ doc.company_pan }}<br>{% endif %}
+          <hr style="border:0; border-top:1px solid #ccc; margin:6px 0;">
+          <span class="lbl">PI / Ref No.:</span> {{ doc.pi_number or doc.ref_number or doc.name }}<br>
+          <span class="lbl">Date:</span> {{ doc.get_formatted("po_date") }}<br>
+          <span class="lbl">Currency:</span> {{ doc.currency }} (Rate: {{ doc.exchange_rate or 1 }})
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── LINE ITEMS TABLE ── -->
+  <table class="fixed" style="margin-bottom:12px;">
+    <colgroup>
+      <col style="width:5%">
+      <col style="width:30%">
+      <col style="width:10%">
+      <col style="width:10%">
+      <col style="width:6%">
+      <col style="width:6%">
+      <col style="width:16%">
+      <col style="width:17%">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="center">S.No</th>
+        <th>Particulars / Equipment</th>
+        <th class="center">HSN Code</th>
+        <th class="center">Brand</th>
+        <th class="center">UOM</th>
+        <th class="center">Qty</th>
+        <th class="right">Rate ({{ doc.currency }})</th>
+        <th class="right">Taxable Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if doc.items and doc.items|length > 0 %}
+        {% for item in doc.items %}
+        <tr>
+          <td class="center" style="border-top:none !important;">{{ loop.index }}</td>
+          <td style="border-top:none !important;">
+            <strong>{{ item.equipment_name or item.equipment or "—" }}</strong><br>
+            {% if item.brand %}Brand: {{ item.brand }} | {% endif %}
+            {% if item.manufacturer %}Mfr: {{ item.manufacturer }}<br>{% endif %}
+            {% if item.specification %}<span style="font-size:10px;">{{ item.specification }}</span>{% endif %}
+          </td>
+          <td class="center" style="border-top:none !important;">{{ item.hsn_code or "—" }}</td>
+          <td class="center" style="border-top:none !important;">{{ item.brand or "—" }}</td>
+          <td class="center" style="border-top:none !important;">{{ item.unit or "Nos" }}</td>
+          <td class="center" style="border-top:none !important;">{{ item.quantity }}</td>
+          <td class="right" style="border-top:none !important;">{{ doc.currency }} {{ frappe.utils.fmt_money(item.rate, currency=doc.currency) }}</td>
+          <td class="right" style="border-top:none !important;">{{ doc.currency }} {{ frappe.utils.fmt_money(item.taxable_amount, currency=doc.currency) }}</td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td class="center" style="border-top:none !important;">1</td>
+          <td style="border-top:none !important;">
+            <strong>{{ doc.equipment_name or doc.equipment or "—" }}</strong><br>
+            {% if doc.manufacturer %}Mfr: {{ doc.manufacturer }}<br>{% endif %}
+            {% if doc.specification %}<span style="font-size:10px;">{{ doc.specification }}</span>{% endif %}
+          </td>
+          <td class="center" style="border-top:none !important;">{{ doc.hsn_code or "—" }}</td>
+          <td class="center" style="border-top:none !important;">{{ doc.brand or "—" }}</td>
+          <td class="center" style="border-top:none !important;">{{ doc.unit or "Nos" }}</td>
+          <td class="center" style="border-top:none !important;">{{ doc.quantity }}</td>
+          <td class="right" style="border-top:none !important;">{{ doc.get_formatted("rate") }}</td>
+          <td class="right" style="border-top:none !important;">{{ doc.get_formatted("taxable_value") }}</td>
+        </tr>
+      {% endif %}
+
+      <!-- Logistics breakdown -->
+      {% if doc.logistics_cost and doc.logistics_cost > 0 %}
+      <tr>
+        <td colspan="7" class="right" style="border-top:none !important;">Total Logistics &amp; Transport Expenses</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("logistics_cost") }}</td>
+      </tr>
+      {% endif %}
+
+      <!-- Internal Margin Row -->
+      {% if doc.internal_margin_amount and doc.internal_margin_amount > 0 %}
+      <tr>
+        <td colspan="7" class="right lbl" style="border-top:none !important; background:#fdfdfe !important;">
+          Internal Margin @ {{ doc.internal_margin_percentage or 5 }}% (Mark-up)
+        </td>
+        <td class="right lbl" style="border-top:none !important; background:#fdfdfe !important;">
+          {{ doc.get_formatted("internal_margin_amount") }}
+        </td>
+      </tr>
+      {% endif %}
+
+      <!-- Tax Rows -->
+      {% if doc.gst_type == "CGST + SGST" %}
+      <tr>
+        <td colspan="7" class="right lbl" style="border-top:none !important;">CGST @ {{ doc.gst_percentage / 2 }}%</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("cgst_amount") }}</td>
+      </tr>
+      <tr>
+        <td colspan="7" class="right lbl" style="border-top:none !important;">SGST @ {{ doc.gst_percentage / 2 }}%</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("sgst_amount") }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="right lbl" style="border-top:none !important;">IGST @ {{ doc.gst_percentage }}%</td>
+        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("igst_amount") }}</td>
+      </tr>
+      {% endif %}
+
+      <!-- Totals -->
+      <tr>
+        <td colspan="7" class="right lbl" style="border-top:none !important; background:#f0f0f0 !important;">GRAND TOTAL PAYABLE (PROFORMA)</td>
+        <td class="right lbl" style="border-top:none !important; background:#f0f0f0 !important;">{{ doc.get_formatted("grand_total") }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── BANK & PAYMENT INSTRUCTIONS ── -->
+  <div class="section-head">SELLER BANK &amp; REMITTANCE DETAILS</div>
+  <table class="fixed" style="margin-bottom:12px;">
+    <colgroup>
+      <col style="width:25%">
+      <col style="width:25%">
+      <col style="width:25%">
+      <col style="width:25%">
+    </colgroup>
+    <tbody>
+      <tr>
+        <td class="lbl">Bank Name:</td>
+        <td>{{ doc.vendor_bank_name or "HDFC Bank Ltd." }}</td>
+        <td class="lbl">Account Number:</td>
+        <td>{{ doc.vendor_account_number or "50200012345678" }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">IFSC Code:</td>
+        <td>{{ doc.vendor_ifsc or "HDFC0001234" }}</td>
+        <td class="lbl">Branch:</td>
+        <td>Corporate Branch, Mumbai</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── SIGNATURES ── -->
+  <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin-top:30px; margin-bottom:15px; table-layout:fixed;">
+    <colgroup>
+      <col style="width:33%">
+      <col style="width:34%">
+      <col style="width:33%">
+    </colgroup>
+    <tr>
+      <td style="text-align:center; border-top:1px solid #000 !important; padding-top:6px; border-left:none !important; border-right:none !important; border-bottom:none !important;">
+        <strong>Prepared By</strong><br>
+        <span style="font-size:10px; color:#555;">{{ doc.prepared_by or "—" }}</span>
+      </td>
+      <td style="text-align:center; border-top:1px solid #000 !important; padding-top:6px; border-left:none !important; border-right:none !important; border-bottom:none !important;">
+        <strong>Verified By</strong><br>
+        <span style="font-size:10px; color:#555;">{{ doc.verified_by or "—" }}</span>
+      </td>
+      <td style="text-align:center; border-top:1px solid #000 !important; padding-top:6px; border-left:none !important; border-right:none !important; border-bottom:none !important;">
+        <strong>Authorized Signatory</strong><br>
+        <span style="font-size:10px; color:#555;">For Sarveksha Realty and Inframine LLP</span>
+      </td>
+    </tr>
+  </table>
+
+  {% if lh_doc and lh_doc.footer %}
+  <div class="footer-text">
+    {{ lh_doc.footer }}
+  </div>
+  {% endif %}
+
+</div>

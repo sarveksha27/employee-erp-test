@@ -28,8 +28,13 @@ frappe.ui.form.on('Vendor Purchase Order', {
         frm.toggle_display('status', false);
         frm.toggle_display('workflow_state', false);
 
+        // Always lock PO Type so selection cannot be changed during drafting or editing
+        frm.set_df_property('po_type', 'read_only', 1);
+
         // Render custom buttons based on workflow state & user roles
         const state = frm.doc.workflow_state || 'Draft';
+        set_quotation_governance_access(frm, state);
+        set_entity_policy_filters(frm);
         const user_roles = frappe.user_roles;
         const is_manager = user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
 
@@ -125,11 +130,19 @@ frappe.ui.form.on('Vendor Purchase Order', {
         const is_approved = (frm.doc.workflow_state === 'Approved' || frm.doc.docstatus === 1);
         const can_print = is_approved && (user_roles.includes('PO Generator') || is_manager);
 
+        const open_compiled_pdf = function() {
+            const pdf_url = frappe.urllib.get_full_url(
+                `/api/method/frappe.utils.print_format.download_pdf?doctype=Vendor%20Purchase%20Order&name=${encodeURIComponent(frm.doc.name)}`
+            );
+            window.open(pdf_url, '_blank');
+        };
+
         if (can_print) {
-            frm.add_custom_button(__('Print PO'), function() {
-                frappe.set_route('print', 'Vendor Purchase Order', frm.doc.name);
-            });
+            frm.add_custom_button(__('Print PO'), open_compiled_pdf);
             frm.change_custom_button_type(__('Print PO'), null, 'primary');
+
+            // Intercept standard Frappe print actions
+            frm.print_doc = open_compiled_pdf;
         }
 
         if (!can_print) {
@@ -142,6 +155,21 @@ frappe.ui.form.on('Vendor Purchase Order', {
             frm.page.show_menu_item(__('PDF'));
             if (frm.page.btn_print) frm.page.btn_print.show();
             if (frm.page.set_print_btn_display) frm.page.set_print_btn_display(true);
+
+            setTimeout(() => {
+                if (frm.page) {
+                    frm.page.menu.find('[data-label="Print"]').off('click').on('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        open_compiled_pdf();
+                    });
+                    frm.page.menu.find('[data-label="PDF"]').off('click').on('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        open_compiled_pdf();
+                    });
+                }
+            }, 300);
         }
 
         // Hide "+ New" button for Verifiers/Approvers in Form View
@@ -238,9 +266,31 @@ frappe.ui.form.on('Vendor Purchase Order', {
         });
     },
 
+    // ─── ON FORM LOAD / INITIALIZATION ───────────────────────
+    onload: function(frm) {
+        if (frm.is_new()) {
+            let po_category = frappe.route_options && (frappe.route_options.po_category || frappe.route_options.po_type);
+            if (!po_category && window.location.search) {
+                let params = new URLSearchParams(window.location.search);
+                po_category = params.get('po_category') || params.get('po_type');
+            }
+            if (po_category) {
+                if (po_category.includes('Internal')) {
+                    frm.set_value('po_type', 'Internal PO');
+                    frm.set_value('vendor', 'Sarveksha Realty and Inframine LLP');
+                } else if (po_category.includes('External') || po_category.includes('Vendor')) {
+                    frm.set_value('po_type', 'Vendor PO');
+                }
+            }
+        }
+    },
+
     // ─── VENDOR TRIGGER ───────────────────────────────────────
     vendor: function(frm) {
-        if (!frm.doc.vendor) return;
+        if (!frm.doc.vendor) {
+            frm.set_value('vendor_address', '');
+            return;
+        }
 
         frappe.call({
             method: 'sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.get_supplier_payment_details',
@@ -253,6 +303,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
                     if (data.custom_bank_name) frm.set_value('vendor_bank_name', data.custom_bank_name);
                     if (data.custom_account_number) frm.set_value('vendor_account_number', data.custom_account_number);
                     if (data.custom_ifsc) frm.set_value('vendor_ifsc', data.custom_ifsc);
+                    if (data.vendor_address !== undefined) frm.set_value('vendor_address', data.vendor_address);
 
                     frm._vendor_gstin = data.tax_id || '';
 
@@ -290,6 +341,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
     },
 
     po_type: function(frm) {
+        set_entity_policy_filters(frm);
         // Recalculate whenever PO Type changes (External vs Internal)
         // This shows/hides margin fields and updates grand total
         calculate_gst_and_totals(frm);
@@ -813,3 +865,31 @@ function export_history_to_excel(po_name, data) {
     }
 }
 
+
+
+function set_quotation_governance_access(frm, state) {
+    const is_locked = !frm.is_new() && state !== 'Draft';
+    ['quotations', 'quotation_comparison_sheet'].forEach(fieldname => {
+        frm.set_df_property(fieldname, 'read_only', is_locked ? 1 : 0);
+    });
+
+    const quotation_grid = frm.get_field('quotations') && frm.get_field('quotations').grid;
+    if (quotation_grid) {
+        quotation_grid.cannot_add_rows = is_locked;
+        quotation_grid.cannot_delete_rows = is_locked;
+        quotation_grid.refresh();
+    }
+}
+
+
+function set_entity_policy_filters(frm) {
+    const sri_entity = 'Sarveksha Realty and Inframine LLP';
+    if (frm.doc.po_type === 'Internal PO') {
+        frm.set_query('vendor', () => ({ filters: { supplier_name: sri_entity, disabled: 0 } }));
+        frm.set_query('company', () => ({ filters: [['name', '!=', sri_entity]] }));
+        return;
+    }
+
+    frm.set_query('vendor', () => ({ filters: { disabled: 0 } }));
+    frm.set_query('company', () => ({}));
+}

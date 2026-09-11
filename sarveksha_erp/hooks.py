@@ -237,10 +237,10 @@ permission_query_conditions = {
 
 # Overriding Methods
 # ------------------------------
-#
-# override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "sarveksha_erp.event.get_events"
-# }
+
+override_whitelisted_methods = {
+	"frappe.utils.print_format.download_pdf": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.pdf_handler.download_pdf"
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
