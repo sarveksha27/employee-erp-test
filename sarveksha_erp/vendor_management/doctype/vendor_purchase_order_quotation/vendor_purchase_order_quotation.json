@@ -43,9 +43,11 @@
    "reqd": 1
   },
   {
+   "columns": 2,
    "fieldname": "quotation_pdf",
    "fieldtype": "Attach",
-   "label": "Quotation PDF",
+   "in_list_view": 1,
+   "label": "Upload Quotation File",
    "reqd": 1
   }
  ],

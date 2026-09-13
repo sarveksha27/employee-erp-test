@@ -1,6 +1,18 @@
 # 📦 Sarveksha ERP — Vendor Purchase Order (VPO) & Equipment Module
 
-This repository contains the stabilized, secure, and audited **Vendor Purchase Order (VPO)** module and **Equipment Management** module for **Sarveksha ERP**. The system automates dynamic company address/letterhead fetching, enforces strict role-based document locking, overrides standard printing mechanisms, drives an approval workflow using high-visibility action buttons, and maintains a structured audit trail visible on the Frappe desk.
+This repository contains the stabilized, secure, and audited **Vendor Purchase Order (VPO)** module, **Proforma Invoice (PI)** module, and **Equipment Management** module for **Sarveksha ERP**. The system automates dynamic company address/letterhead fetching, enforces strict role-based document locking, overrides standard printing mechanisms, drives an approval workflow using high-visibility action buttons, and maintains a structured audit trail visible on the Frappe desk.
+
+---
+
+## 📚 Complete Project Documentation Hub
+
+Detailed documentation has been organized under the [`docs/`](file:///home/umeshraj/erp/frappe-bench/apps/sarveksha_erp/docs/) directory:
+
+1. **[Technical Architecture & Engineering Guide](file:///home/umeshraj/erp/frappe-bench/apps/sarveksha_erp/docs/TECHNICAL_OVERVIEW.md)**: Deep-dive into backend architecture, DocType hierarchy, database schemas, RBAC security guards, PDF normalization engine, and RPC endpoints.
+2. **[End-User Manual & Business Field Guide](file:///home/umeshraj/erp/frappe-bench/apps/sarveksha_erp/docs/USER_GUIDE.md)**: Comprehensive, non-technical manual for operations, finance, and procurement staff explaining every single field, button, and business rule.
+3. **[Chronological Timeline & AI Context](file:///home/umeshraj/erp/frappe-bench/apps/sarveksha_erp/docs/TIMELINE_AND_AI_CONTEXT.md)**: Historical git progression, architectural rationales, codebase invariants, and essential gotchas for incoming AI agents and developers.
+4. **[Future Suggestions & Roadmap](file:///home/umeshraj/erp/frappe-bench/apps/sarveksha_erp/docs/SUGGESTIONS.md)**: Actionable recommendations covering milestone-based payments, quote OCR, live vessel tracking, and mobile push approvals.
+5. **[Requirements & Gap Analysis](file:///home/umeshraj/erp/frappe-bench/apps/sarveksha_erp/docs/REQUIREMENTS_AND_GAPS.md)**: Audit of missing corporate letterhead graphics, port master coverage, SMTP configuration, and digital signature stamps.
 
 ---
 

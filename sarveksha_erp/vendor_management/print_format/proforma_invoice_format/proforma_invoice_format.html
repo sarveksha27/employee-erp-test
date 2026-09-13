@@ -1,0 +1,376 @@
+{% set sri_company = frappe.get_doc("Company", "Sarveksha Realty and Inframine LLP") if frappe.db.exists("Company", "Sarveksha Realty and Inframine LLP") else None %}
+{% set buyer_company = frappe.get_doc("Company", doc.buyer) if doc.buyer and frappe.db.exists("Company", doc.buyer) else None %}
+
+{# ── LETTERHEAD BANNER (SRI Letterhead) ── #}
+{% set lh_name = "India (Sarveksha Realty)" %}
+{% if not frappe.db.exists("Letter Head", lh_name) %}
+  {% set lh_name = frappe.db.get_value("Letter Head", {"disabled": 0, "is_default": 1}, "name") %}
+{% endif %}
+{% set lh_doc = frappe.get_doc("Letter Head", lh_name) if lh_name and frappe.db.exists("Letter Head", lh_name) else None %}
+{% set letterhead_img = lh_doc.image if (lh_doc and lh_doc.image) else "/files/letterhead_sri_india.png" %}
+
+<style>
+  @page {
+    size: A4 portrait;
+    width: 210mm;
+    height: 297mm;
+    margin-top: 48mm !important;
+    margin-bottom: 20mm !important;
+    margin-left: 14mm !important;
+    margin-right: 14mm !important;
+  }
+
+  * { box-sizing: border-box; }
+
+  /* ── 100% TRANSPARENT - ZERO WHITE BG ANYWHERE ── */
+  html,
+  body,
+  .print-format-gutter,
+  .page-break,
+  .pi-wrapper {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 9.5px !important;
+    color: #000 !important;
+    line-height: 1.3 !important;
+  }
+
+  .print-format {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin-top: 48mm !important;
+    margin-bottom: 20mm !important;
+    margin-left: 14mm !important;
+    margin-right: 14mm !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 9.5px !important;
+    color: #000 !important;
+    line-height: 1.3 !important;
+  }
+
+  @media screen {
+    .print-format-gutter {
+      background-color: transparent !important;
+      padding: 0 !important;
+    }
+    .print-format {
+      background-color: transparent !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      padding: 0 !important;
+      margin-top: 48mm !important;
+      margin-bottom: 20mm !important;
+      margin-left: 14mm !important;
+      margin-right: 14mm !important;
+      max-width: 100% !important;
+      min-height: auto !important;
+    }
+  }
+
+  p { margin: 3px 0; }
+
+  .letter-head, .print-heading, .letter-head-footer {
+    display: none !important;
+  }
+
+  .pi-wrapper {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  table.fixed {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    margin-bottom: 6px;
+    word-wrap: break-word;
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  table.fixed th, table.fixed td {
+    border: 1px solid #000 !important;
+    padding: 3.5px 5px !important;
+    vertical-align: top !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 9.5px !important;
+    color: #000 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  table.fixed thead th {
+    background: transparent !important;
+    background-color: transparent !important;
+    font-weight: bold !important;
+    text-align: left;
+  }
+
+  table.fixed .right { text-align: right; }
+  table.fixed .center { text-align: center; }
+
+  .lbl { font-weight: bold !important; }
+
+  .section-head {
+    background: transparent !important;
+    background-color: transparent !important;
+    font-weight: bold !important;
+    padding: 3px 6px !important;
+    border: 1px solid #000 !important;
+    border-bottom: none !important;
+    font-size: 9.5px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  tr { page-break-inside: avoid !important; }
+
+  .footer-text {
+    text-align: center;
+    font-size: 8.5px;
+    color: #333;
+    font-family: Arial, Helvetica, sans-serif !important;
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+</style>
+
+<div class="pi-wrapper">
+
+  <!-- ── TITLE ── -->
+  <p style="text-align:center; font-size:13px; font-weight:bold; text-decoration:underline; margin:0 0 6px 0; letter-spacing:1px;">
+    PROFORMA INVOICE
+  </p>
+
+  <!-- ── SHIPPER (LEFT) & CONSIGNEE / META (RIGHT) ── -->
+  <table class="fixed" style="margin-bottom:6px;">
+    <colgroup>
+      <col style="width:50%">
+      <col style="width:50%">
+    </colgroup>
+    <thead>
+      <tr>
+        <th style="background:transparent !important;">Shipper (Seller)</th>
+        <th style="background:transparent !important;">Consignee (Buyer) &amp; Reference</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="vertical-align:top;">
+          <span class="lbl" style="font-size:10.5px;">Sarveksha Realty and Inframine LLP</span><br>
+          No 303, Sparsh CHS, Plot no 101,102<br>
+          Sect 44, Sea woods, Nerul<br>
+          Navi Mumbai: 400706, Maharashtra, India<br>
+          <span class="lbl">Phone:</span> (+91) 9769008220<br>
+          <span class="lbl">Email:</span> svbstp@gmail.com, sudheerg@sarveksha.com<br>
+          <br>
+          <span class="lbl">GSTIN:</span> {{ doc.seller_gstin or "27AAAFS2557J1ZB" }}<br>
+          <span class="lbl">PAN:</span> {{ doc.seller_pan or "AAAFS2557J" }} | <span class="lbl">IEC:</span> {{ doc.seller_iec or "AFTFS2557J" }}
+        </td>
+        <td style="vertical-align:top;">
+          <span class="lbl" style="font-size:10.5px;">{{ buyer_company.company_name if buyer_company else doc.buyer }}</span><br>
+          {% if doc.buyer_address %}
+            {{ doc.buyer_address | replace("\n", "<br>") }}<br>
+          {% endif %}
+          <hr style="border:0; border-top:1px solid #ccc; margin:3px 0;">
+          <span class="lbl">Proforma Invoice No.:-</span> {{ doc.pi_number or doc.name }}<br>
+          <span class="lbl">Date:-</span> {{ doc.get_formatted("pi_date") }}<br>
+          <span class="lbl">Purchase Order number {{ doc.po_reference_no or doc.internal_po }} for Reference</span><br>
+          <span class="lbl">Currency:</span> {{ doc.currency or "USD" }}
+        </td>
+      </tr>
+      <tr>
+        <td style="vertical-align:top;">
+          <span class="lbl">Notify Party:-</span><br>
+          {{ (doc.notify_party or "Globe Multitrade & Service LLC\nOffice No. 112, AL Jabri Building,\nIndustrial Area, Sharjah (UAE)") | replace("\n", "<br>") }}
+        </td>
+        <td style="vertical-align:top;">
+          <span class="lbl">Port of Loading:</span> {{ doc.port_of_loading or "Mundra" }}<br>
+          <span class="lbl">Port of Discharge:</span> {{ doc.port_of_discharge or "Durban" }}<br>
+          <span class="lbl">Final Destination:</span> {{ doc.final_destination or "Sierra Leone" }}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── LINE ITEMS TABLE ── -->
+  <table class="fixed" style="margin-bottom:6px;">
+    <colgroup>
+      <col style="width:5%">
+      <col style="width:36%">
+      <col style="width:12%">
+      <col style="width:12%">
+      <col style="width:7%">
+      <col style="width:6%">
+      <col style="width:11%">
+      <col style="width:11%">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="center">S.No</th>
+        <th>Item Description / Particulars</th>
+        <th class="center">Make / Model</th>
+        <th class="center">HSN Code</th>
+        <th class="center">UOM</th>
+        <th class="center">Qty</th>
+        <th class="right">Rate ({{ doc.currency }})</th>
+        <th class="right">Amount ({{ doc.currency }})</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if doc.items and doc.items|length > 0 %}
+        {% for item in doc.items %}
+        <tr>
+          <td class="center" style="border-top:none !important;">{{ loop.index }}</td>
+          <td style="border-top:none !important;">
+            <strong>{{ item.item_description or item.equipment or "—" }}</strong>
+          </td>
+          <td class="center" style="border-top:none !important;">{{ item.make_model or "—" }}</td>
+          <td class="center" style="border-top:none !important;">{{ item.hsn_code or "—" }}</td>
+          <td class="center" style="border-top:none !important;">{{ item.unit or "Nos" }}</td>
+          <td class="center" style="border-top:none !important;">{{ item.quantity }}</td>
+          <td class="right" style="border-top:none !important;">{{ frappe.utils.fmt_money(item.base_rate, currency=doc.currency) }}</td>
+          <td class="right" style="border-top:none !important;">{{ frappe.utils.fmt_money(item.amount, currency=doc.currency) }}</td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="8" class="center">No items listed.</td>
+        </tr>
+      {% endif %}
+
+      <!-- Subtotal Items Base -->
+      <tr>
+        <td colspan="7" class="right lbl" style="border-top:none !important; background:transparent !important;">Base Goods Total</td>
+        <td class="right lbl" style="border-top:none !important; background:transparent !important;">{{ doc.get_formatted("total_item_amount") }}</td>
+      </tr>
+
+      <!-- Logistics Breakdown -->
+      {% if doc.total_logistics and doc.total_logistics > 0 %}
+        {% if doc.freight and doc.freight > 0 %}
+        <tr>
+          <td colspan="7" class="right" style="border-top:none !important;">Freight Charges</td>
+          <td class="right" style="border-top:none !important;">{{ doc.get_formatted("freight") }}</td>
+        </tr>
+        {% endif %}
+        {% if doc.insurance and doc.insurance > 0 %}
+        <tr>
+          <td colspan="7" class="right" style="border-top:none !important;">Insurance Charges</td>
+          <td class="right" style="border-top:none !important;">{{ doc.get_formatted("insurance") }}</td>
+        </tr>
+        {% endif %}
+        {% if doc.packing_charges and doc.packing_charges > 0 %}
+        <tr>
+          <td colspan="7" class="right" style="border-top:none !important;">Packing &amp; Forwarding</td>
+          <td class="right" style="border-top:none !important;">{{ doc.get_formatted("packing_charges") }}</td>
+        </tr>
+        {% endif %}
+        {% if doc.other_charges and doc.other_charges > 0 %}
+        <tr>
+          <td colspan="7" class="right" style="border-top:none !important;">Other Logistics Charges</td>
+          <td class="right" style="border-top:none !important;">{{ doc.get_formatted("other_charges") }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td colspan="7" class="right lbl" style="border-top:none !important; background:transparent !important;">Total Logistics &amp; Transport</td>
+          <td class="right lbl" style="border-top:none !important; background:transparent !important;">{{ doc.get_formatted("total_logistics") }}</td>
+        </tr>
+      {% endif %}
+
+      <!-- SRI Margin Row (5% - 30%) -->
+      {% if doc.margin_amount and doc.margin_amount > 0 %}
+      <tr>
+        <td colspan="7" class="right lbl" style="border-top:none !important; background:transparent !important;">
+          SRI Mark-up / Margin @ {{ doc.margin_percentage or 5 }}%
+        </td>
+        <td class="right lbl" style="border-top:none !important; background:transparent !important;">
+          {{ doc.get_formatted("margin_amount") }}
+        </td>
+      </tr>
+      {% endif %}
+
+      <!-- Grand Total -->
+      <tr>
+        <td colspan="7" class="right lbl" style="border-top:none !important; background:transparent !important; font-size:10.5px;">TOTAL AMOUNT PAYABLE</td>
+        <td class="right lbl" style="border-top:none !important; background:transparent !important; font-size:10.5px;">{{ doc.get_formatted("grand_total") }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── AMOUNT IN WORDS ── -->
+  {% if doc.amount_in_words %}
+  <p style="margin:4px 0 6px 0; font-size:9.5px;">
+    <strong>Amount in Words :</strong> {{ doc.amount_in_words }}
+  </p>
+  {% endif %}
+
+  <!-- ── BANK & REMITTANCE DETAILS (SRI) ── -->
+  <div class="section-head">Bank Details:</div>
+  <table class="fixed" style="margin-bottom:6px;">
+    <colgroup>
+      <col style="width:28%">
+      <col style="width:72%">
+    </colgroup>
+    <tbody>
+      <tr>
+        <td class="lbl">Beneficiary Acc Name:</td>
+        <td>{{ doc.beneficiary_name or "SARVEKSHA REALTY AND INFRAMINE LLP" }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Beneficiary Ac Number:</td>
+        <td>{{ doc.beneficiary_acc_no or "409002556124" }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Beneficiary Bank Name:</td>
+        <td>{{ doc.beneficiary_bank or "RBL Bank Ltd" }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Beneficiary Bank SWIFT:</td>
+        <td>{{ doc.beneficiary_swift or "RATNINBBXXX" }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Correspondent Bank / Nostro Bank:</td>
+        <td>{{ doc.nostro_bank or "STANDARD CHARTERED BANK" }}</td>
+      </tr>
+      <tr>
+        <td class="lbl">Nostro SWIFT Code:</td>
+        <td>{{ doc.nostro_swift or "SCBLUS33XXX" }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── SIGNATURES & CLOSING ── -->
+  <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin-top:10px; margin-bottom:4px; table-layout:fixed; background:transparent !important;">
+    <colgroup>
+      <col style="width:50%">
+      <col style="width:50%">
+    </colgroup>
+    <tr style="background:transparent !important;">
+      <td style="vertical-align:bottom; padding-bottom:4px; border:none !important; background:transparent !important;">
+        <span style="font-size:9.5px;">Prepared By: <strong>{{ doc.prepared_by or "Administrator" }}</strong></span>
+      </td>
+      <td style="text-align:right; vertical-align:bottom; padding-bottom:4px; border:none !important; background:transparent !important;">
+        <span style="font-size:9.5px;">Yours Faithfully</span><br>
+        <strong style="font-size:10px;">For SARVEKSHA REALTY &amp; INFRAMINE LLP</strong><br><br>
+        <span style="border-top:1px solid #000; padding-top:2px; display:inline-block; min-width:160px; text-align:center; font-size:9.5px;">
+          Authorized Signatory
+        </span>
+      </td>
+    </tr>
+  </table>
+
+</div>

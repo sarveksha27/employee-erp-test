@@ -36,7 +36,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
         set_quotation_governance_access(frm, state);
         set_entity_policy_filters(frm);
         const user_roles = frappe.user_roles;
-        const is_manager = user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
+        const is_admin = user_roles.includes('System Manager') || user_roles.includes('Administrator');
 
         // Helper function to apply workflow action
         const apply_action = function(action_name) {
@@ -70,14 +70,14 @@ frappe.ui.form.on('Vendor Purchase Order', {
         frm.clear_custom_buttons();
 
         if (frm.doc.docstatus === 0) {
-            if (state === 'Draft' && (user_roles.includes('PO Generator') || is_manager)) {
+            if (state === 'Draft' && (user_roles.includes('PO Generator') || is_admin)) {
                 frm.add_custom_button(__('Send Forward'), function() {
                     apply_action('Generate PO');
                 });
                 frm.change_custom_button_type(__('Send Forward'), null, 'primary');
             }
 
-            else if (state === 'Generated (Yet to be Verified)' && (user_roles.includes('PO Verifier') || is_manager)) {
+            else if (state === 'Generated (Yet to be Verified)' && (user_roles.includes('PO Verifier') || is_admin)) {
                 frm.add_custom_button(__('Send Forward'), function() {
                     apply_action('Verify');
                 });
@@ -101,7 +101,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
                 frm.change_custom_button_type(__('Send Back'), null, 'danger');
             }
 
-            else if (state === 'Verified (Yet to be approved)' && (user_roles.includes('PO Approver') || is_manager)) {
+            else if (state === 'Verified (Yet to be approved)' && (user_roles.includes('PO Approver') || is_admin)) {
                 frm.add_custom_button(__('Send Forward'), function() {
                     apply_action('Approve');
                 });
@@ -128,7 +128,19 @@ frappe.ui.form.on('Vendor Purchase Order', {
 
         // Configure Print Button & Menu Visibility based on Workflow Stage and User Roles
         const is_approved = (frm.doc.workflow_state === 'Approved' || frm.doc.docstatus === 1);
-        const can_print = is_approved && (user_roles.includes('PO Generator') || is_manager);
+        const can_print = is_approved && (user_roles.includes('PO Generator') || is_admin);
+
+        // PI Generation Button for Internal POs (Only available on Internal PO, never on External/Vendor PO)
+        if (frm.doc.po_type === 'Internal PO' && !frm.doc.__islocal && frm.doc.name) {
+            frm.add_custom_button(__('Generate PI'), function() {
+                frappe.model.with_doctype('Proforma Invoice', function() {
+                    const new_pi = frappe.model.get_new_doc('Proforma Invoice');
+                    new_pi.internal_po = frm.doc.name;
+                    frappe.set_route('Form', 'Proforma Invoice', new_pi.name);
+                });
+            });
+            frm.change_custom_button_type(__('Generate PI'), null, 'info');
+        }
 
         const open_compiled_pdf = function() {
             const pdf_url = frappe.urllib.get_full_url(
@@ -565,26 +577,40 @@ function calculate_gst_and_totals(frm) {
         // Logistics cost aggregation
         const logistics_cost = flt(freight + insurance + packing + other, 2);
 
-        // GST Type Determination
-        const vendor_gstin = (frm.doc.vendor_gstin || frm._vendor_gstin || '');
-        const company_gstin = (frm.doc.company_gstin || frm._company_gstin || '');
-
+        // Check if Child Company is selected (Remove GST components)
+        const is_child_co = frm.doc.company && frm.doc.company !== 'Sarveksha Realty and Inframine LLP';
+        
         let gst_type = 'IGST';
         let cgst = 0, sgst = 0, igst = 0;
 
-        if (is_lut) {
-            gst_type = 'IGST';
-            igst = total_item_tax;
-        } else if (vendor_gstin.length >= 2 && company_gstin.length >= 2 && vendor_gstin.substring(0, 2) === company_gstin.substring(0, 2)) {
-            gst_type = 'CGST + SGST';
-            cgst = total_item_tax / 2;
-            sgst = total_item_tax / 2;
+        if (is_child_co) {
+            gst_type = '';
+            total_item_tax = 0;
+            if (frm.doc.items && frm.doc.items.length > 0) {
+                frm.doc.items.forEach(row => {
+                    row.gst_percentage = 0;
+                    row.tax_amount = 0;
+                    row.total_amount = row.taxable_amount;
+                });
+                frm.refresh_field('items');
+            }
+            frm.toggle_display(['gst_type', 'cgst_amount', 'sgst_amount', 'igst_amount', 'tax_amount', 'sec_tax'], false);
         } else {
-            gst_type = 'IGST';
-            igst = total_item_tax;
+            frm.toggle_display(['gst_type', 'cgst_amount', 'sgst_amount', 'igst_amount', 'tax_amount', 'sec_tax'], true);
+            if (is_lut) {
+                gst_type = 'IGST';
+                igst = total_item_tax;
+            } else if (vendor_gstin.length >= 2 && company_gstin.length >= 2 && vendor_gstin.substring(0, 2) === company_gstin.substring(0, 2)) {
+                gst_type = 'CGST + SGST';
+                cgst = total_item_tax / 2;
+                sgst = total_item_tax / 2;
+            } else {
+                gst_type = 'IGST';
+                igst = total_item_tax;
+            }
         }
 
-        // Internal Margin (Internal PO only)
+        // Internal Margin (Internal PO only: 5% - 30%)
         let internal_margin_amount = 0;
         let internal_margin_pct = 0;
         if (is_internal) {
@@ -637,15 +663,15 @@ function set_port_filter(frm) {
 
 function setup_verification_approval_panel(frm) {
     const user_roles = frappe.user_roles;
-    const has_verifier_role = user_roles.includes('PO Verifier') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
-    const has_approver_role = user_roles.includes('PO Approver') || user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
-    const is_manager = user_roles.includes('Procurement Manager') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
+    const has_verifier_role = user_roles.includes('PO Verifier') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
+    const has_approver_role = user_roles.includes('PO Approver') || user_roles.includes('System Manager') || user_roles.includes('Administrator');
+    const is_admin = user_roles.includes('System Manager') || user_roles.includes('Administrator');
 
     const state = frm.doc.workflow_state || 'Draft';
 
     // 1. Enable/Disable entire form based on active role allowed to edit in current state
     let can_edit = false;
-    if (is_manager) {
+    if (is_admin) {
         can_edit = true;
     } else if (state === 'Draft' && user_roles.includes('PO Generator')) {
         can_edit = true;

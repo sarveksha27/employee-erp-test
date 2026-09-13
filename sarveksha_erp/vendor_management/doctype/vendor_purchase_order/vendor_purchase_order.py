@@ -146,9 +146,9 @@ class VendorPurchaseOrder(Document):
                 _("Attach the Quotation Comparison Sheet before forwarding an External PO."),
                 frappe.ValidationError,
             )
-        if len(self.quotations or []) < 3:
+        if len(self.quotations or []) < 1:
             frappe.throw(
-                _("Add at least three distinct vendor quotations before forwarding an External PO."),
+                _("Add at least one vendor quotation before forwarding an External PO."),
                 frappe.ValidationError,
             )
 
@@ -387,7 +387,7 @@ class VendorPurchaseOrder(Document):
             return
             
         user_roles = set(frappe.get_roles(frappe.session.user))
-        admin_or_higher = {"PO Verifier", "PO Approver", "Procurement Manager", "System Manager", "Administrator"}
+        admin_or_higher = {"PO Verifier", "PO Approver", "System Manager", "Administrator"}
         
         # If user is PO Generator and does not have higher roles
         if "PO Generator" in user_roles and not user_roles.intersection(admin_or_higher):
@@ -591,8 +591,6 @@ class VendorPurchaseOrder(Document):
             ("insurance", "Insurance"),
             ("packing_charges", "Packing Charges"),
             ("other_charges", "Other Charges"),
-            ("second_payment", "Second Payment Amount"),
-            ("final_payment", "Final Payment Amount"),
         ]
         for field, label in currency_fields:
             val = flt(self.get(field))
@@ -793,31 +791,47 @@ class VendorPurchaseOrder(Document):
 
         self.taxable_value = flt(total_taxable_value, 2)
 
-        # Determine GST Type (Intra-state vs Inter-state)
-        vendor_gstin = self.vendor_gstin or ""
-        company_gstin = self.company_gstin or ""
-
-        if self.is_lut_applicable:
-            gst_type = "IGST"
-        else:
-            gst_type = "IGST"
-            if len(vendor_gstin) >= 2 and len(company_gstin) >= 2:
-                if vendor_gstin[:2] == company_gstin[:2]:
-                    gst_type = "CGST + SGST"
-
-        self.gst_type = gst_type
-
-        # Calculate GST amounts
-        if gst_type == "CGST + SGST":
-            self.cgst_amount = flt(total_item_tax / 2.0, 2)
-            self.sgst_amount = flt(total_item_tax / 2.0, 2)
-            self.igst_amount = 0.0
-            self.tax_amount = flt(self.cgst_amount + self.sgst_amount, 2)
-        else:
+        # ── CHILD COMPANY GST REMOVAL (When child company is selected) ──
+        is_child_company = not self._is_sri_entity(self.company)
+        if is_child_company:
+            # Overseas Child Company is issuing the PO: remove all GST components
+            if self.items:
+                for item in self.items:
+                    item.gst_percentage = 0.0
+                    item.tax_amount = 0.0
+                    item.total_amount = item.taxable_amount
+            total_item_tax = 0.0
+            self.gst_type = None
             self.cgst_amount = 0.0
             self.sgst_amount = 0.0
-            self.igst_amount = flt(total_item_tax, 2)
-            self.tax_amount = flt(self.igst_amount, 2)
+            self.igst_amount = 0.0
+            self.tax_amount = 0.0
+        else:
+            # Determine GST Type (Intra-state vs Inter-state)
+            vendor_gstin = self.vendor_gstin or ""
+            company_gstin = self.company_gstin or ""
+
+            if self.is_lut_applicable:
+                gst_type = "IGST"
+            else:
+                gst_type = "IGST"
+                if len(vendor_gstin) >= 2 and len(company_gstin) >= 2:
+                    if vendor_gstin[:2] == company_gstin[:2]:
+                        gst_type = "CGST + SGST"
+
+            self.gst_type = gst_type
+
+            # Calculate GST amounts
+            if gst_type == "CGST + SGST":
+                self.cgst_amount = flt(total_item_tax / 2.0, 2)
+                self.sgst_amount = flt(total_item_tax / 2.0, 2)
+                self.igst_amount = 0.0
+                self.tax_amount = flt(self.cgst_amount + self.sgst_amount, 2)
+            else:
+                self.cgst_amount = 0.0
+                self.sgst_amount = 0.0
+                self.igst_amount = flt(total_item_tax, 2)
+                self.tax_amount = flt(self.igst_amount, 2)
 
         # ── INTERNAL MARGIN (Internal PO only) ─────────────────────────────
         is_internal = (self.po_type or "") == "Internal PO"
@@ -827,6 +841,8 @@ class VendorPurchaseOrder(Document):
                 # Default to 5% for Internal POs if not explicitly set
                 margin_pct = 5.0
                 self.internal_margin_percentage = margin_pct
+            if margin_pct < 5.0 or margin_pct > 30.0:
+                frappe.throw(_("Internal Margin % must be between 5% and 30%."))
             self.internal_margin_amount = flt(
                 (total_taxable_value + self.logistics_cost) * (margin_pct / 100.0), 2
             )
@@ -899,12 +915,11 @@ class VendorPurchaseOrder(Document):
 
     def _check_payment_role(self):
         """Ensure only authorized roles can modify payment status."""
-        allowed_roles = {"System Manager", "Administrator", "Procurement Manager"}
+        allowed_roles = {"System Manager", "Administrator", "PO Generator", "PO Verifier", "PO Approver"}
         user_roles = set(frappe.get_roles(frappe.session.user))
         if not allowed_roles.intersection(user_roles):
             frappe.throw(
-                _("You do not have permission to modify payment status. "
-                  "Required role: Procurement Manager."),
+                _("You do not have permission to modify payment status."),
                 frappe.PermissionError
             )
 
@@ -918,7 +933,7 @@ def has_permission(doc, ptype="read", user=None):
 
     # Print Permission Guard
     if ptype == "print":
-        admin_roles = {"Procurement Manager", "System Manager", "Administrator"}
+        admin_roles = {"System Manager", "Administrator"}
         if admin_roles.intersection(user_roles):
             return True
 
@@ -926,9 +941,9 @@ def has_permission(doc, ptype="read", user=None):
         if state != "Approved":
             return False
 
-        # Only the PO Generator (or managers/administrators) can print.
+        # Only the PO Generator (or administrators) can print.
         # Verifiers and Approvers cannot print.
-        allowed_roles = {"PO Generator", "Procurement Manager", "System Manager", "Administrator"}
+        allowed_roles = {"PO Generator", "System Manager", "Administrator"}
         if allowed_roles.intersection(user_roles):
             return True
         return False
