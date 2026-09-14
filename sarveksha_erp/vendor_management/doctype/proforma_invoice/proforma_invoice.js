@@ -18,7 +18,7 @@ frappe.ui.form.on('Proforma Invoice', {
         if (!frm.doc.__islocal) {
             const open_pi_pdf = function() {
                 const url = frappe.urllib.get_full_url(
-                    `/api/method/frappe.utils.print_format.download_pdf?doctype=Proforma%20Invoice&name=${encodeURIComponent(frm.doc.name)}`
+                    `/api/method/frappe.utils.print_format.download_pdf?doctype=Proforma%20Invoice&name=${encodeURIComponent(frm.doc.name)}&format=${encodeURIComponent('Proforma Invoice Format')}`
                 );
                 window.open(url, '_blank');
             };
