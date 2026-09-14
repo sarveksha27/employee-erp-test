@@ -11,11 +11,28 @@ frappe.listview_settings['Vendor Purchase Order'] = {
                 frappe.new_doc('Vendor Purchase Order', { po_type: 'Vendor PO' });
             });
             listview.page.add_inner_button(__('New Internal PO'), function() {
-                frappe.new_doc('Vendor Purchase Order', {
-                    po_type: 'Internal PO',
-                    vendor: 'Sarveksha Realty and Inframine LLP',
-                    company: ''
-                });
+                frappe.prompt([
+                    {
+                        fieldname: 'company',
+                        label: __('Issuing Company'),
+                        fieldtype: 'Link',
+                        options: 'Company',
+                        reqd: 1,
+                        get_query: function() {
+                            return {
+                                filters: {
+                                    name: ['!=', 'Sarveksha Realty and Inframine LLP']
+                                }
+                            };
+                        }
+                    }
+                ], function(values) {
+                    frappe.new_doc('Vendor Purchase Order', {
+                        po_type: 'Internal PO',
+                        vendor: 'Sarveksha Realty and Inframine LLP',
+                        company: values.company
+                    });
+                }, __('New Internal PO'), __('Continue'));
             });
         }
     },
