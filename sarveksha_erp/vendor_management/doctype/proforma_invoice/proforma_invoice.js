@@ -14,6 +14,13 @@ frappe.ui.form.on('Proforma Invoice', {
     },
 
     refresh: function(frm) {
+        // Enforce: Items are strictly linked from PO - disable row add/delete
+        frm.set_df_property('items', 'cannot_add_rows', true);
+        frm.set_df_property('items', 'cannot_delete_rows', true);
+        if (frm.fields_dict['items'] && frm.fields_dict['items'].grid) {
+            frm.fields_dict['items'].grid.cannot_add_rows = true;
+        }
+
         // Custom print format button
         if (!frm.doc.__islocal) {
             const open_pi_pdf = function() {
@@ -22,8 +29,8 @@ frappe.ui.form.on('Proforma Invoice', {
                 );
                 window.open(url, '_blank');
             };
-            frm.add_custom_button(__('Print Proforma Invoice'), open_pi_pdf);
-            frm.change_custom_button_type(__('Print Proforma Invoice'), null, 'primary');
+            frm.add_custom_button(__('Print Payment Invoice'), open_pi_pdf);
+            frm.change_custom_button_type(__('Print Payment Invoice'), null, 'primary');
             frm.print_doc = open_pi_pdf;
         }
         calculate_pi_totals(frm);
