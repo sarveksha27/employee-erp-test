@@ -29,58 +29,44 @@ app_license = "mit"
 # app_include_js = "/assets/sarveksha_erp/js/sarveksha_erp.js"
 
 fixtures = [
-    # {
-    #     "dt": "Company",
-    #     "filters": [
-    #         ["name", "not like", "\\_Test%"],
-    #         ["name", "not like", "%Test%"],
-    #         ["name", "not in", ["Parent Group Company India", "Child Company India", "Child Company US", "Trial Balance Company"]]
-    #     ]
-    # },
     {
-        "dt": "Fiscal Year",
+        "dt": "Role",
         "filters": [
-            ["name", "not like", "\\_Test%"]
+            ["name", "in", ["PO Generator", "PO Verifier", "PO Approver"]]
         ]
     },
     {
-        "dt": "Supplier Group",
+        "dt": "Workflow",
         "filters": [
-            ["name", "not like", "\\_Test%"]
+            ["name", "in", ["Vendor Purchase Order Workflow"]]
         ]
     },
     {
-        "dt": "Supplier",
+        "dt": "Workflow State",
         "filters": [
-            ["name", "not like", "\\_Test%"]
+            ["name", "in", [
+                "Draft",
+                "Generated (Yet to be Verified)",
+                "Verified (Yet to be approved)",
+                "Approved",
+                "Rejected by Approver",
+                "Rejected by Verifier",
+                "Cancelled"
+            ]]
         ]
     },
-    {"dt": "Custom Field"},
-    {"dt": "Equipment"},
     {
-        "dt": "Contact",
-        "filters": [
-            ["name", "not like", "\\_Test%"]
-        ]
+        "dt": "Workflow Action Master"
     },
-    {"dt": "Bank"},
     {
-        "dt": "Bank Account",
-        "filters": [
-            ["name", "not like", "\\_Test%"]
-        ]
+        "dt": "Port"
     },
-    {"dt": "Letter Head"},
-    {"dt": "Print Format"},
-    {"dt": "Property Setter"},
-    {"dt": "Port"},
-    {"dt": "Terms and Conditions"},
-    {"dt": "Role"},
-    {"dt": "Workflow"},
-    {"dt": "Workflow State"},
-    {"dt": "Workflow Action Master"},
-    {"dt": "Custom DocPerm"},
-    {"dt": "Client Script", "filters": [["name", "=", "Vendor PO List Buttons"]]}
+    {
+        "dt": "Client Script",
+        "filters": [
+            ["name", "in", ["Vendor PO List Buttons"]]
+        ]
+    }
 ]
 
 # include js, css files in header of web template
@@ -142,6 +128,7 @@ fixtures = [
 
 # before_install = "sarveksha_erp.install.before_install"
 after_install = "sarveksha_erp.install.after_install"
+after_migrate = "sarveksha_erp.install.after_migrate"
 
 # Uninstallation
 # ------------
