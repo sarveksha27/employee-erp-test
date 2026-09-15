@@ -131,15 +131,16 @@ frappe.ui.form.on('Vendor Purchase Order', {
         const can_print = is_approved && (user_roles.includes('PO Generator') || is_admin);
 
         // PI Generation Button for Internal POs (Only available on Internal PO, never on External/Vendor PO)
-        if (frm.doc.po_type === 'Internal PO' && !frm.doc.__islocal && frm.doc.name) {
-            frm.add_custom_button(__('Generate PI'), function() {
+        if (is_approved && frm.doc.po_type === 'Internal PO' && !frm.doc.__islocal && frm.doc.name &&
+            (user_roles.includes('PO Generator') || is_admin)) {
+            frm.add_custom_button(__('Generate Payment Invoice'), function() {
                 frappe.model.with_doctype('Proforma Invoice', function() {
                     const new_pi = frappe.model.get_new_doc('Proforma Invoice');
                     new_pi.internal_po = frm.doc.name;
                     frappe.set_route('Form', 'Proforma Invoice', new_pi.name);
                 });
             });
-            frm.change_custom_button_type(__('Generate PI'), null, 'info');
+            frm.change_custom_button_type(__('Generate Payment Invoice'), null, 'info');
         }
 
         const open_compiled_pdf = function() {
@@ -185,7 +186,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
         }
 
         // Hide "+ New" button for Verifiers/Approvers in Form View
-        if (frappe.session.user !== 'Administrator') {
+        if (!is_admin && frappe.session.user !== 'Administrator') {
             const is_verifier_or_approver = (user_roles.includes('PO Verifier') || user_roles.includes('PO Approver'));
             const is_generator = user_roles.includes('PO Generator');
 

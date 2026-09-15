@@ -4,7 +4,7 @@
   "doctype": "Workflow",
   "document_type": "Vendor Purchase Order",
   "is_active": 1,
-  "modified": "2026-08-02 12:40:57.680185",
+  "modified": "2026-09-15 16:00:00.000000",
   "name": "Vendor Purchase Order Workflow",
   "override_status": 0,
   "send_email_alert": 0,
@@ -58,7 +58,7 @@
     "workflow_builder_id": null
    },
    {
-    "allow_edit": "Procurement Manager",
+    "allow_edit": "PO Approver",
     "avoid_status_override": 0,
     "doc_status": "1",
     "is_optional_state": 0,
@@ -89,35 +89,9 @@
     "workflow_builder_id": null
    },
    {
-    "action": "Generate PO",
-    "allow_self_approval": 1,
-    "allowed": "Procurement Manager",
-    "condition": null,
-    "next_state": "Generated (Yet to be Verified)",
-    "parent": "Vendor Purchase Order Workflow",
-    "parentfield": "transitions",
-    "parenttype": "Workflow",
-    "send_email_to_creator": 0,
-    "state": "Draft",
-    "workflow_builder_id": null
-   },
-   {
     "action": "Verify",
     "allow_self_approval": 1,
     "allowed": "PO Verifier",
-    "condition": null,
-    "next_state": "Verified (Yet to be approved)",
-    "parent": "Vendor Purchase Order Workflow",
-    "parentfield": "transitions",
-    "parenttype": "Workflow",
-    "send_email_to_creator": 0,
-    "state": "Generated (Yet to be Verified)",
-    "workflow_builder_id": null
-   },
-   {
-    "action": "Verify",
-    "allow_self_approval": 1,
-    "allowed": "Procurement Manager",
     "condition": null,
     "next_state": "Verified (Yet to be approved)",
     "parent": "Vendor Purchase Order Workflow",
@@ -141,19 +115,6 @@
     "workflow_builder_id": null
    },
    {
-    "action": "Send Back",
-    "allow_self_approval": 1,
-    "allowed": "Procurement Manager",
-    "condition": null,
-    "next_state": "Draft",
-    "parent": "Vendor Purchase Order Workflow",
-    "parentfield": "transitions",
-    "parenttype": "Workflow",
-    "send_email_to_creator": 0,
-    "state": "Generated (Yet to be Verified)",
-    "workflow_builder_id": null
-   },
-   {
     "action": "Approve",
     "allow_self_approval": 1,
     "allowed": "PO Approver",
@@ -167,35 +128,9 @@
     "workflow_builder_id": null
    },
    {
-    "action": "Approve",
-    "allow_self_approval": 1,
-    "allowed": "Procurement Manager",
-    "condition": null,
-    "next_state": "Approved",
-    "parent": "Vendor Purchase Order Workflow",
-    "parentfield": "transitions",
-    "parenttype": "Workflow",
-    "send_email_to_creator": 0,
-    "state": "Verified (Yet to be approved)",
-    "workflow_builder_id": null
-   },
-   {
     "action": "Send Back",
     "allow_self_approval": 1,
     "allowed": "PO Approver",
-    "condition": null,
-    "next_state": "Generated (Yet to be Verified)",
-    "parent": "Vendor Purchase Order Workflow",
-    "parentfield": "transitions",
-    "parenttype": "Workflow",
-    "send_email_to_creator": 0,
-    "state": "Verified (Yet to be approved)",
-    "workflow_builder_id": null
-   },
-   {
-    "action": "Send Back",
-    "allow_self_approval": 1,
-    "allowed": "Procurement Manager",
     "condition": null,
     "next_state": "Generated (Yet to be Verified)",
     "parent": "Vendor Purchase Order Workflow",
