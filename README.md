@@ -92,7 +92,7 @@ The **Equipment** DocType manages 3,290+ heavy machinery, exploratory, and labor
 
 2. **External PO**:
    - Issued by SRI India or subsidiary entities directly to external vendors worldwide.
-   - Requires at least 1 competitive vendor quotation and a comparative evaluation sheet attached before moving out of Draft.
+   - Provides optional fields for tracking competing vendor quotations and attaching a comparative evaluation sheet.
 
 ### 4.2 4-Stage Workflow State Machine
 
@@ -132,10 +132,12 @@ The VPO module implements an approval state machine governed by high-visibility 
   - Dynamically sets top clearances (`50mm` standard, `74mm` for Botswana/Mining, `80mm` for Baani) and bottom margins (`22mm`).
   - Merges all attached drawings, specifications, and invoices into a unified single PDF, converting image files (`PNG`, `JPG`, `JPEG`) to standard A4 pages.
 
-### 4.5 Quotation Governance
+### 4.5 Quotation Governance (Optional Evidence)
 
-- Tracks competing supplier bids in child table `Vendor Purchase Order Quotation` (Supplier, Date, Amount, Reference, and Quotation File).
-- Requires an attached **Quotation Comparison Sheet** before an External PO can be submitted for verification.
+- **Vendor Quotations**: Child table `Vendor Purchase Order Quotation` (Supplier, Date, Amount, Reference, and Quotation File) allows documenting competing supplier bids. Entering quotations is completely **optional**.
+- **Quotation Comparison Sheet**: An optional attachment field to store comparative sheets.
+- **Multi-Quote Integrity**: If multiple quotations are recorded, the system validates that each row represents a distinct supplier to prevent duplicate entries.
+- **Audit Lock**: Once a PO moves past `Draft`, any uploaded quotations and comparison sheets become strictly read-only.
 
 ---
 
@@ -150,15 +152,31 @@ The **Proforma Invoice** DocType generates seller-side commercial export invoice
 
 ---
 
-## 6. Role-Based Access Control (RBAC)
-
+## 6. Role-Based Access Control (RBAC) & Provisioned Users
+ 
 | Role | Permissions & Operational Scope |
 |---|---|
-| **PO Generator** | Creates and edits Draft POs; uploads quotations; clicks `Send Forward` to generate POs. |
+| **PO Generator** | Creates and edits Draft POs; optionally records quotations; clicks `Send Forward` to generate POs. |
 | **PO Verifier** | Reviews generated POs; verifies pricing and specifications; forwards to approval or sends back with remarks. |
 | **PO Approver** | Executive authority; performs final review; clicks `Approve` to lock document, assign `ref_number`, and activate print formats. |
 | **Vendor & Equipment Manager** | Full CRUD access to Vendor (Supplier) records, Company configurations, Equipment catalog, and Port masters. |
 | **System Manager / Administrator** | Unrestricted technical oversight, permission assignment, and workflow configuration. |
+
+### 6.1 Auto-Provisioned Standard Users (Ready on Install / Migrate)
+
+When the app is installed or migrated (`bench migrate`), all standard user accounts are automatically created and assigned appropriate roles via migration hooks and patches. These accounts are immediately available on any cloned device or Frappe Cloud instance:
+
+| Username / Email | Full Name | Default Password | Roles Assigned |
+|---|---|---|---|
+| `admin@sarveksha.com` | Admin Administrator | `admin` | `System Manager`, `Administrator`, `Desk User`, `All` |
+| `po_generator@sarveksha.com` | PO Generator | `admin` | `PO Generator`, `Desk User`, `Purchase User`, `Accounts User`, `All` |
+| `po_verifier@sarveksha.com` | PO Verifier | `admin` | `PO Verifier`, `Desk User`, `Purchase User`, `Accounts User`, `All` |
+| `po_approver@sarveksha.com` | PO Approver | `admin` | `PO Approver`, `Desk User`, `Accounts Manager`, `Purchase Manager`, `All` |
+| `vendor_manager@sarveksha.com` | Vendor & Company Manager | `admin` | `Vendor & Equipment Manager`, `Desk User`, `PO Generator`, `All` |
+| `master_manager@sarveksha.com` | Master Data Manager | `admin` | `Vendor & Equipment Manager`, `Desk User`, `PO Generator`, `All` |
+
+> [!TIP]
+> On Frappe Cloud or a new local bench, simply pulling the code and executing `bench --site <site-name> migrate` runs the `sarveksha_erp.patches.provision_users` patch and `after_migrate` hook, automatically provisioning all 6 users.
 
 ---
 

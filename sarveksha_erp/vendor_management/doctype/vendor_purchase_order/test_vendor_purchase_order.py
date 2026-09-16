@@ -57,14 +57,14 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 			po.validate_entity_policy()
 
 	def test_external_po_requires_complete_distinct_quotations(self):
-		"""Forwarding an External PO requires a comparison sheet and three different quotes."""
+		"""Forwarding an External PO allows optional quotations; distinct suppliers validated if multiple provided."""
 		po = frappe.new_doc("Vendor Purchase Order")
 		po.po_type = "Vendor PO"
 		po.workflow_state = "Generated (Yet to be Verified)"
 		po.get_doc_before_save = lambda: frappe._dict(workflow_state="Draft")
 
-		with self.assertRaises(frappe.ValidationError):
-			po.validate_quotation_governance()
+		# Quotations are optional - no exception raised when empty
+		po.validate_quotation_governance()
 
 		po.quotation_comparison_sheet = "/files/comparison.pdf"
 		po.quotations = [
@@ -133,7 +133,7 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		"""Verify audit fields update correctly when workflow state changes."""
 		po = frappe.new_doc("Vendor Purchase Order")
 		po.po_type = "Internal PO"
-		po.company = "Child Company India"
+		po.company = "Sarveksha BSTP SAS"
 		po.vendor = "Sarveksha Realty and Inframine LLP"
 		po.quantity = 1.0
 		po.exchange_rate = 1.0
@@ -214,8 +214,8 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 			po_app.workflow_state = "Draft"
 			
 			with self.assertRaises(frappe.PermissionError) as context:
-				po_app.insert()
-			
+				po_app.validate_creation_roles()
+
 			# Check that additional guidelines are present in the error message
 			self.assertIn("As an Approver, your role is strictly to review, verify", str(context.exception))
 		finally:
@@ -322,7 +322,7 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 	def approve_vpo(self, po):
 		"""Helper to transition a PO to Approved state step by step."""
 		po.po_type = "Internal PO"
-		po.company = "Child Company India"
+		po.company = "Sarveksha BSTP SAS"
 		po.vendor = "Sarveksha Realty and Inframine LLP"
 		po.workflow_state = "Generated (Yet to be Verified)"
 		po.save(ignore_permissions=True)
@@ -336,7 +336,7 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		"""Verify that a distinct, sequential reference number with REF substring is generated on approval."""
 		po = frappe.new_doc("Vendor Purchase Order")
 		po.po_type = "Internal PO"
-		po.company = "Child Company India"
+		po.company = "Sarveksha BSTP SAS"
 		po.vendor = "Sarveksha Realty and Inframine LLP"
 		po.quantity = 1.0
 		po.rate = 100.0
@@ -374,7 +374,7 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		"""Verify uniqueness of reference numbers and that duplicates raise UniqueValidationError."""
 		po1 = frappe.new_doc("Vendor Purchase Order")
 		po1.po_type = "Internal PO"
-		po1.company = "Child Company India"
+		po1.company = "Sarveksha BSTP SAS"
 		po1.vendor = "Sarveksha Realty and Inframine LLP"
 		po1.quantity = 1.0
 		po1.rate = 100.0
@@ -385,7 +385,7 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 
 		po2 = frappe.new_doc("Vendor Purchase Order")
 		po2.po_type = "Internal PO"
-		po2.company = "Child Company India"
+		po2.company = "Sarveksha BSTP SAS"
 		po2.vendor = "Sarveksha Realty and Inframine LLP"
 		po2.quantity = 1.0
 		po2.rate = 100.0

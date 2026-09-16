@@ -64,14 +64,20 @@ def setup_roles_permissions_and_users():
     """
     from frappe.utils.password import update_password
 
-    # 1. Ensure Role exists
-    role_name = "Vendor & Equipment Manager"
-    if not frappe.db.exists("Role", role_name):
-        role_doc = frappe.new_doc("Role")
-        role_doc.role_name = role_name
-        role_doc.desk_access = 1
-        role_doc.flags.ignore_permissions = True
-        role_doc.insert()
+    # 1. Ensure Roles exist
+    roles_to_ensure = [
+        "Vendor & Equipment Manager",
+        "PO Generator",
+        "PO Verifier",
+        "PO Approver",
+    ]
+    for r in roles_to_ensure:
+        if not frappe.db.exists("Role", r):
+            role_doc = frappe.new_doc("Role")
+            role_doc.role_name = r
+            role_doc.desk_access = 1
+            role_doc.flags.ignore_permissions = True
+            role_doc.insert()
 
     # 2. Grant full CRUD permissions on Supplier, Company, Equipment to Vendor & Equipment Manager and System Manager
     full_crud = {
@@ -86,7 +92,7 @@ def setup_roles_permissions_and_users():
         "share": 1,
     }
     for dt in ["Supplier", "Company", "Equipment"]:
-        setup_custom_docperm(dt, role_name, full_crud)
+        setup_custom_docperm(dt, "Vendor & Equipment Manager", full_crud)
         setup_custom_docperm(dt, "System Manager", full_crud)
         frappe.clear_cache(doctype=dt)
 
@@ -94,7 +100,7 @@ def setup_roles_permissions_and_users():
     rel_crud = {"read": 1, "write": 1, "create": 1, "report": 1}
     for dt in ["Address", "Contact", "Dynamic Link", "Supplier Group", "Port", "UOM"]:
         if frappe.db.exists("DocType", dt):
-            setup_custom_docperm(dt, role_name, rel_crud)
+            setup_custom_docperm(dt, "Vendor & Equipment Manager", rel_crud)
             frappe.clear_cache(doctype=dt)
 
     def add_roles_direct(email, roles):
@@ -108,66 +114,86 @@ def setup_roles_permissions_and_users():
                 hr.flags.ignore_permissions = True
                 hr.insert()
 
-    # 3. Ensure Admin user (admin@sarveksha.com / admin)
-    admin_email = "admin@sarveksha.com"
+    # 3. Provision all standard Sarveksha users
+    users_to_provision = [
+        {
+            "email": "admin@sarveksha.com",
+            "username": "admin",
+            "first_name": "Admin",
+            "last_name": "Administrator",
+            "roles": ["System Manager", "Administrator", "Desk User", "All"],
+        },
+        {
+            "email": "po_generator@sarveksha.com",
+            "username": "po_generator",
+            "first_name": "PO Generator",
+            "last_name": "Generator",
+            "roles": ["PO Generator", "Desk User", "Purchase User", "Accounts User", "All"],
+        },
+        {
+            "email": "po_verifier@sarveksha.com",
+            "username": "po_verifier",
+            "first_name": "PO Verifier",
+            "last_name": "Verifier",
+            "roles": ["PO Verifier", "Desk User", "Purchase User", "Accounts User", "All"],
+        },
+        {
+            "email": "po_approver@sarveksha.com",
+            "username": "po_approver",
+            "first_name": "PO Approver",
+            "last_name": "Approver",
+            "roles": ["PO Approver", "Desk User", "Accounts Manager", "Purchase Manager", "All"],
+        },
+        {
+            "email": "vendor_manager@sarveksha.com",
+            "username": "vendor_manager",
+            "first_name": "Vendor & Company Manager",
+            "last_name": "",
+            "roles": ["Vendor & Equipment Manager", "Desk User", "All", "PO Generator"],
+        },
+        {
+            "email": "master_manager@sarveksha.com",
+            "username": "master_manager",
+            "first_name": "Master Data Manager",
+            "last_name": "",
+            "roles": ["Vendor & Equipment Manager", "Desk User", "All", "PO Generator"],
+        },
+    ]
+
     prev_install = frappe.flags.in_install
     frappe.flags.in_install = True
     try:
-        if not frappe.db.exists("User", admin_email):
-            admin_user = frappe.new_doc("User")
-            admin_user.email = admin_email
-            admin_user.first_name = "Admin"
-            admin_user.last_name = "Administrator"
-            admin_user.username = "admin"
-            admin_user.send_welcome_email = 0
-            admin_user.flags.ignore_permissions = True
-            admin_user.insert()
-        else:
-            frappe.db.set_value("User", admin_email, {
-                "first_name": "Admin",
-                "last_name": "Administrator",
-                "enabled": 1,
-                "user_type": "System User",
-            })
-
-        add_roles_direct(admin_email, ["System Manager", "Administrator", "Desk User", "All"])
-        try:
-            update_password(admin_email, "admin")
-        except Exception:
-            pass
-
-        # Ensure Administrator password
-        try:
-            update_password("Administrator", "admin")
-        except Exception:
-            pass
-
-        # 4. Ensure Master Data Manager user (master_manager@sarveksha.com and vendor_manager@sarveksha.com)
-        for email, username, first_name in [
-            ("master_manager@sarveksha.com", "master_manager", "Master Data Manager"),
-            ("vendor_manager@sarveksha.com", "vendor_manager", "Vendor & Company Manager"),
-        ]:
+        for uinfo in users_to_provision:
+            email = uinfo["email"]
             if not frappe.db.exists("User", email):
                 u = frappe.new_doc("User")
                 u.email = email
-                u.first_name = first_name
-                u.username = username
+                u.first_name = uinfo["first_name"]
+                u.last_name = uinfo.get("last_name") or ""
+                u.username = uinfo["username"]
                 u.user_type = "System User"
                 u.send_welcome_email = 0
                 u.flags.ignore_permissions = True
                 u.insert()
             else:
                 frappe.db.set_value("User", email, {
-                    "first_name": first_name,
+                    "first_name": uinfo["first_name"],
+                    "last_name": uinfo.get("last_name") or "",
                     "enabled": 1,
                     "user_type": "System User",
                 })
 
-            add_roles_direct(email, ["Vendor & Equipment Manager", "Desk User", "All", "PO Generator"])
+            add_roles_direct(email, uinfo["roles"])
             try:
                 update_password(email, "admin")
             except Exception:
                 pass
+
+        # Ensure Administrator password
+        try:
+            update_password("Administrator", "admin")
+        except Exception:
+            pass
     finally:
         frappe.flags.in_install = prev_install
 

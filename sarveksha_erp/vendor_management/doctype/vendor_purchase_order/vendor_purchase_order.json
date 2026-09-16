@@ -304,7 +304,7 @@
    "fieldname": "quotation_comparison_sheet",
    "fieldtype": "Attach",
    "label": "Quotation Comparison Sheet",
-   "description": "Required before forwarding an External PO for verification.",
+   "description": "Optional comparison sheet for vendor evaluation.",
    "depends_on": "eval:doc.po_type==='Vendor PO'"
   },
   {
