@@ -133,7 +133,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
         // PI Generation Button for Internal POs (Only available on Internal PO, never on External/Vendor PO)
         if (is_approved && frm.doc.po_type === 'Internal PO' && !frm.doc.__islocal && frm.doc.name &&
             (user_roles.includes('PO Generator') || is_admin)) {
-            frm.add_custom_button(__('Generate Payment Invoice'), function() {
+            frm.add_custom_button(__('Generate PI'), function() {
                 frappe.model.with_doctype('Proforma Invoice', function() {
                     const new_pi = frappe.model.get_new_doc('Proforma Invoice');
                     new_pi.internal_po = frm.doc.name;
