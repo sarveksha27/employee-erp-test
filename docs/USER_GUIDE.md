@@ -80,15 +80,16 @@ Navigate to **Buying** -> **Vendor Purchase Order** -> Click **+ Add Vendor Purc
   - For an `Internal PO`, the system requires you to select **Sarveksha Realty and Inframine LLP**.
 - **Currency**: Currency of the transaction (e.g., `USD`, `INR`, `EUR`).
 
-### Section B: Quotation Governance & Vendor Quotes
+### Section B: Quotation Governance & Vendor Quotes (Optional)
 
-- **Why is this required?**: To ensure corporate transparency, company policy requires evidence of vendor pricing before an order leaves Draft status.
-- **Quotation Requirement**:
-  - You must enter at least **1 valid vendor quotation** in the quotations table.
+- **Optional Evidence Tracking**: You can optionally attach competitive vendor quotes and a Quotation Comparison Sheet for audit and evaluation purposes.
+- **Quotation Entries**:
+  - If you wish to document vendor quotes, you can add rows in the quotations table with Supplier, Date, Amount, Reference, and Quotation PDF.
 - **Upload Quotation File**:
   - Inside the Quotations table, you will see a prominent button: **Upload Quotation File**.
   - Click this button to attach the vendor's PDF quotation.
   - *Tip*: Any quotation PDF you attach here is automatically stitched into the final downloadable PO PDF so that auditing teams have all documents in a single file!
+- **Multi-Quote Validation**: If multiple quotes are added, each must represent a distinct supplier. All quotation records become locked once the PO moves past Draft.
 
 ### Section C: Equipment & Line Items Table
 

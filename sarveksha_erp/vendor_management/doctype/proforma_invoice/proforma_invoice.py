@@ -29,6 +29,23 @@ class ProformaInvoice(Document):
 				frappe.ValidationError
 			)
 
+		# Enforce: Only 1 active Proforma Invoice can be generated per Internal PO
+		filters = {
+			"internal_po": self.internal_po,
+			"docstatus": ["!=", 2],
+		}
+		if not self.is_new() and self.name:
+			filters["name"] = ["!=", self.name]
+
+		existing_pi = frappe.db.get_value("Proforma Invoice", filters, "name")
+		if existing_pi:
+			frappe.throw(
+				_("A Proforma Invoice ({0}) has already been generated from Internal PO {1}. Another PI cannot be generated.").format(
+					existing_pi, self.internal_po
+				),
+				frappe.ValidationError,
+			)
+
 		# Auto-fill reference fields if not already populated
 		self.po_reference_no = po.ref_number or po.name
 		self.po_date = po.po_date
@@ -218,7 +235,16 @@ def create_proforma_invoice_from_internal_po(internal_po_name):
 	"""
 	Factory function to instantiate and save a Proforma Invoice directly from an Internal PO.
 	Used by Python workflows, API endpoints, and form action buttons.
+	If an active PI already exists for this Internal PO, returns the existing document.
 	"""
+	existing = frappe.db.get_value(
+		"Proforma Invoice",
+		{"internal_po": internal_po_name, "docstatus": ["!=", 2]},
+		"name",
+	)
+	if existing:
+		return frappe.get_doc("Proforma Invoice", existing)
+
 	details = get_internal_po_details(internal_po_name)
 	pi = frappe.new_doc("Proforma Invoice")
 	pi.internal_po = internal_po_name

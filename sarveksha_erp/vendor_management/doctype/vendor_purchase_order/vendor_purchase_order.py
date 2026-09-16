@@ -137,30 +137,13 @@ class VendorPurchaseOrder(Document):
         return (value or "").strip().casefold() == cls.SRI_ENTITY_NAME.casefold()
 
     def validate_quotation_governance(self):
-        """Require complete quotation evidence when an External PO leaves Draft or is submitted."""
-        if self.po_type != "Vendor PO" or not self._requires_quotation_evidence():
+        """Quotation evidence is optional. If multiple quotations are provided, validate distinct suppliers."""
+        if not hasattr(self, "quotations") or not self.quotations or len(self.quotations) <= 1:
             return
 
-        if not self.quotation_comparison_sheet:
-            frappe.throw(
-                _("Attach the Quotation Comparison Sheet before forwarding an External PO."),
-                frappe.ValidationError,
-            )
-        if len(self.quotations or []) < 1:
-            frappe.throw(
-                _("Add at least one vendor quotation before forwarding an External PO."),
-                frappe.ValidationError,
-            )
-
-        suppliers = [row.supplier for row in self.quotations]
+        suppliers = [row.supplier for row in self.quotations if getattr(row, "supplier", None)]
         if len(set(suppliers)) != len(suppliers):
             frappe.throw(_("Each quotation must be from a distinct supplier."), frappe.ValidationError)
-
-    def _requires_quotation_evidence(self):
-        previous = self.get_doc_before_save()
-        leaving_draft = previous and (previous.workflow_state or "Draft") == "Draft" \
-            and self.workflow_state == "Generated (Yet to be Verified)"
-        return bool(leaving_draft or self.docstatus == 1)
 
     def validate_quotation_audit_integrity(self):
         """Quotation evidence remains visible but immutable after the Draft stage."""

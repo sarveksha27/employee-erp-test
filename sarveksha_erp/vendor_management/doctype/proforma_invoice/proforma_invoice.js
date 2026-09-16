@@ -39,45 +39,62 @@ frappe.ui.form.on('Proforma Invoice', {
     internal_po: function(frm) {
         if (!frm.doc.internal_po) return;
 
-        frappe.call({
-            method: 'sarveksha_erp.vendor_management.doctype.proforma_invoice.proforma_invoice.get_internal_po_details',
-            args: { internal_po: frm.doc.internal_po },
-            callback: function(r) {
-                if (r.message) {
-                    const data = r.message;
-                    frm.set_value('po_reference_no', data.po_reference_no);
-                    frm.set_value('po_date', data.po_date);
-                    frm.set_value('buyer', data.buyer);
-                    frm.set_value('buyer_address', data.buyer_address);
-                    frm.set_value('currency', data.currency || 'USD');
-                    frm.set_value('port_of_loading', data.port_of_loading || 'Mundra');
-                    frm.set_value('port_of_discharge', data.port_of_discharge || 'Durban');
-                    frm.set_value('final_destination', data.final_destination || '');
-                    frm.set_value('margin_percentage', data.margin_percentage || 5.0);
-                    frm.set_value('advance_percentage', data.advance_percentage || 100.0);
-
-                    // Note: Logistics fields are intentionally NOT fetched automatically
-                    // User must manually enter freight, insurance, packing, other charges
-
-                    // Populate line items
-                    frm.clear_table('items');
-                    if (data.items && data.items.length > 0) {
-                        data.items.forEach(it => {
-                            let row = frm.add_child('items');
-                            row.equipment = it.equipment;
-                            row.item_description = it.item_description;
-                            row.make_model = it.make_model;
-                            row.hsn_code = it.hsn_code;
-                            row.unit = it.unit;
-                            row.quantity = it.quantity;
-                            row.base_rate = it.base_rate;
-                            row.amount = flt(it.quantity * it.base_rate, 2);
-                        });
-                    }
-                    frm.refresh_field('items');
-                    calculate_pi_totals(frm);
-                }
+        frappe.db.get_value('Proforma Invoice', {
+            internal_po: frm.doc.internal_po,
+            docstatus: ['!=', 2],
+            name: ['!=', frm.doc.name || '']
+        }, 'name').then(r => {
+            const existing_pi = r && r.message && r.message.name;
+            if (existing_pi) {
+                frappe.msgprint({
+                    title: __('Proforma Invoice Already Exists'),
+                    indicator: 'orange',
+                    message: __('Proforma Invoice <b>{0}</b> has already been generated for Internal PO <b>{1}</b>. Another PI cannot be generated.<br><br>Passing on to the existing PI...', [existing_pi, frm.doc.internal_po])
+                });
+                frappe.set_route('Form', 'Proforma Invoice', existing_pi);
+                return;
             }
+
+            frappe.call({
+                method: 'sarveksha_erp.vendor_management.doctype.proforma_invoice.proforma_invoice.get_internal_po_details',
+                args: { internal_po: frm.doc.internal_po },
+                callback: function(res) {
+                    if (res.message) {
+                        const data = res.message;
+                        frm.set_value('po_reference_no', data.po_reference_no);
+                        frm.set_value('po_date', data.po_date);
+                        frm.set_value('buyer', data.buyer);
+                        frm.set_value('buyer_address', data.buyer_address);
+                        frm.set_value('currency', data.currency || 'USD');
+                        frm.set_value('port_of_loading', data.port_of_loading || 'Mundra');
+                        frm.set_value('port_of_discharge', data.port_of_discharge || 'Durban');
+                        frm.set_value('final_destination', data.final_destination || '');
+                        frm.set_value('margin_percentage', data.margin_percentage || 5.0);
+                        frm.set_value('advance_percentage', data.advance_percentage || 100.0);
+
+                        // Note: Logistics fields are intentionally NOT fetched automatically
+                        // User must manually enter freight, insurance, packing, other charges
+
+                        // Populate line items
+                        frm.clear_table('items');
+                        if (data.items && data.items.length > 0) {
+                            data.items.forEach(it => {
+                                let row = frm.add_child('items');
+                                row.equipment = it.equipment;
+                                row.item_description = it.item_description;
+                                row.make_model = it.make_model;
+                                row.hsn_code = it.hsn_code;
+                                row.unit = it.unit;
+                                row.quantity = it.quantity;
+                                row.base_rate = it.base_rate;
+                                row.amount = flt(it.quantity * it.base_rate, 2);
+                            });
+                        }
+                        frm.refresh_field('items');
+                        calculate_pi_totals(frm);
+                    }
+                }
+            });
         });
     },
 

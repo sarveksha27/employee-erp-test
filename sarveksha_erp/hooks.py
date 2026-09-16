@@ -32,7 +32,7 @@ fixtures = [
     {
         "dt": "Role",
         "filters": [
-            ["name", "in", ["PO Generator", "PO Verifier", "PO Approver"]]
+            ["name", "in", ["PO Generator", "PO Verifier", "PO Approver", "Vendor & Equipment Manager"]]
         ]
     },
     {
@@ -297,4 +297,7 @@ override_whitelisted_methods = {
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
+
+# Extend bootinfo to control sidebar visibility
+extend_bootinfo = "sarveksha_erp.boot.extend_bootinfo"
 
