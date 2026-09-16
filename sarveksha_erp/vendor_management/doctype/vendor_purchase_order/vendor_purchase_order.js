@@ -140,7 +140,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
                     frappe.set_route('Form', 'Proforma Invoice', new_pi.name);
                 });
             });
-            frm.change_custom_button_type(__('Generate PI'), null, 'info');
+            frm.change_custom_button_type(__('Generate Payment Invoice'), null, 'info');
         }
 
         const open_compiled_pdf = function() {
@@ -186,7 +186,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
         }
 
         // Hide "+ New" button for Verifiers/Approvers in Form View
-        if (frappe.session.user !== 'Administrator') {
+        if (!is_admin && frappe.session.user !== 'Administrator') {
             const is_verifier_or_approver = (user_roles.includes('PO Verifier') || user_roles.includes('PO Approver'));
             const is_generator = user_roles.includes('PO Generator');
 

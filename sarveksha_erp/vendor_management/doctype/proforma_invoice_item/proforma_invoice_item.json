@@ -3,7 +3,7 @@
  "allow_rename": 1,
  "creation": "2026-09-12 00:00:00.000000",
  "doctype": "DocType",
- "editable_grid": 1,
+ "editable_grid": 0,
  "engine": "InnoDB",
  "field_order": [
   "equipment",
@@ -21,26 +21,29 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Equipment Code",
-   "options": "Equipment"
+   "options": "Equipment",
+   "read_only": 1
   },
   {
    "fieldname": "item_description",
    "fieldtype": "Small Text",
    "in_list_view": 1,
    "label": "Item Description",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "fieldname": "make_model",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Make / Model"
+   "label": "Make / Model",
+   "read_only": 1
   },
   {
    "fieldname": "hsn_code",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "HSN Code"
+   "label": "HSN Code",
+   "read_only": 1
   },
   {
    "default": "Nos",
@@ -48,7 +51,8 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "UOM",
-   "options": "UOM"
+   "options": "UOM",
+   "read_only": 1
   },
   {
    "default": "1",
@@ -56,7 +60,7 @@
    "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Quantity",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "default": "0",
@@ -65,7 +69,7 @@
    "in_list_view": 1,
    "label": "Base Rate",
    "options": "currency",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "default": "0",
@@ -79,7 +83,7 @@
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-09-12 00:00:00.000000",
+ "modified": "2026-09-15 16:50:00.000000",
  "modified_by": "Administrator",
  "module": "Vendor Management",
  "name": "Proforma Invoice Item",

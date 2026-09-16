@@ -4,7 +4,7 @@
  "autoname": "naming_series:",
  "creation": "2026-09-12 00:00:00.000000",
  "doctype": "DocType",
- "editable_grid": 1,
+ "editable_grid": 0,
  "engine": "InnoDB",
  "field_order": [
   "naming_series",
@@ -71,13 +71,13 @@
    "fieldtype": "Select",
    "label": "Series",
    "options": "SRI/PI/.YYYY.-.####\nSRI/BOT/26-27/.###",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "fieldname": "pi_number",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Proforma Invoice No.",
+   "label": "Payment Invoice No.",
    "read_only": 1
   },
   {
@@ -86,7 +86,7 @@
    "fieldtype": "Date",
    "in_list_view": 1,
    "label": "Date",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "default": "Draft",
@@ -94,7 +94,8 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "Draft\nIssued\nCancelled"
+   "options": "Draft\nIssued\nCancelled",
+   "read_only": 1
   },
   {
    "fieldname": "sec_reference",
@@ -102,13 +103,13 @@
    "label": "Internal Purchase Order Reference"
   },
   {
-   "description": "Select the Internal PO raised by the Child Company to SRI",
+   "description": "Referenced Internal PO raised by Child Company to SRI",
    "fieldname": "internal_po",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Internal Purchase Order",
    "options": "Vendor Purchase Order",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "fieldname": "po_reference_no",
@@ -200,17 +201,20 @@
    "default": "Mundra",
    "fieldname": "port_of_loading",
    "fieldtype": "Data",
-   "label": "Port of Loading"
+   "label": "Port of Loading",
+   "read_only": 1
   },
   {
    "fieldname": "port_of_discharge",
    "fieldtype": "Data",
-   "label": "Port of Discharge"
+   "label": "Port of Discharge",
+   "read_only": 1
   },
   {
    "fieldname": "final_destination",
    "fieldtype": "Data",
-   "label": "Final Destination"
+   "label": "Final Destination",
+   "read_only": 1
   },
   {
    "fieldname": "col_currency",
@@ -222,13 +226,14 @@
    "fieldtype": "Link",
    "label": "Currency",
    "options": "Currency",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "default": "1.0",
    "fieldname": "exchange_rate",
    "fieldtype": "Float",
-   "label": "Exchange Rate"
+   "label": "Exchange Rate",
+   "read_only": 1
   },
   {
    "fieldname": "sec_items",
@@ -239,7 +244,8 @@
    "fieldname": "items",
    "fieldtype": "Table",
    "label": "Line Items",
-   "options": "Proforma Invoice Item"
+   "options": "Proforma Invoice Item",
+   "read_only": 1
   },
   {
    "fieldname": "sec_totals",
@@ -410,12 +416,14 @@
    "default": "For SARVEKSHA REALTY & INFRAMINE LLP",
    "fieldname": "authorized_signatory",
    "fieldtype": "Data",
-   "label": "Authorized Signatory"
+   "label": "Authorized Signatory",
+   "read_only": 1
   },
   {
    "fieldname": "remarks",
    "fieldtype": "Small Text",
-   "label": "Remarks / Notes"
+   "label": "Remarks / Notes",
+   "read_only": 1
   },
   {
    "fieldname": "amended_from",
@@ -431,7 +439,7 @@
  "index_web_pages_for_search": 0,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-12 00:00:00.000000",
+ "modified": "2026-09-15 16:50:00.000000",
  "modified_by": "Administrator",
  "module": "Vendor Management",
  "name": "Proforma Invoice",

@@ -161,7 +161,7 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		self.assertIsNotNone(po.approved_on)
 
 	def test_payment_status_modification_restriction(self):
-		"""Verify only Procurement Manager (and admins) can modify payment status fields."""
+		"""Verify only authorized roles (such as PO Approver/Admins) can modify payment status fields."""
 		po = frappe.new_doc("Vendor Purchase Order")
 		po.company = self.test_company
 		po.vendor = self.test_vendor
@@ -171,18 +171,18 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		po.payment_status = "Pending"
 		po.save(ignore_permissions=True)
 
-		# Mock roles to PO Generator (non-authorized role)
+		# Mock roles to unauthorized role
 		original_get_roles = frappe.get_roles
 		try:
-			frappe.get_roles = lambda username: ["PO Generator"]
+			frappe.get_roles = lambda username: ["Accounts User"]
 			po.payment_status = "Advance Paid"
 			self.assertRaises(frappe.PermissionError, po.save, ignore_permissions=True)
 		finally:
 			frappe.get_roles = original_get_roles
 
-		# Mock roles to Procurement Manager (authorized role)
+		# Mock roles to PO Approver (authorized role)
 		try:
-			frappe.get_roles = lambda username: ["Procurement Manager"]
+			frappe.get_roles = lambda username: ["PO Approver"]
 			po.reload()
 			po.payment_status = "Advance Paid"
 			po.save(ignore_permissions=True)

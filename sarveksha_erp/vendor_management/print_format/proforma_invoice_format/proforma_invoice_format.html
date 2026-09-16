@@ -153,7 +153,7 @@
 
   <!-- ── TITLE ── -->
   <p style="text-align:center; font-size:13px; font-weight:bold; text-decoration:underline; margin:0 0 6px 0; letter-spacing:1px;">
-    PROFORMA INVOICE
+    PAYMENT INVOICE
   </p>
 
   <!-- ── SHIPPER (LEFT) & CONSIGNEE / META (RIGHT) ── -->
@@ -187,7 +187,7 @@
             {{ doc.buyer_address | replace("\n", "<br>") }}<br>
           {% endif %}
           <hr style="border:0; border-top:1px solid #ccc; margin:3px 0;">
-          <span class="lbl">Proforma Invoice No.:-</span> {{ doc.pi_number or doc.name }}<br>
+          <span class="lbl">Payment Invoice No.:-</span> {{ doc.pi_number or doc.name }}<br>
           <span class="lbl">Date:-</span> {{ doc.get_formatted("pi_date") }}<br>
           <span class="lbl">Purchase Order number {{ doc.po_reference_no or doc.internal_po }} for Reference</span><br>
           <span class="lbl">Currency:</span> {{ doc.currency or "USD" }}
