@@ -34,6 +34,7 @@ frappe.ui.form.on('Vendor Purchase Order', {
         // Render custom buttons based on workflow state & user roles
         const state = frm.doc.workflow_state || 'Draft';
         set_quotation_governance_access(frm, state);
+        render_quotation_attachments(frm);
         set_entity_policy_filters(frm);
         const user_roles = frappe.user_roles;
         const is_admin = user_roles.includes('System Manager') || user_roles.includes('Administrator');
@@ -934,6 +935,40 @@ function set_quotation_governance_access(frm, state) {
         quotation_grid.cannot_delete_rows = is_locked;
         quotation_grid.refresh();
     }
+}
+
+function render_quotation_attachments(frm) {
+    const quotation_field = frm.get_field('quotations');
+    if (!quotation_field || !quotation_field.$wrapper) return;
+
+    quotation_field.$wrapper.find('.quotation-attachments-panel').remove();
+
+    const attachments = (frm.doc.quotations || []).filter(row => row.quotation_pdf);
+    if (!attachments.length) return;
+
+    const rows = attachments.map(row => {
+        const supplier = frappe.utils.escape_html(row.supplier || __('Vendor'));
+        const file_url = frappe.utils.escape_html(row.quotation_pdf);
+        const file_name = frappe.utils.escape_html(
+            row.quotation_pdf.split('/').pop() || __('Quotation file')
+        );
+
+        return `
+            <li>
+                <strong>${supplier}</strong>
+                <a href="${file_url}" target="_blank" rel="noopener noreferrer">${file_name}</a>
+            </li>
+        `;
+    }).join('');
+
+    quotation_field.$wrapper.append(`
+        <div class="quotation-attachments-panel form-grid-container" style="margin-top: 12px;">
+            <div class="form-section-heading">${__('Quotation Attachments')}</div>
+            <ul class="list-unstyled" style="margin-bottom: 0;">
+                ${rows}
+            </ul>
+        </div>
+    `);
 }
 
 
