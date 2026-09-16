@@ -108,10 +108,13 @@ All 6 tests pass: `test_audit_trail_tracking`, `test_creation_restrictions_for_v
 ---
 
 ## Database Cleanup (Applied Directly)
-All Frappe test data that was leaking into the development site UI has been permanently removed:
-- Deleted: all `_Test Company *` records (20 companies)
-- Deleted: all `_Test Supplier *` records (10 suppliers)
-- Deleted: `_Test Supplier Group`
+All Frappe test data and obsolete vendor options have been permanently removed:
+- Deleted: `_Test Company` and all child/linked test transactions (Sales Invoices, Purchase Invoices, Journal Entries, Stock Entries, Purchase Receipts, Material Requests, Quotations, Sales Orders, Supplier Quotations, Accounts, Projects, etc.)
+- Deleted: `Supplier-custom_approved` (Approved Vendor) and `Supplier-custom_preferred_vendor` (Preferred Vendor) custom fields and dropped corresponding table columns
+- Updated: `Supplier-custom_lead_time_days` (insert_after: `custom_vendor_rating`) and `Supplier-custom_vendor_remarks` (insert_after: `custom_lead_time_days`)
+- Deleted: Dummy test `Vendor Payment` records
+- Replaced fallback test companies in test suites with active production entities
+- Cleaned: all `_Test*` suppliers and groups
 
 ---
 

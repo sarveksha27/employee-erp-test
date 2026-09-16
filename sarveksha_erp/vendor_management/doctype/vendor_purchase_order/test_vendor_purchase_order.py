@@ -25,8 +25,8 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
-		cls.test_company = frappe.db.get_value("Company", {}, "name") or "_Test Company"
-		cls.test_vendor = frappe.db.get_value("Supplier", {}, "name") or "_Test Supplier"
+		cls.test_company = frappe.db.get_value("Company", {}, "name") or "Sarveksha BSTP SAS"
+		cls.test_vendor = frappe.db.get_value("Supplier", {}, "name") or "Action Construction Equipment"
 		suppliers = [s.name for s in frappe.get_all("Supplier", limit=3)]
 		cls.test_suppliers = suppliers if len(suppliers) >= 3 else [cls.test_vendor, cls.test_vendor, cls.test_vendor]
 
@@ -478,8 +478,8 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		from pypdf import PdfReader, PdfWriter
 		from sarveksha_erp.vendor_management.doctype.vendor_purchase_order.pdf_handler import merge_po_attachments
 
-		test_company = frappe.db.get_value("Company", {}, "name") or "_Test Company"
-		test_vendor = frappe.db.get_value("Supplier", {}, "name") or "_Test Supplier"
+		test_company = frappe.db.get_value("Company", {}, "name") or "Sarveksha BSTP SAS"
+		test_vendor = frappe.db.get_value("Supplier", {}, "name") or "Action Construction Equipment"
 
 		# Create a dummy base PO PDF
 		base_writer = PdfWriter()
@@ -565,8 +565,8 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		from pypdf import PdfReader, PdfWriter
 		from sarveksha_erp.vendor_management.doctype.vendor_purchase_order.pdf_handler import merge_po_attachments
 
-		test_company = frappe.db.get_value("Company", {}, "name") or "_Test Company"
-		test_vendor = frappe.db.get_value("Supplier", {}, "name") or "_Test Supplier"
+		test_company = frappe.db.get_value("Company", {}, "name") or "Sarveksha BSTP SAS"
+		test_vendor = frappe.db.get_value("Supplier", {}, "name") or "Action Construction Equipment"
 
 		# Create a dummy base PO PDF
 		base_writer = PdfWriter()
@@ -634,8 +634,8 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		- Test negative values in logistics fields (freight=-50, insurance=-20, packing_charges=-10, other_charges=-5):
 		  Verify frappe.ValidationError is raised for each field.
 		"""
-		test_company = frappe.db.get_value("Company", {}, "name") or "_Test Company"
-		test_vendor = frappe.db.get_value("Supplier", {}, "name") or "_Test Supplier"
+		test_company = frappe.db.get_value("Company", {}, "name") or "Sarveksha BSTP SAS"
+		test_vendor = frappe.db.get_value("Supplier", {}, "name") or "Action Construction Equipment"
 
 		# 1. Zero values in logistics expense fields
 		po = frappe.new_doc("Vendor Purchase Order")
@@ -687,13 +687,13 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		"""
 		from sarveksha_erp.vendor_management.doctype.vendor_purchase_order.pdf_handler import merge_po_attachments
 
-		test_company = frappe.db.get_value("Company", {}, "name") or "_Test Company"
-		test_vendor = frappe.db.get_value("Supplier", {}, "name") or "_Test Supplier"
+		test_company = frappe.db.get_value("Company", {}, "name") or "Sarveksha BSTP SAS"
+		test_vendor = frappe.db.get_value("Supplier", {}, "name") or "Action Construction Equipment"
 
 		# Ensure 3 suppliers exist for quotation testing
 		s1 = frappe.db.get_value("Supplier", {"name": ["!=", test_vendor]}, "name") or test_vendor
-		s2 = frappe.db.get_value("Supplier", {"name": ["not in", [test_vendor, s1]]}, "name") or "Test Supplier 2"
-		s3 = frappe.db.get_value("Supplier", {"name": ["not in", [test_vendor, s1, s2]]}, "name") or "Test Supplier 3"
+		s2 = frappe.db.get_value("Supplier", {"name": ["not in", [test_vendor, s1]]}, "name") or "Marine Hardware Syndicate"
+		s3 = frappe.db.get_value("Supplier", {"name": ["not in", [test_vendor, s1, s2]]}, "name") or "Vinspire Agrotech Pvt Limited"
 
 		if not frappe.db.exists("Supplier", s2):
 			s2_doc = frappe.get_doc({"doctype": "Supplier", "supplier_name": s2, "supplier_group": "All Supplier Groups"})

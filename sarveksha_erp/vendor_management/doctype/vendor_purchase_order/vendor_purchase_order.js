@@ -162,14 +162,45 @@ frappe.ui.form.on('Vendor Purchase Order', {
         // PI Generation Button for Internal POs (Only available on Internal PO, never on External/Vendor PO)
         if (is_approved && frm.doc.po_type === 'Internal PO' && !frm.doc.__islocal && frm.doc.name &&
             (user_roles.includes('PO Generator') || is_admin)) {
-            frm.add_custom_button(__('Generate PI'), function() {
-                frappe.model.with_doctype('Proforma Invoice', function() {
-                    const new_pi = frappe.model.get_new_doc('Proforma Invoice');
-                    new_pi.internal_po = frm.doc.name;
-                    frappe.set_route('Form', 'Proforma Invoice', new_pi.name);
+            frappe.db.get_value('Proforma Invoice', { internal_po: frm.doc.name, docstatus: ['!=', 2] }, 'name')
+                .then(r => {
+                    const existing_pi = r && r.message && r.message.name;
+                    if (existing_pi) {
+                        frm.add_custom_button(__('View PI'), function() {
+                            frappe.set_route('Form', 'Proforma Invoice', existing_pi);
+                        });
+                        frm.change_custom_button_type(__('View PI'), null, 'info');
+
+                        frm.add_custom_button(__('Generate PI'), function() {
+                            frappe.show_alert({
+                                message: __('Proforma Invoice {0} is already generated for this PO. Passing on to it.', [existing_pi]),
+                                indicator: 'blue'
+                            });
+                            frappe.set_route('Form', 'Proforma Invoice', existing_pi);
+                        });
+                    } else {
+                        frm.add_custom_button(__('Generate PI'), function() {
+                            frappe.db.get_value('Proforma Invoice', { internal_po: frm.doc.name, docstatus: ['!=', 2] }, 'name')
+                                .then(res => {
+                                    const curr_pi = res && res.message && res.message.name;
+                                    if (curr_pi) {
+                                        frappe.show_alert({
+                                            message: __('Proforma Invoice {0} is already generated for this PO. Passing on to it.', [curr_pi]),
+                                            indicator: 'blue'
+                                        });
+                                        frappe.set_route('Form', 'Proforma Invoice', curr_pi);
+                                    } else {
+                                        frappe.model.with_doctype('Proforma Invoice', function() {
+                                            const new_pi = frappe.model.get_new_doc('Proforma Invoice');
+                                            new_pi.internal_po = frm.doc.name;
+                                            frappe.set_route('Form', 'Proforma Invoice', new_pi.name);
+                                        });
+                                    }
+                                });
+                        });
+                        frm.change_custom_button_type(__('Generate PI'), null, 'info');
+                    }
                 });
-            });
-            frm.change_custom_button_type(__('Generate Payment Invoice'), null, 'info');
         }
 
         const open_compiled_pdf = function() {

@@ -93,6 +93,14 @@ This document is specifically crafted for **AI Coding Agents** and **Incoming En
   - **Synchronized UI Actions**: Updated `proforma_invoice.js` and `proforma_invoice_format.html` to direct all print actions and `/printview` routes to the compiled PDF route `frappe.utils.print_format.download_pdf`.
 - **Why**: Delivers pixel-perfect corporate letterhead stationery rendering across all companies without cropping, squeezing, or duplicate footers, exactly matching user requirements.
 
+### Phase 10: Vendor Options Retirement & Comprehensive Test Data Purge
+- **What Was Done**:
+  - **Removed Vendor Options**: Permanently deleted custom fields `Supplier-custom_approved` (Approved Vendor) and `Supplier-custom_preferred_vendor` (Preferred Vendor) from `tabCustom Field` and dropped the respective columns from `tabSupplier`.
+  - **Re-linked Custom Field Ordering**: Linked `Supplier-custom_lead_time_days` directly after `custom_vendor_rating`, and `Supplier-custom_vendor_remarks` after `custom_lead_time_days`.
+  - **Purged `_Test Company` and Linked Transactions**: Completely removed `_Test Company` and all its associated test transactions across ERPNext (`Sales Invoice`, `Purchase Invoice`, `Stock Entry`, `Journal Entry`, `Quotation`, `Sales Order`, `Purchase Receipt`, `Material Request`, `Supplier Quotation`, `Accounts`, `Shipping Rules`, etc.).
+  - **Purged Residual Test Data**: Deleted dummy/test records in `tabVendor Payment`, disabled test record generation in `test_records.py`, and updated test fixtures to reference production companies.
+- **Why**: Eliminates obsolete checkboxes on vendor masters, ensures clean dropdowns with only active production entities, and maintains database integrity.
+
 ---
 
 ## 2. Critical Architecture Rules for Future AI Agents

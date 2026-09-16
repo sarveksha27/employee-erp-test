@@ -525,7 +525,7 @@ graph TD
 - **Database Table**: `tabSupplier`
 - **DocType Classification**: Master / Transaction DocType
 - **Module**: Buying
-- **Description**: Approved vendor, contractor, and internal subsidiary party records with banking and tax credentials.
+- **Description**: Vendor, contractor, and internal subsidiary party records with banking and tax credentials.
 
 | Column Name (`fieldname`) | SQL / Frappe Type | Req? | Read-Only | Options / Foreign Key | Label / Description |
 |---|---|---|---|---|---|
@@ -563,9 +563,7 @@ graph TD
 | `custom_tds_applicable` | `Check` | No | No | `—` | TDS Applicable |
 | `custom_tds_percentage` | `Percent` | No | No | `—` | TDS Percentage |
 | `custom_vendor_rating` | `Rating` | No | No | `—` | Vendor Rating |
-| `custom_preferred_vendor` | `Check` | No | No | `—` | Preferred Vendor |
 | `custom_lead_time_days` | `Int` | No | No | `—` | Lead Time (Days) |
-| `custom_approved` | `Check` | No | No | `—` | Approved Vendor |
 | `custom_vendor_remarks` | `Small Text` | No | No | `—` | Vendor Remarks |
 | `custom_vendor_documents` | `Attach` | No | No | `—` | Vendor Documents |
 | `default_currency` | `Link` | No | No | `Currency` | Billing Currency |
