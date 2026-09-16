@@ -126,6 +126,34 @@ frappe.ui.form.on('Vendor Purchase Order', {
             }
         }
 
+        // Allow Administrator/System Manager to permanently delete the PO
+        if (is_admin && frm.doc.name && !frm.doc.__islocal) {
+            frm.add_custom_button(__('Delete PO'), function() {
+                frappe.confirm(
+                    __('This will permanently delete Purchase Order {0}. This action cannot be undone. Continue?', [frm.doc.name]),
+                    function() {
+                        frappe.call({
+                            method: 'frappe.client.delete',
+                            args: {
+                                doctype: 'Vendor Purchase Order',
+                                name: frm.doc.name
+                            },
+                            callback: function(r) {
+                                if (!r.exc) {
+                                    frappe.show_alert({
+                                        message: __('Purchase Order deleted successfully.'),
+                                        indicator: 'green'
+                                    });
+                                    frappe.set_route('List', 'Vendor Purchase Order');
+                                }
+                            }
+                        });
+                    }
+                );
+            });
+            frm.change_custom_button_type(__('Delete PO'), null, 'danger');
+        }
+
         // Configure Print Button & Menu Visibility based on Workflow Stage and User Roles
         const is_approved = (frm.doc.workflow_state === 'Approved' || frm.doc.docstatus === 1);
         const can_print = is_approved && (user_roles.includes('PO Generator') || is_admin);
