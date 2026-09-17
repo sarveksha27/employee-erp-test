@@ -182,7 +182,9 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 
 		# Mock roles to PO Approver (authorized role)
 		try:
-			frappe.get_roles = lambda username: ["PO Approver"]
+			frappe.get_roles = lambda username=None: ["PO Approver"]
+			po.reload()
+			po.db_set("workflow_state", "Verified (Yet to be approved)")
 			po.reload()
 			po.payment_status = "Advance Paid"
 			po.save(ignore_permissions=True)
