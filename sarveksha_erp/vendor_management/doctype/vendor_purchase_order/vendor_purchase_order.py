@@ -384,46 +384,74 @@ class VendorPurchaseOrder(Document):
                 )
 
     def validate_reviewer_edit_rights(self):
-        """Prevent reviewers from changing rates or logistics charges."""
+        """Prevent reviewers from changing procurement inputs at their workflow stage."""
         if self.is_new() or frappe.session.user == "Administrator":
             return
 
         user_roles = set(frappe.get_roles(frappe.session.user))
-        if user_roles.intersection({"System Manager"}):
-            return
-
-        reviewer_roles = {"PO Verifier", "PO Approver"}
-        if not user_roles.intersection(reviewer_roles):
+        if user_roles.intersection({"PO Generator", "System Manager"}):
             return
 
         previous = self.get_doc_before_save()
         if not previous:
             return
 
+        old_state = previous.workflow_state or "Draft"
+        protected_roles = set()
+        if old_state in {
+            "Generated (Yet to be Verified)",
+            "Verified (Yet to be approved)",
+            "Approved",
+        } and "PO Verifier" in user_roles:
+            protected_roles.add("PO Verifier")
+        if old_state in {"Verified (Yet to be approved)", "Approved"} and "PO Approver" in user_roles:
+            protected_roles.add("PO Approver")
+
+        if not protected_roles:
+            return
+
         protected_fields = [
-            "rate",
-            "freight",
-            "insurance",
-            "packing_charges",
-            "other_charges",
+            ("rate", "Unit Rate"),
+            ("quantity", "Quantity"),
+            ("discount_percent", "Discount %"),
+            ("freight", "Freight Charges"),
+            ("insurance", "Insurance"),
+            ("packing_charges", "Packing Charges"),
+            ("other_charges", "Other Charges"),
         ]
-        changed = any(previous.get(field) != self.get(field) for field in protected_fields)
+        for fieldname, label in protected_fields:
+            if previous.get(fieldname) != self.get(fieldname):
+                frappe.throw(
+                    _("{0} cannot modify protected procurement field {1}.").format(
+                        "/".join(sorted(protected_roles)), label
+                    ),
+                    frappe.PermissionError,
+                )
 
-        previous_items = previous.get("items") or []
-        current_items = self.get("items") or []
-        if len(previous_items) != len(current_items):
-            changed = True
-        else:
-            changed = changed or any(
-                previous_item.get("rate") != current_item.get("rate")
-                for previous_item, current_item in zip(previous_items, current_items)
-            )
-
-        if changed:
+        previous_items = {item.name: item for item in (previous.get("items") or []) if item.name}
+        current_items = {item.name: item for item in (self.get("items") or []) if item.name}
+        if set(previous_items) != set(current_items):
             frappe.throw(
-                _("PO Verifiers and PO Approvers cannot change unit rates or other charges."),
-                frappe.PermissionError
+                _("{0} cannot add, remove, or replace protected procurement items.").format(
+                    "/".join(sorted(protected_roles))
+                ),
+                frappe.PermissionError,
             )
+
+        for item_name, previous_item in previous_items.items():
+            current_item = current_items[item_name]
+            for fieldname, label in [
+                ("rate", "Unit Rate"),
+                ("quantity", "Quantity"),
+                ("discount_percent", "Discount %"),
+            ]:
+                if previous_item.get(fieldname) != current_item.get(fieldname):
+                    frappe.throw(
+                        _("{0} cannot modify protected item field {1}.").format(
+                            "/".join(sorted(protected_roles)), label
+                        ),
+                        frappe.PermissionError,
+                    )
 
     def validate_payment_permissions(self):
         """Ensure only authorized roles can modify payment fields on save."""
@@ -935,11 +963,12 @@ class VendorPurchaseOrder(Document):
         if self.payment_status == "Fully Paid":
             frappe.throw(_("This PO is already fully paid."))
 
-        self.db_set("payment_status", "Advance Paid")
-        self.db_set("status", "Partially Paid")
-        self.db_set("payment_pending", 0)
-        self.db_set("payment_partially_paid", 1)
-        self.db_set("payment_fully_paid", 0)
+        self.payment_status = "Advance Paid"
+        self.status = "Partially Paid"
+        self.payment_pending = 0
+        self.payment_partially_paid = 1
+        self.payment_fully_paid = 0
+        self.save()
         self.add_comment("Info",
             _("Advance payment marked by {0}").format(frappe.session.user)
         )
@@ -955,11 +984,12 @@ class VendorPurchaseOrder(Document):
         if self.docstatus != 1:
             frappe.throw(_("Document must be submitted to mark payment."))
 
-        self.db_set("payment_status", "Fully Paid")
-        self.db_set("status", "Fully Paid")
-        self.db_set("payment_pending", 0)
-        self.db_set("payment_partially_paid", 0)
-        self.db_set("payment_fully_paid", 1)
+        self.payment_status = "Fully Paid"
+        self.status = "Fully Paid"
+        self.payment_pending = 0
+        self.payment_partially_paid = 0
+        self.payment_fully_paid = 1
+        self.save()
         self.add_comment("Info",
             _("Marked as Fully Paid by {0}").format(frappe.session.user)
         )
@@ -1169,6 +1199,7 @@ def get_workflow_activity_history(docname):
         doc = frappe.get_doc("Vendor Purchase Order", docname)
     except Exception:
         return []
+    doc.check_permission("read")
 
     import json
 
