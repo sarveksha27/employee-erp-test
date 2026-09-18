@@ -41,9 +41,14 @@ frappe.ui.form.on("Vendor Purchase Order", {
 
 		// Helper function to apply workflow action
 		const apply_action = function (action_name) {
-			if (frm.doc.__unsaved || frm.doc.__islocal) {
-				frappe.msgprint(__("Save the Purchase Order before applying a workflow action."));
-				update_workflow_action_buttons(frm);
+			const is_dirty = Boolean(
+				(frm.is_dirty && frm.is_dirty()) ||
+				frm.doc.__unsaved ||
+				frm.doc.__islocal
+			);
+			if (is_dirty) {
+				frappe.msgprint(__("Please save changes before sending forward."));
+				update_save_before_forward_guard(frm);
 				return;
 			}
 
@@ -65,7 +70,7 @@ frappe.ui.form.on("Vendor Purchase Order", {
 						});
 					})
 					.catch((err) => {
-						frappe.msgprint(__("Error applying action: ") + err.message);
+						frappe.msgprint(__("Error applying action: ") + (err.message || err));
 					})
 					.finally(() => {
 						frappe.dom.unfreeze();
@@ -316,6 +321,29 @@ frappe.ui.form.on("Vendor Purchase Order", {
 		setup_verification_approval_panel(frm);
 		apply_dynamic_field_locks(frm);
 
+		// Lock Currency and Exchange Rate: evaluate whether user has System Manager or Administrator
+		const has_currency_admin_access =
+			user_roles.includes("System Manager") ||
+			user_roles.includes("Administrator") ||
+			frappe.session.user === "Administrator";
+		if (!has_currency_admin_access) {
+			frm.set_df_property("currency", "read_only", 1);
+			frm.set_df_property("exchange_rate", "read_only", 1);
+		} else {
+			frm.set_df_property("currency", "read_only", 0);
+			frm.set_df_property("exchange_rate", "read_only", 0);
+		}
+
+		// Lock Price Inputs for Verifiers and Approvers
+		lock_price_inputs_for_reviewers(frm);
+
+		// Payment Section Locking
+		toggle_payment_section(frm);
+
+		// Save-Before-Forward Guard
+		bind_workflow_action_guard(frm);
+		update_save_before_forward_guard(frm);
+
 		// Render custom remarks and revision number in the sidebar
 		render_sidebar_custom_info(frm);
 
@@ -422,6 +450,10 @@ frappe.ui.form.on("Vendor Purchase Order", {
 				}
 			}
 		}
+	},
+
+	onload_post_render: function (frm) {
+		render_workflow_activity_history(frm);
 	},
 
 	// ─── VENDOR TRIGGER ───────────────────────────────────────
@@ -631,6 +663,15 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			frm.set_df_property("terms_preview", "options", "");
 		}
 	},
+
+	after_save: function (frm) {
+		update_save_before_forward_guard(frm);
+		render_workflow_activity_history(frm);
+	},
+
+	on_change: function (frm) {
+		update_save_before_forward_guard(frm);
+	},
 });
 
 // ─── CHILD TABLE GRID TRIGGERS (Vendor Purchase Order Item) ───
@@ -669,6 +710,7 @@ frappe.ui.form.on("Vendor Purchase Order Item", {
 					frappe.model.set_value(cdt, cdn, "gst_percentage", gst_pct);
 
 					calculate_gst_and_totals(frm);
+					update_save_before_forward_guard(frm);
 				}
 			},
 		);
@@ -676,18 +718,23 @@ frappe.ui.form.on("Vendor Purchase Order Item", {
 
 	quantity: function (frm, cdt, cdn) {
 		calculate_gst_and_totals(frm);
+		update_save_before_forward_guard(frm);
 	},
 	rate: function (frm, cdt, cdn) {
 		calculate_gst_and_totals(frm);
+		update_save_before_forward_guard(frm);
 	},
 	discount_percent: function (frm, cdt, cdn) {
 		calculate_gst_and_totals(frm);
+		update_save_before_forward_guard(frm);
 	},
 	gst_percentage: function (frm, cdt, cdn) {
 		calculate_gst_and_totals(frm);
+		update_save_before_forward_guard(frm);
 	},
 	items_remove: function (frm) {
 		calculate_gst_and_totals(frm);
+		update_save_before_forward_guard(frm);
 	},
 });
 
@@ -938,32 +985,25 @@ function setup_verification_approval_panel(frm) {
 
 function apply_dynamic_field_locks(frm) {
 	const user_roles = frappe.user_roles || [];
-	const is_admin = user_roles.includes("System Manager") || user_roles.includes("Administrator");
+	const is_admin =
+		user_roles.includes("System Manager") ||
+		user_roles.includes("Administrator") ||
+		frappe.session.user === "Administrator";
 	const state = frm.doc.workflow_state || "Draft";
 	const is_reviewer = user_roles.includes("PO Verifier") || user_roles.includes("PO Approver");
-	const lock_payment = !is_admin && ["Draft", "Generated (Yet to be Verified)"].includes(state);
-	const lock_currency = !is_admin && state !== "Draft";
-	const lock_reviewer_inputs = !is_admin && is_reviewer && state !== "Draft";
 
-	const payment_fields = [
-		"payment_terms",
-		"advance_percentage",
-		"advance_amount",
-		"payment_status",
-		"balance_due",
-		"company_bank",
-	];
-	payment_fields.forEach((fieldname) => {
-		frm.set_df_property(fieldname, "read_only", lock_payment ? 1 : 0);
-	});
-	["payment_pending", "payment_partially_paid", "payment_fully_paid"].forEach((fieldname) => {
-		frm.set_df_property(fieldname, "read_only", 1);
-	});
+	// 1. Payment section locking
+	toggle_payment_section(frm);
 
+	// 2. Currency and exchange rate locking
 	["currency", "exchange_rate"].forEach((fieldname) => {
-		frm.set_df_property(fieldname, "read_only", lock_currency ? 1 : 0);
+		frm.set_df_property(fieldname, "read_only", is_admin ? 0 : 1);
 	});
 
+	// 3. Price inputs locking for verifiers and approvers
+	lock_price_inputs_for_reviewers(frm);
+
+	const lock_reviewer_inputs = !is_admin && is_reviewer && state !== "Draft";
 	const reviewer_fields = [
 		"rate",
 		"discount_percent",
@@ -992,7 +1032,9 @@ function apply_dynamic_field_locks(frm) {
 		"cfa_doc",
 	];
 	reviewer_fields.forEach((fieldname) => {
-		frm.set_df_property(fieldname, "read_only", lock_reviewer_inputs ? 1 : 0);
+		if (frm.get_field(fieldname)) {
+			frm.set_df_property(fieldname, "read_only", lock_reviewer_inputs ? 1 : 0);
+		}
 	});
 
 	const items_grid = frm.get_field("items") && frm.get_field("items").grid;
@@ -1010,8 +1052,88 @@ function apply_dynamic_field_locks(frm) {
 		items_grid.refresh();
 	}
 
+	// 4. Re-apply reviewers price locking on items_grid if needed
+	lock_price_inputs_for_reviewers(frm);
+
 	bind_workflow_action_guard(frm);
-	update_workflow_action_buttons(frm);
+	update_save_before_forward_guard(frm);
+}
+
+function toggle_payment_section(frm) {
+	const user_roles = frappe.user_roles || [];
+	const has_accounts_or_admin =
+		user_roles.includes("Accounts User") ||
+		user_roles.includes("Accounts Manager") ||
+		user_roles.includes("System Manager") ||
+		user_roles.includes("Administrator") ||
+		frappe.session.user === "Administrator";
+
+	const is_allowed =
+		frm.doc.workflow_state === "Approved" && has_accounts_or_admin;
+
+	const target_fields = [
+		"payment_status",
+		"advance_paid",
+		"balance_due",
+		"payment_pending",
+		"payment_partially_paid",
+		"payment_fully_paid",
+		"advance_percentage",
+		"payment_terms",
+	];
+
+	target_fields.forEach((field) => {
+		if (frm.get_field(field)) {
+			frm.set_df_property(field, "read_only", is_allowed ? 0 : 1);
+		}
+	});
+
+	["advance_amount", "company_bank"].forEach((field) => {
+		if (frm.get_field(field)) {
+			frm.set_df_property(field, "read_only", is_allowed ? 0 : 1);
+		}
+	});
+}
+
+function lock_price_inputs_for_reviewers(frm) {
+	const user_roles = frappe.user_roles || [];
+	const has_verifier_or_approver =
+		user_roles.includes("PO Verifier") || user_roles.includes("PO Approver");
+	const has_generator_or_sys_mgr =
+		user_roles.includes("PO Generator") ||
+		user_roles.includes("System Manager") ||
+		user_roles.includes("Administrator") ||
+		frappe.session.user === "Administrator";
+
+	if (has_verifier_or_approver && !has_generator_or_sys_mgr) {
+		const items_grid = frm.get_field("items") && frm.get_field("items").grid;
+		if (items_grid) {
+			["rate", "base_rate"].forEach((col) => {
+				items_grid.update_docfield_property(col, "read_only", 1);
+			});
+			items_grid.refresh();
+		}
+
+		const logistics_fields = [
+			"ocean_air_freight_charges",
+			"customs_clearance_charges",
+			"inland_transportation_charges",
+			"insurance_charges",
+			"packaging_forwarding_charges",
+			"other_incidental_charges",
+			"discount_amount",
+			"freight",
+			"insurance",
+			"packing_charges",
+			"other_charges",
+			"discount_percent",
+		];
+		logistics_fields.forEach((field) => {
+			if (frm.get_field(field)) {
+				frm.set_df_property(field, "read_only", 1);
+			}
+		});
+	}
 }
 
 function sync_payment_status_display(frm) {
@@ -1034,21 +1156,49 @@ function bind_workflow_action_guard(frm) {
 
 	frm.wrapper.off("input.vpo-workflow-guard change.vpo-workflow-guard");
 	frm.wrapper.on("input.vpo-workflow-guard change.vpo-workflow-guard", function () {
-		update_workflow_action_buttons(frm);
+		update_save_before_forward_guard(frm);
 	});
 }
 
-function update_workflow_action_buttons(frm) {
+function update_save_before_forward_guard(frm) {
 	if (!frm.page || !frm.page.wrapper) return;
 
-	const has_unsaved_changes = Boolean(frm.doc.__unsaved || frm.doc.__islocal);
-	frm.page.wrapper.find('[data-label="Send Forward"]').each(function () {
-		$(this)
-			.prop("disabled", has_unsaved_changes)
-			.attr("aria-disabled", has_unsaved_changes ? "true" : "false")
-			.attr("title", has_unsaved_changes ? __("Save before sending forward") : "");
-	});
+	const is_dirty = Boolean(
+		(frm.is_dirty && frm.is_dirty()) ||
+		frm.doc.__unsaved ||
+		frm.doc.__islocal
+	);
+
+	const forward_btn = frm.page.wrapper
+		.find('[data-label="Send%20Forward"], [data-label="Send Forward"], button:contains("Send Forward")')
+		.filter(function () {
+			const label = $(this).attr("data-label");
+			const text = $(this).text().trim();
+			return (
+				text === __("Send Forward") ||
+				label === "Send Forward" ||
+				label === "Send%20Forward"
+			);
+		});
+
+	if (forward_btn.length) {
+		if (is_dirty) {
+			forward_btn
+				.prop("disabled", true)
+				.addClass("disabled")
+				.attr("aria-disabled", "true")
+				.attr("title", __("Please save changes before sending forward."));
+		} else {
+			forward_btn
+				.prop("disabled", false)
+				.removeClass("disabled")
+				.attr("aria-disabled", "false")
+				.removeAttr("title");
+		}
+	}
 }
+
+const update_workflow_action_buttons = update_save_before_forward_guard;
 
 function render_sidebar_custom_info(frm) {
 	if (!frm.sidebar || !frm.sidebar.sidebar) return;
@@ -1129,56 +1279,82 @@ function handle_shipment_type_change(frm) {
 }
 
 function render_workflow_activity_history(frm) {
-	if (frm.doc.__islocal || !frm.doc.name) {
-		frm.set_df_property("workflow_history_html", "options", "");
+	if (!frm || !frm.doc || frm.doc.__islocal || !frm.doc.name) {
+		$(frm.wrapper).find('[data-fieldname="sec_workflow_history"]').hide();
 		return;
 	}
+
+	const $sec = $(frm.wrapper).find('[data-fieldname="sec_workflow_history"]');
+	$sec.removeClass("hide-control hide").show();
+	$sec.find(".section-body").removeClass("hide").show();
 
 	frappe.call({
 		method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.get_workflow_activity_history",
 		args: { docname: frm.doc.name },
 		callback: function (r) {
+			let html = "";
 			if (r.message && r.message.length > 0) {
-				let html = `
-                    <div style="margin-bottom: 10px; text-align: right;">
-                        <button class="btn btn-xs btn-default btn-export-excel" style="font-weight: 500; font-size: 11px;">
-                            <i class="fa fa-download" style="margin-right: 4px; color: #15803d;"></i> Export to Excel
+				html = `
+                    <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                        <span style="font-weight: 600; font-size: 12px; color: #1e293b;">
+                            <i class="fa fa-history" style="margin-right: 5px; color: #2563eb;"></i> PO Approval &amp; Activity Audit Trail (${r.message.length} events)
+                        </span>
+                        <button type="button" class="btn btn-xs btn-default btn-export-excel" style="font-weight: 600; font-size: 11px; padding: 4px 10px; background: #ffffff; color: #15803d; border: 1px solid #86efac; border-radius: 4px;">
+                            <i class="fa fa-file-excel-o" style="margin-right: 4px; color: #16a34a;"></i> Export to Excel (CSV)
                         </button>
                     </div>
-                    <div class="table-responsive" style="border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden;">
-                        <table class="table table-bordered table-condensed" style="margin: 0; background: #fff; font-size: 12px; color: #374151; table-layout: fixed; width: 100%;">
-                            <colgroup>
-                                <col style="width: 4%">
-                                <col style="width: 16%">
-                                <col style="width: 20%">
-                                <col style="width: 22%">
-                                <col style="width: 38%">
-                            </colgroup>
+                    <div class="table-responsive" style="border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <table class="table table-bordered table-condensed table-hover" style="margin: 0; background: #fff; font-size: 12px; color: #1e293b; width: 100%; border-collapse: collapse;">
                             <thead>
-                                <tr style="background: #1e3a5f; color: #fff; font-weight: 600;">
-                                    <th style="padding: 8px 10px;">#</th>
-                                    <th style="padding: 8px 10px;">Date &amp; Time</th>
-                                    <th style="padding: 8px 10px;">User</th>
-                                    <th style="padding: 8px 10px;">Workflow State</th>
-                                    <th style="padding: 8px 10px;">Remarks / Comments</th>
+                                <tr style="background: #1e3a5f; color: #ffffff; font-weight: 600;">
+                                    <th style="width: 40px; text-align: center; padding: 8px 6px; border: 1px solid #334e68;">#</th>
+                                    <th style="width: 135px; padding: 8px 8px; border: 1px solid #334e68;">Date &amp; Time</th>
+                                    <th style="width: 175px; padding: 8px 8px; border: 1px solid #334e68;">User</th>
+                                    <th style="width: 190px; padding: 8px 8px; border: 1px solid #334e68;">Stage &amp; Action</th>
+                                    <th style="padding: 8px 10px; border: 1px solid #334e68;">Changes Made</th>
+                                    <th style="width: 170px; padding: 8px 8px; border: 1px solid #334e68;">Remarks / Notes</th>
                                 </tr>
                             </thead>
                             <tbody>
                 `;
 				r.message.forEach((row, idx) => {
 					let rowBg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
+					let changesHtml = "";
+					if (row.changes && row.changes.length > 0) {
+						changesHtml = '<div style="max-height: 140px; overflow-y: auto;"><ul style="margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.6; color: #334155;">';
+						row.changes.forEach((chg) => {
+							let fieldName = frappe.utils.escape_html(chg.field || "");
+							let oldVal = frappe.utils.escape_html(chg.old || "");
+							let newVal = frappe.utils.escape_html(chg.new || "");
+							if (oldVal !== "—" && newVal !== "—") {
+								changesHtml += `<li><strong>${fieldName}:</strong> <del style="color: #b91c1c; text-decoration: line-through;">${oldVal}</del> → <span style="color: #15803d; font-weight: 600;">${newVal}</span></li>`;
+							} else if (newVal !== "—") {
+								changesHtml += `<li><strong>${fieldName}:</strong> <span style="color: #15803d; font-weight: 600;">${newVal}</span></li>`;
+							} else if (chg.text) {
+								changesHtml += `<li>${frappe.utils.escape_html(chg.text)}</li>`;
+							} else {
+								changesHtml += `<li><strong>${fieldName}</strong></li>`;
+							}
+						});
+						changesHtml += "</ul></div>";
+					} else {
+						changesHtml = '<span style="color: #94a3b8; font-style: italic;">No field modifications</span>';
+					}
+
 					html += `
                         <tr style="background: ${rowBg};">
-                            <td style="padding: 7px 10px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280;">${row.no}</td>
-                            <td style="padding: 7px 10px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #374151;">${row.datetime}</td>
-                            <td style="padding: 7px 10px; border-top: 1px solid #e5e7eb;">
-                                <div style="font-weight: 600; color: #111827;">${row.user}</div>
-                                <div style="font-size: 10px; color: #9ca3af;">${row.email}</div>
+                            <td style="padding: 8px 6px; border-top: 1px solid #e2e8f0; text-align: center; color: #64748b; vertical-align: top; font-weight: 500;">${row.no}</td>
+                            <td style="padding: 8px 8px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #475569; vertical-align: top; white-space: nowrap;">${row.datetime}</td>
+                            <td style="padding: 8px 8px; border-top: 1px solid #e2e8f0; vertical-align: top;">
+                                <div style="font-weight: 600; color: #0f172a;">${frappe.utils.escape_html(row.user)}</div>
+                                <div style="font-size: 10px; color: #64748b;">${frappe.utils.escape_html(row.email)}</div>
                             </td>
-                            <td style="padding: 7px 10px; border-top: 1px solid #e5e7eb;">
-                                <span style="display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; background: #dbeafe; color: #1e40af;">${row.state}</span>
+                            <td style="padding: 8px 8px; border-top: 1px solid #e2e8f0; vertical-align: top;">
+                                <span style="display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #e0e7ff; color: #3730a3;">${frappe.utils.escape_html(row.state || "Draft")}</span>
+                                <div style="font-size: 11px; font-weight: 600; color: #1e293b; margin-top: 4px;">${frappe.utils.escape_html(row.action || "")}</div>
                             </td>
-                            <td style="padding: 7px 10px; border-top: 1px solid #e5e7eb; white-space: pre-wrap; word-wrap: break-word; color: #374151;">${row.remarks || '<span style="color:#d1d5db;">—</span>'}</td>
+                            <td style="padding: 8px 10px; border-top: 1px solid #e2e8f0; vertical-align: top;">${changesHtml}</td>
+                            <td style="padding: 8px 8px; border-top: 1px solid #e2e8f0; white-space: pre-wrap; word-wrap: break-word; color: #334155; vertical-align: top;">${row.remarks ? frappe.utils.escape_html(row.remarks) : '<span style="color:#cbd5e1;">—</span>'}</td>
                         </tr>
                     `;
 				});
@@ -1187,32 +1363,57 @@ function render_workflow_activity_history(frm) {
                         </table>
                     </div>
                 `;
-				frm.set_df_property("workflow_history_html", "options", html);
-
-				// Bind click event to export button
-				setTimeout(() => {
-					$(frm.wrapper)
-						.find(".btn-export-excel")
-						.off("click")
-						.on("click", function () {
-							export_history_to_excel(frm.doc.name, r.message);
-						});
-				}, 150);
 			} else {
-				frm.set_df_property("workflow_history_html", "options", "");
+				html = `
+					<div style="padding: 18px; text-align: center; color: #64748b; font-style: italic; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px;">
+						<i class="fa fa-info-circle" style="margin-right: 5px; color: #3b82f6;"></i> No audit trail records found for this Purchase Order yet.
+					</div>
+				`;
 			}
+
+			// Render directly into DOM
+			let rendered = false;
+			const $field = $(frm.wrapper).find('[data-fieldname="workflow_history_html"]');
+			if ($field.length) {
+				$field.empty().html(html);
+				rendered = true;
+			}
+
+			if (frm.fields_dict && frm.fields_dict.workflow_history_html && frm.fields_dict.workflow_history_html.$wrapper) {
+				frm.fields_dict.workflow_history_html.$wrapper.empty().html(html);
+				rendered = true;
+			}
+
+			const $secBody = $(frm.wrapper).find('[data-fieldname="sec_workflow_history"] .section-body');
+			if ($secBody.length && (!rendered || !$secBody.find(".table-responsive").length)) {
+				$secBody.empty().html(html);
+			}
+
+			// Bind click event to export button
+			setTimeout(() => {
+				$(frm.wrapper)
+					.find(".btn-export-excel")
+					.off("click")
+					.on("click", function () {
+						export_history_to_excel(frm.doc.name, r.message || []);
+					});
+			}, 100);
 		},
 	});
 }
 
 function export_history_to_excel(po_name, data) {
-	let csv = "No,Date & Time,User Name,User Email,Action,Workflow State,Remarks / Comments\n";
+	let csv = "No,Date & Time,User Name,User Email,Stage,Action,Changes Made,Remarks / Comments\n";
 	data.forEach((row) => {
 		let remarks = (row.remarks || "").replace(/"/g, '""');
 		let user = (row.user || "").replace(/"/g, '""');
 		let action = (row.action || "").replace(/"/g, '""');
 		let state = (row.state || "").replace(/"/g, '""');
-		csv += `${row.no},"${row.datetime}","${user}","${row.email}","${action}","${state}","${remarks}"\n`;
+		let changesText = (row.changes || [])
+			.map((c) => c.text || `${c.field}: ${c.old} -> ${c.new}`)
+			.join(" | ")
+			.replace(/"/g, '""');
+		csv += `${row.no},"${row.datetime}","${user}","${row.email}","${state}","${action}","${changesText}","${remarks}"\n`;
 	});
 
 	const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -1220,13 +1421,14 @@ function export_history_to_excel(po_name, data) {
 	if (link.download !== undefined) {
 		const url = URL.createObjectURL(blob);
 		link.setAttribute("href", url);
-		link.setAttribute("download", `${po_name}_workflow_history.csv`);
+		link.setAttribute("download", `${po_name}_audit_trail.csv`);
 		link.style.visibility = "hidden";
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
 	}
 }
+
 
 function set_quotation_governance_access(frm, state) {
 	const is_locked = !frm.is_new() && state !== "Draft";

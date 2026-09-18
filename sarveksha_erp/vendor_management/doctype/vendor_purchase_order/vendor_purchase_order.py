@@ -599,6 +599,7 @@ class VendorPurchaseOrder(Document):
     def sanitize_text_fields(self):
         """Strip potentially dangerous content from free-text fields."""
         text_fields = ["remarks", "payment_terms", "delivery_location",
+                       "warehouse", "warehouse_address",
                        "container_number", "quotation_ref", "pi_number",
                        "signatory"]
         for field in text_fields:
@@ -1138,13 +1139,59 @@ def get_supplier_payment_details(supplier):
 
 @frappe.whitelist()
 def get_workflow_activity_history(docname):
+    """Fetch complete audit trail including which user made what changes at each stage."""
     if not docname:
         return []
 
-    # Get the document
-    doc = frappe.get_doc("Vendor Purchase Order", docname)
+    try:
+        doc = frappe.get_doc("Vendor Purchase Order", docname)
+    except Exception:
+        return []
 
-    # Query all comments for the VPO
+    import json
+
+    # Human-readable field labels
+    vpo_meta = frappe.get_meta("Vendor Purchase Order")
+    field_labels = {df.fieldname: df.label for df in vpo_meta.fields if df.label}
+    item_meta = frappe.get_meta("Vendor Purchase Order Item")
+    item_field_labels = {df.fieldname: df.label for df in item_meta.fields if df.label}
+
+    ignore_fields = {
+        "modified", "modified_by", "__unsaved", "docstatus", "idx",
+        "naming_series", "workflow_history_html", "sec_workflow_history"
+    }
+
+    # User full name helper
+    user_cache = {}
+    def get_user_display(user_id):
+        if not user_id:
+            return "System", ""
+        if user_id in user_cache:
+            return user_cache[user_id]
+        info = frappe.db.get_value("User", user_id, ["first_name", "last_name"], as_dict=True)
+        name = f"{info.first_name} {info.last_name or ''}".strip() if info else user_id
+        user_cache[user_id] = (name, user_id)
+        return name, user_id
+
+    def fmt_val(v):
+        if v is None or v == "":
+            return "—"
+        s = str(v).strip()
+        if "<" in s and ">" in s:
+            s = frappe.utils.strip_html(s).strip()
+        if len(s) > 80:
+            return s[:77] + "..."
+        return s or "—"
+
+    # Query all versions for this document
+    versions = frappe.get_all(
+        "Version",
+        filters={"ref_doctype": "Vendor Purchase Order", "docname": docname},
+        fields=["name", "owner", "creation", "data"],
+        order_by="creation asc"
+    )
+
+    # Query all workflow & manual comments
     comments = frappe.get_all(
         "Comment",
         filters={
@@ -1158,58 +1205,202 @@ def get_workflow_activity_history(docname):
 
     history = []
     
-    # 1. Add Creation/Prepared event
-    prep_user = doc.prepared_by or doc.owner
-    user_info = frappe.db.get_value("User", prep_user, ["first_name", "last_name"], as_dict=True)
-    user_name = f"{user_info.first_name} {user_info.last_name or ''}".strip() if user_info else prep_user
+    # 1. Event #1: Initial Document Creation
+    prep_user = doc.prepared_by or doc.owner or "Administrator"
+    u_name, u_email = get_user_display(prep_user)
     history.append({
-        "no": 1,
         "datetime": frappe.utils.format_datetime(doc.creation, "yyyy-MM-dd HH:mm:ss"),
-        "user": user_name,
-        "email": prep_user,
-        "action": "Prepared / Created PO",
+        "timestamp": frappe.utils.get_datetime(doc.creation),
+        "user": u_name,
+        "email": u_email,
         "state": "Draft",
+        "action": "Created PO (Draft)",
+        "changes": [{"field": "Order", "old": "—", "new": "Initial draft created", "text": "Initial Purchase Order draft created"}],
         "remarks": doc.remarks or ""
     })
 
-    # 2. Add subsequent workflow transitions and comments
-    idx = 2
-    for c in comments:
-        user_info = frappe.db.get_value("User", c.owner, ["first_name", "last_name"], as_dict=True)
-        user_name = f"{user_info.first_name} {user_info.last_name or ''}".strip() if user_info else c.owner
-        
-        content_stripped = frappe.utils.strip_html(c.content or "")
-        
-        if c.comment_type == "Workflow":
-            action = "Workflow Transition"
-            state = content_stripped
-            remarks = ""
-            
-            # Map comments to the transition if we can identify it
-            if "Verified" in state:
-                remarks = doc.verifier_comments or ""
-            elif "Approved" in state:
-                remarks = doc.approver_comments or ""
-            elif "Return" in state:
-                if c.owner == doc.verified_by:
-                    remarks = doc.verifier_comments or ""
-                elif c.owner == doc.approved_by:
-                    remarks = doc.approver_comments or ""
+    running_state = "Draft"
+
+    # 2. Process Version records
+    for v in versions:
+        try:
+            vdata = json.loads(v.data) if isinstance(v.data, str) else (v.data or {})
+        except Exception:
+            vdata = {}
+
+        v_changes = []
+        state_transition = None
+        remarks = ""
+
+        # Field changes
+        for chg in vdata.get("changed", []):
+            if not isinstance(chg, list) or len(chg) < 3:
+                continue
+            fname, old_v, new_v = chg[0], chg[1], chg[2]
+            if fname in ignore_fields or old_v == new_v:
+                continue
+
+            if fname == "workflow_state":
+                state_transition = (old_v, new_v)
+                continue
+
+            if fname in ["verifier_comments", "approver_comments", "remarks"] and new_v:
+                remarks = fmt_val(new_v)
+
+            flabel = field_labels.get(fname, fname.replace("_", " ").title())
+            old_str = fmt_val(old_v)
+            new_str = fmt_val(new_v)
+            v_changes.append({
+                "field": flabel,
+                "old": old_str,
+                "new": new_str,
+                "text": f"{flabel}: {old_str} → {new_str}"
+            })
+
+        # Child table row changes
+        for rchg in vdata.get("row_changed", []):
+            if not isinstance(rchg, list) or len(rchg) < 4:
+                continue
+            tname, row_idx, row_name, field_changes = rchg[0], rchg[1], rchg[2], rchg[3]
+            tlabel = field_labels.get(tname, tname.title())
+            for fc in field_changes:
+                if not isinstance(fc, list) or len(fc) < 3:
+                    continue
+                rfname, rold, rnew = fc[0], fc[1], fc[2]
+                if rfname in ignore_fields or rold == rnew:
+                    continue
+                rlabel = item_field_labels.get(rfname, rfname.replace("_", " ").title())
+                rold_str = fmt_val(rold)
+                rnew_str = fmt_val(rnew)
+                v_changes.append({
+                    "field": f"{tlabel} #{row_idx} - {rlabel}",
+                    "old": rold_str,
+                    "new": rnew_str,
+                    "text": f"{tlabel} #{row_idx} ({rlabel}): {rold_str} → {rnew_str}"
+                })
+
+        # Added child rows
+        for a_row in vdata.get("added", []):
+            if not isinstance(a_row, list) or len(a_row) < 2:
+                continue
+            tname, rdict = a_row[0], a_row[1]
+            tlabel = field_labels.get(tname, tname.title())
+            if tname == "items":
+                item_name = rdict.get("equipment_name") or rdict.get("equipment") or "Item"
+                qty = rdict.get("quantity", 1)
+                rate = rdict.get("rate", 0)
+                desc = f"Added Item: {item_name} (Qty: {qty}, Rate: {rate})"
+            elif tname == "quotations":
+                supp = rdict.get("supplier") or "Vendor"
+                amt = rdict.get("quotation_amount") or 0
+                desc = f"Added Quotation: {supp} (Amount: {amt})"
+            elif tname == "standard_terms":
+                desc = f"Added Term: {rdict.get('standard_term', 'Term')}"
+            else:
+                desc = f"Added row in {tlabel}"
+            v_changes.append({
+                "field": tlabel,
+                "old": "—",
+                "new": desc,
+                "text": desc
+            })
+
+        # Removed child rows
+        for r_row in vdata.get("removed", []):
+            if not isinstance(r_row, list) or len(r_row) < 2:
+                continue
+            tname, rdict = r_row[0], r_row[1]
+            tlabel = field_labels.get(tname, tname.title())
+            if tname == "items":
+                item_name = rdict.get("equipment_name") or rdict.get("equipment") or "Item"
+                desc = f"Removed Item: {item_name}"
+            elif tname == "quotations":
+                desc = f"Removed Quotation: {rdict.get('supplier', 'Vendor')}"
+            elif tname == "standard_terms":
+                desc = f"Removed Term: {rdict.get('standard_term', 'Term')}"
+            else:
+                desc = f"Removed row in {tlabel}"
+            v_changes.append({
+                "field": tlabel,
+                "old": desc,
+                "new": "—",
+                "text": desc
+            })
+
+        # Action & State resolution
+        if state_transition:
+            old_s, new_s = state_transition
+            running_state = new_s
+            if new_s == "Generated (Yet to be Verified)":
+                action = "Generated PO (Forwarded for Verification)"
+            elif new_s == "Verified (Yet to be approved)":
+                action = "Verified PO (Forwarded for Approval)"
+            elif new_s == "Approved":
+                action = "Approved PO"
+            elif "Draft" in new_s:
+                action = "Returned to Generator"
+                if not remarks and doc.verifier_comments:
+                    remarks = fmt_val(doc.verifier_comments)
+            elif "Cancel" in new_s:
+                action = "Cancelled PO"
+            else:
+                action = f"Stage changed to {new_s}"
         else:
-            action = "Manual Comment"
-            state = doc.workflow_state or ""
-            remarks = content_stripped
+            action = "Updated PO Details"
+
+        vu_name, vu_email = get_user_display(v.owner)
+        
+        # If no changes and no state transition, skip noise version
+        if not v_changes and not state_transition:
+            continue
 
         history.append({
-            "no": idx,
-            "datetime": frappe.utils.format_datetime(c.creation, "yyyy-MM-dd HH:mm:ss"),
-            "user": user_name,
-            "email": c.owner,
+            "datetime": frappe.utils.format_datetime(v.creation, "yyyy-MM-dd HH:mm:ss"),
+            "timestamp": frappe.utils.get_datetime(v.creation),
+            "user": vu_name,
+            "email": vu_email,
+            "state": running_state,
             "action": action,
-            "state": state,
+            "changes": v_changes if v_changes else [{"field": "Workflow", "old": "—", "new": action, "text": action}],
             "remarks": remarks
         })
-        idx += 1
+
+    # 3. Associate standalone comments
+    for c in comments:
+        c_time = frappe.utils.get_datetime(c.creation)
+        c_user = c.owner
+        c_content = frappe.utils.strip_html(c.content or "").strip()
+        if not c_content:
+            continue
+
+        matched = False
+        for h in history:
+            if abs((h["timestamp"] - c_time).total_seconds()) <= 5 and h["email"] == c_user:
+                if not h["remarks"] and c.comment_type != "Workflow":
+                    h["remarks"] = c_content
+                matched = True
+                break
+
+        if not matched and c.comment_type != "Workflow":
+            cu_name, cu_email = get_user_display(c_user)
+            history.append({
+                "datetime": frappe.utils.format_datetime(c.creation, "yyyy-MM-dd HH:mm:ss"),
+                "timestamp": c_time,
+                "user": cu_name,
+                "email": cu_email,
+                "state": running_state,
+                "action": "Manual Comment",
+                "changes": [],
+                "remarks": c_content
+            })
+
+    # Sort all history by timestamp
+    history.sort(key=lambda x: x["timestamp"])
+
+    # Assign sequential numbers and clean internal timestamp
+    for idx, h in enumerate(history, 1):
+        h["no"] = idx
+        h.pop("timestamp", None)
 
     return history
 

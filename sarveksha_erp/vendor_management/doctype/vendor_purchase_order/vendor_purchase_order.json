@@ -610,9 +610,8 @@
     },
     {
       "fieldname": "warehouse",
-      "fieldtype": "Link",
-      "label": "Destination Warehouse",
-      "options": "Warehouse"
+      "fieldtype": "Small Text",
+      "label": "Destination Warehouse & Address"
     },
     {
       "fieldname": "port",
@@ -926,19 +925,19 @@
     {
       "fieldname": "sec_workflow_history",
       "fieldtype": "Section Break",
-      "label": "PO Approval Audit Trail"
+      "label": "PO Audit Trail"
     },
     {
       "fieldname": "workflow_history_html",
       "fieldtype": "HTML",
-      "label": "Approval Audit Trail"
+      "label": "PO Audit Trail"
     }
   ],
   "grid_page_length": 50,
   "index_web_pages_for_search": 0,
   "is_submittable": 1,
   "links": [],
-  "modified": "2026-07-25 00:38:15.156674",
+  "modified": "2026-09-18 11:47:00.000000",
   "modified_by": "Administrator",
   "module": "Vendor Management",
   "name": "Vendor Purchase Order",
