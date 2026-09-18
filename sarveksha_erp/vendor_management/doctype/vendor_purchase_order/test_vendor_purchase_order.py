@@ -30,6 +30,29 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		suppliers = [s.name for s in frappe.get_all("Supplier", limit=3)]
 		cls.test_suppliers = suppliers if len(suppliers) >= 3 else [cls.test_vendor, cls.test_vendor, cls.test_vendor]
 
+	def _create_test_po(self, with_item=False):
+		po = frappe.new_doc("Vendor Purchase Order")
+		po.company = self.test_company
+		po.vendor = self.test_vendor
+		po.quantity = 1.0
+		po.rate = 100.0
+		po.exchange_rate = 1.0
+		po.workflow_state = "Draft"
+		if with_item:
+			equipment = frappe.db.get_value("Equipment", {}, "name")
+			if not equipment:
+				self.skipTest("Vendor Purchase Order item immutability requires an Equipment record")
+			po.append("items", {
+				"equipment": equipment,
+				"equipment_name": frappe.db.get_value("Equipment", equipment, "equipment_name") or equipment,
+				"quantity": 1.0,
+				"rate": 100.0,
+				"discount_percent": 0.0,
+				"unit": "Nos",
+			})
+		po.save(ignore_permissions=True)
+		return po
+
 	def test_internal_po_entity_policy(self):
 		"""Internal POs may target SRI only and must originate from a child company."""
 		po = frappe.new_doc("Vendor Purchase Order")
@@ -777,6 +800,141 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 			self.assertIsNotNone(final_pdf_bytes)
 			self.assertTrue(len(final_pdf_bytes) > 0)
 
+		finally:
+			frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+	def test_verifier_cannot_change_item_rate(self):
+		po = self._create_test_po(with_item=True)
+		try:
+			po.workflow_state = "Generated (Yet to be Verified)"
+			po.save(ignore_permissions=True)
+			po = frappe.get_doc("Vendor Purchase Order", po.name)
+			original_get_roles = frappe.get_roles
+			frappe.get_roles = lambda username: ["PO Verifier"]
+			try:
+				po.items[0].rate = 200.0
+				with self.assertRaises(frappe.PermissionError):
+					po.save(ignore_permissions=True)
+			finally:
+				frappe.get_roles = original_get_roles
+		finally:
+			frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+	def test_approver_cannot_change_item_quantity_or_logistics(self):
+		po = self._create_test_po(with_item=True)
+		try:
+			po.workflow_state = "Generated (Yet to be Verified)"
+			po.save(ignore_permissions=True)
+			po.workflow_state = "Verified (Yet to be approved)"
+			po.save(ignore_permissions=True)
+			po = frappe.get_doc("Vendor Purchase Order", po.name)
+			original_get_roles = frappe.get_roles
+			frappe.get_roles = lambda username: ["PO Approver"]
+			try:
+				po.items[0].quantity = 2.0
+				with self.assertRaises(frappe.PermissionError):
+					po.save(ignore_permissions=True)
+				po.reload()
+				po.freight = 25.0
+				with self.assertRaises(frappe.PermissionError):
+					po.save(ignore_permissions=True)
+			finally:
+				frappe.get_roles = original_get_roles
+		finally:
+			frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+	def test_generator_and_system_manager_can_modify_authorized_values(self):
+		original_get_roles = frappe.get_roles
+		frappe.get_roles = lambda username: ["PO Generator"]
+		try:
+			po = self._create_test_po()
+			po.rate = 125.0
+			po.save(ignore_permissions=True)
+
+			frappe.get_roles = lambda username: ["PO Generator"]
+			po.workflow_state = "Generated (Yet to be Verified)"
+			po.save(ignore_permissions=True)
+
+			frappe.get_roles = lambda username: ["System Manager"]
+			po = frappe.get_doc("Vendor Purchase Order", po.name)
+			po.freight = 25.0
+			po.save(ignore_permissions=True)
+		finally:
+			frappe.get_roles = original_get_roles
+			if "po" in locals() and po.name:
+				frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+	def _create_submitted_po(self):
+		po = self._create_test_po()
+		po.docstatus = 1
+		po.save(ignore_permissions=True)
+		return frappe.get_doc("Vendor Purchase Order", po.name)
+
+	def test_mark_advance_paid_uses_save_lifecycle(self):
+		po = self._create_submitted_po()
+		try:
+			original_get_roles = frappe.get_roles
+			frappe.get_roles = lambda username: ["PO Approver"]
+			with patch.object(po, "save", wraps=po.save) as save_mock:
+				po.mark_advance_paid()
+
+			save_mock.assert_called_once_with()
+			self.assertEqual(po.payment_status, "Advance Paid")
+			self.assertEqual(po.payment_pending, 0)
+			self.assertEqual(po.payment_partially_paid, 1)
+			self.assertEqual(po.payment_fully_paid, 0)
+		finally:
+			frappe.get_roles = original_get_roles
+			frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+	def test_mark_fully_paid_preserves_payment_role_check_and_uses_save(self):
+		po = self._create_submitted_po()
+		try:
+			original_get_roles = frappe.get_roles
+			frappe.get_roles = lambda username: ["Accounts User"]
+			with self.assertRaises(frappe.PermissionError):
+				po.mark_fully_paid()
+
+			frappe.get_roles = lambda username: ["PO Approver"]
+			with patch.object(po, "save", wraps=po.save) as save_mock:
+				po.mark_fully_paid()
+
+			save_mock.assert_called_once_with()
+			self.assertEqual(po.payment_status, "Fully Paid")
+			self.assertEqual(po.payment_pending, 0)
+			self.assertEqual(po.payment_partially_paid, 0)
+			self.assertEqual(po.payment_fully_paid, 1)
+		finally:
+			frappe.get_roles = original_get_roles
+			frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+	def test_stale_vendor_purchase_order_save_is_rejected(self):
+		po = self._create_test_po()
+		try:
+			first_copy = frappe.get_doc("Vendor Purchase Order", po.name)
+			stale_copy = frappe.get_doc("Vendor Purchase Order", po.name)
+			first_copy.remarks = "Updated by first editor"
+			first_copy.save(ignore_permissions=True)
+			stale_copy.remarks = "Stale update"
+			with self.assertRaises(frappe.TimestampMismatchError):
+				stale_copy.save(ignore_permissions=True)
+		finally:
+			frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
+
+	def test_backend_save_cannot_bypass_protected_field_validation(self):
+		po = self._create_test_po(with_item=True)
+		try:
+			po.workflow_state = "Generated (Yet to be Verified)"
+			po.save(ignore_permissions=True)
+			po = frappe.get_doc("Vendor Purchase Order", po.name)
+			original_get_roles = frappe.get_roles
+			frappe.get_roles = lambda username: ["PO Verifier"]
+			try:
+				po.items[0].rate = 250.0
+				with self.assertRaises(frappe.PermissionError):
+					po.save(ignore_permissions=True)
+			finally:
+				frappe.get_roles = original_get_roles
 		finally:
 			frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
 
