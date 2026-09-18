@@ -24,6 +24,7 @@ class VendorPurchaseOrder(Document):
         self.validate_uom()
         self.validate_creation_roles()
         self.validate_generator_edit_rights()
+        self.validate_reviewer_edit_rights()
         self.validate_payment_permissions()
         self.validate_audit_comments_edit_rights()
         self.validate_quotation_audit_integrity()
@@ -382,6 +383,48 @@ class VendorPurchaseOrder(Document):
                     frappe.PermissionError
                 )
 
+    def validate_reviewer_edit_rights(self):
+        """Prevent reviewers from changing rates or logistics charges."""
+        if self.is_new() or frappe.session.user == "Administrator":
+            return
+
+        user_roles = set(frappe.get_roles(frappe.session.user))
+        if user_roles.intersection({"System Manager"}):
+            return
+
+        reviewer_roles = {"PO Verifier", "PO Approver"}
+        if not user_roles.intersection(reviewer_roles):
+            return
+
+        previous = self.get_doc_before_save()
+        if not previous:
+            return
+
+        protected_fields = [
+            "rate",
+            "freight",
+            "insurance",
+            "packing_charges",
+            "other_charges",
+        ]
+        changed = any(previous.get(field) != self.get(field) for field in protected_fields)
+
+        previous_items = previous.get("items") or []
+        current_items = self.get("items") or []
+        if len(previous_items) != len(current_items):
+            changed = True
+        else:
+            changed = changed or any(
+                previous_item.get("rate") != current_item.get("rate")
+                for previous_item, current_item in zip(previous_items, current_items)
+            )
+
+        if changed:
+            frappe.throw(
+                _("PO Verifiers and PO Approvers cannot change unit rates or other charges."),
+                frappe.PermissionError
+            )
+
     def validate_payment_permissions(self):
         """Ensure only authorized roles can modify payment fields on save."""
         if self.is_new():
@@ -394,6 +437,12 @@ class VendorPurchaseOrder(Document):
         payment_fields = ["payment_status", "payment_pending", "payment_partially_paid", "payment_fully_paid"]
         changed = any(previous.get(f) != self.get(f) for f in payment_fields)
         if changed:
+            old_state = previous.workflow_state or "Draft"
+            if old_state in ["Draft", "Generated (Yet to be Verified)"]:
+                frappe.throw(
+                    _("Payment status can only be changed after the Purchase Order is verified."),
+                    frappe.PermissionError
+                )
             self._check_payment_role()
 
     def validate_audit_comments_edit_rights(self):

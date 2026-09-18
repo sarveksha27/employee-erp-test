@@ -24,6 +24,9 @@ def copy_letterhead_assets():
 
 def sync_workspace_sidebars():
     """Ensure Workspace Sidebar documents are forcefully reloaded from app definitions."""
+    if not frappe.db.table_exists("Workspace Sidebar"):
+        return
+
     try:
         from frappe.modules.import_file import import_file_by_path
         sidebar_paths = [
