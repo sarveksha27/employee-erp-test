@@ -886,6 +886,41 @@ function calculate_gst_and_totals(frm) {
 		frm.set_value("sgst_amount", flt(sgst, 2));
 		frm.set_value("igst_amount", flt(igst, 2));
 		frm.set_value("tax_amount", flt(total_item_tax, 2));
+
+		// ── RUNNING TOTALS ────────────────────────────────────────────────────
+		const cumulative_items_total = flt(total_taxable_value, 2);
+		const cumulative_after_tax = flt(total_taxable_value + total_item_tax, 2);
+		const cumulative_after_logistics = flt(cumulative_after_tax + logistics_cost, 2);
+		frm.set_value("cumulative_items_total", cumulative_items_total);
+		frm.set_value("cumulative_after_tax", cumulative_after_tax);
+		frm.set_value("cumulative_after_logistics", cumulative_after_logistics);
+
+		// ── INTERNAL PO: Hide tax section entirely ───────────────────────────
+		const is_tax_exempt = is_internal || is_child_co;
+		frm.toggle_display(
+			[
+				"sec_pricing",
+				"is_lut_applicable",
+				"gst_percentage",
+				"gst_type",
+				"cgst_amount",
+				"sgst_amount",
+				"igst_amount",
+				"tax_amount",
+				"cumulative_after_tax",
+			],
+			!is_tax_exempt,
+		);
+		if (is_tax_exempt) {
+			// Clear LUT and tax inputs to avoid confusion
+			frm.set_value("is_lut_applicable", 0);
+			frm.set_value("gst_type", "");
+			frm.set_value("cgst_amount", 0);
+			frm.set_value("sgst_amount", 0);
+			frm.set_value("igst_amount", 0);
+			frm.set_value("tax_amount", 0);
+		}
+
 		if (is_internal) {
 			frm.set_value("internal_margin_percentage", internal_margin_pct);
 			frm.set_value("internal_margin_amount", internal_margin_amount);

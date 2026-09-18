@@ -740,36 +740,51 @@ class VendorPurchaseOrder(Document):
 
     def calculate_grand_total(self):
         """
-        Grand Total:
+        Grand Total (authoritative server-side calculation):
         - External PO: Taxable Value + Tax + Logistics Cost
-        - Internal PO: Taxable Value + Tax + Logistics Cost + (Taxable Value + Logistics Cost) × Internal Margin %
-        
-        LUT Rule: If is_lut_applicable, all items are taxed at 0.1%.
-        LUT Reversion: If is_lut_applicable is False and item has no custom gst_percentage
-        override, fetch from Equipment master to revert correctly.
+        - Internal PO: Taxable Value + 0 Tax + Logistics Cost + Margin
+                       (Internal & Child Company POs are ALWAYS tax-free)
+
+        Running Totals (per spec Section 4):
+          cumulative_items_total    = Sum of all line item taxable amounts
+          cumulative_after_tax      = cumulative_items_total + tax_amount
+          cumulative_after_logistics = cumulative_after_tax + logistics_cost
+
+        LUT Reversion: When LUT is unchecked and item gst% is 0.1, restore from Equipment master.
         """
         freight = flt(self.freight)
         insurance = flt(self.insurance)
         packing = flt(self.packing_charges)
         other = flt(self.other_charges)
 
-        # Aggregate logistics cost (always visible, useful for both PO types)
+        # Aggregate logistics cost
         self.logistics_cost = flt(freight + insurance + packing + other, 2)
+
+        # Determine if this is an internal / child company PO
+        is_internal = (self.po_type or "") == "Internal PO"
+        is_child_company = not self._is_sri_entity(self.company) if self.company else False
+        is_tax_exempt = is_internal or is_child_company
+
+        # ── INTERNAL PO: Force LUT off + clear all GST exposure ────────────
+        if is_tax_exempt:
+            self.is_lut_applicable = 0
+            self.lut_number = None if hasattr(self, 'lut_number') else None
 
         total_taxable_value = 0.0
         total_item_tax = 0.0
 
         if self.items:
             for item in self.items:
-                if self.is_lut_applicable:
+                if is_tax_exempt:
+                    # Internal / Child Company POs are completely tax-free
+                    item.gst_percentage = 0.0
+                elif self.is_lut_applicable:
                     # LUT overrides ALL items to 0.1%
                     item.gst_percentage = 0.1
                 else:
                     # ── LUT REVERSION FIX ──────────────────────────────────────
                     # When LUT is unchecked, do NOT leave gst_percentage at 0.1.
-                    # Restore from Equipment master if the item's current value is
-                    # 0.1 (indicating it was set by a previous LUT application).
-                    # If the Equipment master has no GST% set, fall back to 18%.
+                    # Restore from Equipment master if item value is still 0.1.
                     current_gst = flt(item.gst_percentage)
                     if current_gst == 0.1:
                         master_gst = 18.0  # safe default
@@ -809,7 +824,9 @@ class VendorPurchaseOrder(Document):
             self.specification = getattr(first, 'specification', None)
         else:
             # Fallback for single item legacy POs
-            if getattr(self, "is_lut_applicable", False):
+            if is_tax_exempt:
+                self.gst_percentage = 0.0
+            elif getattr(self, "is_lut_applicable", False):
                 self.gst_percentage = 0.1
 
             rate = flt(self.rate)
@@ -824,10 +841,11 @@ class VendorPurchaseOrder(Document):
 
         self.taxable_value = flt(total_taxable_value, 2)
 
-        # ── CHILD COMPANY GST REMOVAL (When child company is selected) ──
-        is_child_company = not self._is_sri_entity(self.company)
-        if is_child_company:
-            # Overseas Child Company is issuing the PO: remove all GST components
+        # ── RUNNING TOTAL 1: Items ──────────────────────────────────────────
+        self.cumulative_items_total = flt(total_taxable_value, 2)
+
+        # ── CHILD COMPANY / INTERNAL PO: Force zero GST ─────────────────────
+        if is_tax_exempt:
             if self.items:
                 for item in self.items:
                     item.gst_percentage = 0.0
@@ -866,12 +884,16 @@ class VendorPurchaseOrder(Document):
                 self.igst_amount = flt(total_item_tax, 2)
                 self.tax_amount = flt(self.igst_amount, 2)
 
+        # ── RUNNING TOTAL 2: After Tax ──────────────────────────────────────
+        self.cumulative_after_tax = flt(self.cumulative_items_total + self.tax_amount, 2)
+
+        # ── RUNNING TOTAL 3: After Logistics ───────────────────────────────
+        self.cumulative_after_logistics = flt(self.cumulative_after_tax + self.logistics_cost, 2)
+
         # ── INTERNAL MARGIN (Internal PO only) ─────────────────────────────
-        is_internal = (self.po_type or "") == "Internal PO"
         if is_internal:
             margin_pct = flt(self.internal_margin_percentage)
             if margin_pct <= 0:
-                # Default to 5% for Internal POs if not explicitly set
                 margin_pct = 5.0
                 self.internal_margin_percentage = margin_pct
             if margin_pct < 5.0 or margin_pct > 30.0:

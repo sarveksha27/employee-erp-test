@@ -257,3 +257,70 @@ def create_proforma_invoice_from_internal_po(internal_po_name):
 	pi.insert()
 	return pi
 
+
+@frappe.whitelist()
+def cancel_proforma_invoice(pi_name, reason=""):
+	"""
+	Cancel a submitted Proforma Invoice (docstatus 1 → 2).
+
+	Steps:
+	  1. Permission check — only authorized roles can cancel.
+	  2. Validate the PI is submitted (docstatus == 1).
+	  3. Set docstatus = 2 (Cancelled) and status = 'Cancelled'.
+	  4. Clear the linked Internal PO's proforma_invoice reference.
+	  5. Record an audit comment with the cancellation reason.
+	"""
+	if not frappe.has_permission("Proforma Invoice", "cancel"):
+		frappe.throw(
+			_("You do not have permission to cancel a Proforma Invoice."),
+			frappe.PermissionError,
+		)
+
+	pi = frappe.get_doc("Proforma Invoice", pi_name)
+
+	if pi.docstatus != 1:
+		frappe.throw(
+			_("Only submitted Proforma Invoices (docstatus = 1) can be cancelled. "
+			  "Current docstatus: {0}").format(pi.docstatus),
+			frappe.ValidationError,
+		)
+
+	# Cancel via frappe's built-in cancel (increments modified, sets docstatus = 2)
+	pi.flags.ignore_permissions = True
+	pi.cancel()
+
+	# Explicitly set status field so form displays correctly
+	frappe.db.set_value("Proforma Invoice", pi_name, "status", "Cancelled")
+
+	# ── Clear linked Internal PO reference ──────────────────────────────────
+	if pi.internal_po:
+		try:
+			po = frappe.get_doc("Vendor Purchase Order", pi.internal_po)
+			if hasattr(po, "linked_proforma_invoice") and po.linked_proforma_invoice == pi_name:
+				po.linked_proforma_invoice = None
+				po.flags.ignore_permissions = True
+				po.flags.ignore_immutable_validation = True
+				po.save(ignore_permissions=True)
+		except Exception:
+			# PO may not have the field — safe to ignore
+			pass
+
+	# ── Audit log ────────────────────────────────────────────────────────────
+	reason_text = reason or "No reason provided"
+	frappe.get_doc({
+		"doctype": "Comment",
+		"comment_type": "Info",
+		"reference_doctype": "Proforma Invoice",
+		"reference_name": pi_name,
+		"content": _("Proforma Invoice cancelled by {0}. Reason: {1}").format(
+			frappe.session.user, reason_text
+		),
+	}).insert(ignore_permissions=True)
+
+	frappe.msgprint(
+		_("Proforma Invoice {0} has been cancelled successfully.").format(pi_name),
+		title=_("PI Cancelled"),
+		indicator="orange",
+	)
+
+	return {"status": "cancelled", "pi_name": pi_name}

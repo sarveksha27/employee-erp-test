@@ -33,8 +33,84 @@ frappe.ui.form.on('Proforma Invoice', {
             frm.change_custom_button_type(__('Print Payment Invoice'), null, 'primary');
             frm.print_doc = open_pi_pdf;
         }
+
+        // ── CANCEL PI BUTTON (Submitted docs — docstatus == 1) ─────────────
+        if (frm.doc.docstatus === 1) {
+            frm.add_custom_button(__('Cancel PI'), function() {
+                frappe.prompt(
+                    [{
+                        fieldname: 'reason',
+                        fieldtype: 'Small Text',
+                        label: 'Cancellation Reason',
+                        reqd: 1,
+                        description: 'Please provide the reason for cancelling this Proforma Invoice.'
+                    }],
+                    function(values) {
+                        frappe.dom.freeze(__('Cancelling Proforma Invoice...'));
+                        frappe.call({
+                            method: 'sarveksha_erp.vendor_management.doctype.proforma_invoice.proforma_invoice.cancel_proforma_invoice',
+                            args: {
+                                pi_name: frm.doc.name,
+                                reason: values.reason
+                            },
+                            callback: function(r) {
+                                frappe.dom.unfreeze();
+                                if (!r.exc) {
+                                    frappe.show_alert({
+                                        message: __('Proforma Invoice {0} cancelled successfully.', [frm.doc.name]),
+                                        indicator: 'orange'
+                                    });
+                                    frm.reload_doc();
+                                }
+                            },
+                            error: function() {
+                                frappe.dom.unfreeze();
+                            }
+                        });
+                    },
+                    __('Cancel Proforma Invoice'),
+                    __('Confirm Cancellation')
+                );
+            });
+            // Make Cancel PI visually prominent (red/danger)
+            frm.change_custom_button_type(__('Cancel PI'), null, 'danger');
+        }
+
+        // ── DELETE PI BUTTON (Draft docs — docstatus == 0, not new) ────────
+        if (frm.doc.docstatus === 0 && !frm.doc.__islocal) {
+            frm.add_custom_button(__('Delete PI'), function() {
+                frappe.confirm(
+                    __('Are you sure you want to permanently delete Proforma Invoice <b>{0}</b>? This action cannot be undone.', [frm.doc.name]),
+                    function() {
+                        frappe.dom.freeze(__('Deleting Proforma Invoice...'));
+                        frappe.call({
+                            method: 'frappe.client.delete',
+                            args: {
+                                doctype: 'Proforma Invoice',
+                                name: frm.doc.name
+                            },
+                            callback: function(r) {
+                                frappe.dom.unfreeze();
+                                if (!r.exc) {
+                                    frappe.show_alert({
+                                        message: __('Proforma Invoice deleted successfully.'),
+                                        indicator: 'green'
+                                    });
+                                    frappe.set_route('List', 'Proforma Invoice');
+                                }
+                            },
+                            error: function() {
+                                frappe.dom.unfreeze();
+                            }
+                        });
+                    }
+                );
+            });
+        }
+
         calculate_pi_totals(frm);
     },
+
 
     internal_po: function(frm) {
         if (!frm.doc.internal_po) return;

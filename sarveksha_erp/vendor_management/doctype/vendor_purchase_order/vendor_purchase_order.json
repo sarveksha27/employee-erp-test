@@ -46,6 +46,7 @@
     "add_equipment_btn",
     "sec_equipment_summary",
     "items",
+    "cumulative_items_total",
     "sec_quotation_governance",
     "quotation_comparison_sheet",
     "quotations",
@@ -61,6 +62,7 @@
     "sgst_amount",
     "igst_amount",
     "tax_amount",
+    "cumulative_after_tax",
     "sec_other_charges",
     "freight",
     "insurance",
@@ -68,6 +70,7 @@
     "packing_charges",
     "other_charges",
     "logistics_cost",
+    "cumulative_after_logistics",
     "sec_internal_margin",
     "internal_margin_percentage",
     "internal_margin_amount",
@@ -293,6 +296,15 @@
       "options": "Vendor Purchase Order Item"
     },
     {
+      "bold": 1,
+      "description": "Auto-calculated: Sum of all line item taxable amounts",
+      "fieldname": "cumulative_items_total",
+      "fieldtype": "Currency",
+      "label": "Running Total (Items)",
+      "options": "currency",
+      "read_only": 1
+    },
+    {
       "fieldname": "sec_quotation_governance",
       "fieldtype": "Section Break",
       "label": "Quotation Governance",
@@ -490,6 +502,15 @@
       "read_only": 1
     },
     {
+      "bold": 1,
+      "description": "Running Total: Items + Tax (before logistics)",
+      "fieldname": "cumulative_after_tax",
+      "fieldtype": "Currency",
+      "label": "Running Total (After Tax)",
+      "options": "currency",
+      "read_only": 1
+    },
+    {
       "fieldname": "sec_other_charges",
       "fieldtype": "Section Break",
       "label": "Other Charges"
@@ -528,6 +549,15 @@
       "fieldname": "logistics_cost",
       "fieldtype": "Currency",
       "label": "Total Logistics Cost",
+      "options": "currency",
+      "read_only": 1
+    },
+    {
+      "bold": 1,
+      "description": "Running Total: Items + Tax + Logistics Cost",
+      "fieldname": "cumulative_after_logistics",
+      "fieldtype": "Currency",
+      "label": "Running Total (After Logistics)",
       "options": "currency",
       "read_only": 1
     },
