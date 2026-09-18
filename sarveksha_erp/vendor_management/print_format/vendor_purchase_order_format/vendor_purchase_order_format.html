@@ -487,6 +487,12 @@
               <td class="lbl" style="border-top:none !important;">Delivery Location</td>
               <td style="border-top:none !important;">{{ doc.delivery_location or "—" }}</td>
             </tr>
+            {% if doc.warehouse %}
+            <tr>
+              <td class="lbl" style="border-top:none !important;">Destination Warehouse</td>
+              <td style="border-top:none !important;">{{ doc.warehouse|replace('\n', '<br>') }}</td>
+            </tr>
+            {% endif %}
             <tr>
               <td class="lbl" style="border-top:none !important;">Container No.</td>
               <td style="border-top:none !important;">{{ doc.container_number or "—" }}</td>
