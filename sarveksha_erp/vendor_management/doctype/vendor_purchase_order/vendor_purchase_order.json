@@ -135,6 +135,8 @@
     "remarks",
     "attachments",
     "amended_from",
+    "sec_cumulative_breakdown",
+    "cumulative_breakdown_html",
     "sec_workflow_history",
     "workflow_history_html"
   ],
@@ -951,6 +953,16 @@
       "print_hide": 1,
       "read_only": 1,
       "search_index": 1
+    },
+    {
+      "fieldname": "sec_cumulative_breakdown",
+      "fieldtype": "Section Break",
+      "label": "Cumulative Amount & Cost Breakdown"
+    },
+    {
+      "fieldname": "cumulative_breakdown_html",
+      "fieldtype": "HTML",
+      "label": "Cumulative Breakdown"
     },
     {
       "fieldname": "sec_workflow_history",

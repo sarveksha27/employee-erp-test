@@ -366,7 +366,8 @@ frappe.ui.form.on("Vendor Purchase Order", {
 		// Set up Shipment Subtype visibility and options
 		handle_shipment_type_change(frm);
 
-		// Render Workflow Activity History
+		// Render Cumulative Amount Breakdown & Workflow Activity History
+		render_cumulative_breakdown(frm);
 		render_workflow_activity_history(frm);
 	},
 
@@ -453,6 +454,8 @@ frappe.ui.form.on("Vendor Purchase Order", {
 	},
 
 	onload_post_render: function (frm) {
+		apply_dynamic_field_locks(frm);
+		render_cumulative_breakdown(frm);
 		render_workflow_activity_history(frm);
 	},
 
@@ -519,6 +522,21 @@ frappe.ui.form.on("Vendor Purchase Order", {
 		sync_payment_status_display(frm);
 	},
 	vendor_gstin: function (frm) {
+		calculate_gst_and_totals(frm);
+	},
+	currency: function (frm) {
+		const is_usd = (frm.doc.currency || "").toUpperCase() === "USD";
+		if (is_usd) {
+			frm.toggle_display("is_lut_applicable", false);
+			if (frm.doc.is_lut_applicable) {
+				frm.set_value("is_lut_applicable", 0);
+			}
+		} else {
+			const is_internal = (frm.doc.po_type || "") === "Internal PO";
+			const is_child_co =
+				frm.doc.company && frm.doc.company !== "Sarveksha Realty and Inframine LLP";
+			frm.toggle_display("is_lut_applicable", !is_internal && !is_child_co);
+		}
 		calculate_gst_and_totals(frm);
 	},
 	is_lut_applicable: function (frm) {
@@ -741,8 +759,23 @@ frappe.ui.form.on("Vendor Purchase Order Item", {
 // ─── MASTER CALCULATION ENGINE ────────────────────────────────
 // ─── MASTER CALCULATION ENGINE ────────────────────────────────
 function calculate_gst_and_totals(frm) {
-	const is_lut = frm.doc.is_lut_applicable;
+	const is_usd = (frm.doc.currency || "").toUpperCase() === "USD";
 	const is_internal = (frm.doc.po_type || "") === "Internal PO";
+	const is_child_co =
+		frm.doc.company && frm.doc.company !== "Sarveksha Realty and Inframine LLP";
+	const is_tax_exempt = is_internal || is_child_co || is_usd;
+
+	// If pricing is detected in USD, there must be no LUT preference
+	if (is_usd) {
+		frm.toggle_display("is_lut_applicable", false);
+		if (frm.doc.is_lut_applicable) {
+			frm.set_value("is_lut_applicable", 0);
+		}
+	} else if (!is_internal && !is_child_co) {
+		frm.toggle_display("is_lut_applicable", true);
+	}
+
+	const is_lut = !is_usd && frm.doc.is_lut_applicable;
 
 	let total_taxable_value = 0;
 	let total_item_tax = 0;
@@ -753,7 +786,9 @@ function calculate_gst_and_totals(frm) {
 
 	if (frm.doc.items && frm.doc.items.length > 0) {
 		frm.doc.items.forEach((row) => {
-			if (is_lut) {
+			if (is_tax_exempt) {
+				row.gst_percentage = 0;
+			} else if (is_lut) {
 				row.gst_percentage = 0.1;
 			} else {
 				// ── LUT REVERSION ─────────────────────────────────────────────
@@ -785,7 +820,7 @@ function calculate_gst_and_totals(frm) {
 				const rate = flt(row.rate) || 0;
 				const qty = flt(row.quantity) || 1;
 				const discount_pct = flt(row.discount_percent) || 0;
-				const gst_pct = flt(row.gst_percentage) || 0;
+				const gst_pct = is_tax_exempt ? 0 : (flt(row.gst_percentage) || 0);
 
 				const base_amount = rate * qty;
 				const discount_amount = base_amount * (discount_pct / 100);
@@ -815,16 +850,12 @@ function calculate_gst_and_totals(frm) {
 		// Logistics cost aggregation
 		const logistics_cost = flt(freight + insurance + packing + other, 2);
 
-		// Check if Child Company is selected (Remove GST components)
-		const is_child_co =
-			frm.doc.company && frm.doc.company !== "Sarveksha Realty and Inframine LLP";
-
 		let gst_type = "IGST";
 		let cgst = 0,
 			sgst = 0,
 			igst = 0;
 
-		if (is_child_co) {
+		if (is_tax_exempt) {
 			gst_type = "";
 			total_item_tax = 0;
 			if (frm.doc.items && frm.doc.items.length > 0) {
@@ -844,6 +875,8 @@ function calculate_gst_and_totals(frm) {
 				["gst_type", "cgst_amount", "sgst_amount", "igst_amount", "tax_amount", "sec_tax"],
 				true,
 			);
+			const vendor_gstin = frm.doc.vendor_gstin || "";
+			const company_gstin = frm.doc.company_gstin || "";
 			if (is_lut) {
 				gst_type = "IGST";
 				igst = total_item_tax;
@@ -891,15 +924,25 @@ function calculate_gst_and_totals(frm) {
 		const cumulative_items_total = flt(total_taxable_value, 2);
 		const cumulative_after_tax = flt(total_taxable_value + total_item_tax, 2);
 		const cumulative_after_logistics = flt(cumulative_after_tax + logistics_cost, 2);
-		frm.set_value("cumulative_items_total", cumulative_items_total);
-		frm.set_value("cumulative_after_tax", cumulative_after_tax);
-		frm.set_value("cumulative_after_logistics", cumulative_after_logistics);
+		if (frm.fields_dict.cumulative_items_total) {
+			frm.set_value("cumulative_items_total", cumulative_items_total);
+		} else {
+			frm.doc.cumulative_items_total = cumulative_items_total;
+		}
+		if (frm.fields_dict.cumulative_after_tax) {
+			frm.set_value("cumulative_after_tax", cumulative_after_tax);
+		} else {
+			frm.doc.cumulative_after_tax = cumulative_after_tax;
+		}
+		if (frm.fields_dict.cumulative_after_logistics) {
+			frm.set_value("cumulative_after_logistics", cumulative_after_logistics);
+		} else {
+			frm.doc.cumulative_after_logistics = cumulative_after_logistics;
+		}
 
-		// ── INTERNAL PO: Hide tax section entirely ───────────────────────────
-		const is_tax_exempt = is_internal || is_child_co;
+		// ── TAX EXEMPT / USD / INTERNAL PO: Hide tax fields, keeping pricing intact ────────
 		frm.toggle_display(
 			[
-				"sec_pricing",
 				"is_lut_applicable",
 				"gst_percentage",
 				"gst_type",
@@ -931,6 +974,8 @@ function calculate_gst_and_totals(frm) {
 		frm.set_value("grand_total", grand_total);
 		frm.set_value("advance_amount", advance_amount);
 		frm.set_value("balance_due", balance_due);
+
+		render_cumulative_breakdown(frm);
 	};
 
 	// If there are LUT reversion fetches pending, wait for them then calculate
@@ -1024,21 +1069,37 @@ function apply_dynamic_field_locks(frm) {
 		user_roles.includes("System Manager") ||
 		user_roles.includes("Administrator") ||
 		frappe.session.user === "Administrator";
+	const is_generator = user_roles.includes("PO Generator");
 	const state = frm.doc.workflow_state || "Draft";
-	const is_reviewer = user_roles.includes("PO Verifier") || user_roles.includes("PO Approver");
 
-	// 1. Payment section locking
+	// 1. Payment section locking: Grey out fields if non-editable
 	toggle_payment_section(frm);
 
 	// 2. Currency and exchange rate locking
 	["currency", "exchange_rate"].forEach((fieldname) => {
-		frm.set_df_property(fieldname, "read_only", is_admin ? 0 : 1);
+		if (frm.get_field(fieldname)) {
+			frm.set_df_property(fieldname, "read_only", is_admin ? 0 : 1);
+			frm.refresh_field(fieldname);
+		}
 	});
 
-	// 3. Price inputs locking for verifiers and approvers
-	lock_price_inputs_for_reviewers(frm);
+	// 3. Reviewer edit locking: Grey out protected procurement fields
+	let is_reviewer_locked = false;
+	if (!is_admin && !is_generator) {
+		if (
+			["Generated (Yet to be Verified)", "Verified (Yet to be approved)", "Approved"].includes(state) &&
+			user_roles.includes("PO Verifier")
+		) {
+			is_reviewer_locked = true;
+		}
+		if (
+			["Verified (Yet to be approved)", "Approved"].includes(state) &&
+			user_roles.includes("PO Approver")
+		) {
+			is_reviewer_locked = true;
+		}
+	}
 
-	const lock_reviewer_inputs = !is_admin && is_reviewer && state !== "Draft";
 	const reviewer_fields = [
 		"rate",
 		"discount_percent",
@@ -1065,30 +1126,45 @@ function apply_dynamic_field_locks(frm) {
 		"inspection_report",
 		"insurance_doc",
 		"cfa_doc",
+		"ocean_air_freight_charges",
+		"customs_clearance_charges",
+		"inland_transportation_charges",
+		"insurance_charges",
+		"packaging_forwarding_charges",
+		"other_incidental_charges",
+		"discount_amount",
 	];
 	reviewer_fields.forEach((fieldname) => {
 		if (frm.get_field(fieldname)) {
-			frm.set_df_property(fieldname, "read_only", lock_reviewer_inputs ? 1 : 0);
+			frm.set_df_property(fieldname, "read_only", is_reviewer_locked ? 1 : 0);
+			frm.refresh_field(fieldname);
 		}
 	});
 
 	const items_grid = frm.get_field("items") && frm.get_field("items").grid;
 	if (items_grid) {
-		frm.set_df_property("items", "read_only", lock_reviewer_inputs ? 1 : 0);
-		items_grid.cannot_add_rows = lock_reviewer_inputs;
-		items_grid.cannot_delete_rows = lock_reviewer_inputs;
-		["rate", "discount_percent"].forEach((fieldname) => {
+		frm.set_df_property("items", "read_only", is_reviewer_locked ? 1 : 0);
+		items_grid.cannot_add_rows = is_reviewer_locked;
+		items_grid.cannot_delete_rows = is_reviewer_locked;
+		[
+			"rate",
+			"base_rate",
+			"quantity",
+			"discount_percent",
+			"equipment",
+			"item_name",
+			"taxable_amount",
+			"tax_amount",
+			"total_amount",
+		].forEach((fieldname) => {
 			items_grid.update_docfield_property(
 				fieldname,
 				"read_only",
-				lock_reviewer_inputs ? 1 : 0,
+				is_reviewer_locked ? 1 : 0,
 			);
 		});
 		items_grid.refresh();
 	}
-
-	// 4. Re-apply reviewers price locking on items_grid if needed
-	lock_price_inputs_for_reviewers(frm);
 
 	bind_workflow_action_guard(frm);
 	update_save_before_forward_guard(frm);
@@ -1103,8 +1179,14 @@ function toggle_payment_section(frm) {
 		user_roles.includes("Administrator") ||
 		frappe.session.user === "Administrator";
 
+	const state = frm.doc.workflow_state || "Draft";
+	// Backend rule: payment status can only be modified AFTER verification (i.e. Verified or Approved)
+	// and only by authorized accounts/admin roles.
+	// In Draft or Generated (Yet to be Verified) stages, it is strictly read-only and greyed out.
 	const is_allowed =
-		frm.doc.workflow_state === "Approved" && has_accounts_or_admin;
+		state !== "Draft" &&
+		state !== "Generated (Yet to be Verified)" &&
+		has_accounts_or_admin;
 
 	const target_fields = [
 		"payment_status",
@@ -1115,59 +1197,181 @@ function toggle_payment_section(frm) {
 		"payment_fully_paid",
 		"advance_percentage",
 		"payment_terms",
+		"advance_amount",
+		"company_bank",
 	];
 
 	target_fields.forEach((field) => {
 		if (frm.get_field(field)) {
 			frm.set_df_property(field, "read_only", is_allowed ? 0 : 1);
-		}
-	});
-
-	["advance_amount", "company_bank"].forEach((field) => {
-		if (frm.get_field(field)) {
-			frm.set_df_property(field, "read_only", is_allowed ? 0 : 1);
+			frm.refresh_field(field);
 		}
 	});
 }
 
 function lock_price_inputs_for_reviewers(frm) {
-	const user_roles = frappe.user_roles || [];
-	const has_verifier_or_approver =
-		user_roles.includes("PO Verifier") || user_roles.includes("PO Approver");
-	const has_generator_or_sys_mgr =
-		user_roles.includes("PO Generator") ||
-		user_roles.includes("System Manager") ||
-		user_roles.includes("Administrator") ||
-		frappe.session.user === "Administrator";
+	apply_dynamic_field_locks(frm);
+}
 
-	if (has_verifier_or_approver && !has_generator_or_sys_mgr) {
-		const items_grid = frm.get_field("items") && frm.get_field("items").grid;
-		if (items_grid) {
-			["rate", "base_rate"].forEach((col) => {
-				items_grid.update_docfield_property(col, "read_only", 1);
-			});
-			items_grid.refresh();
-		}
+function render_cumulative_breakdown(frm) {
+	const currency = frm.doc.currency || "USD";
+	const currency_sym = currency === "USD" ? "$" : (currency === "INR" ? "₹" : (currency + " "));
+	const is_usd = currency === "USD";
+	const is_internal = (frm.doc.po_type || "") === "Internal PO";
 
-		const logistics_fields = [
-			"ocean_air_freight_charges",
-			"customs_clearance_charges",
-			"inland_transportation_charges",
-			"insurance_charges",
-			"packaging_forwarding_charges",
-			"other_incidental_charges",
-			"discount_amount",
-			"freight",
-			"insurance",
-			"packing_charges",
-			"other_charges",
-			"discount_percent",
-		];
-		logistics_fields.forEach((field) => {
-			if (frm.get_field(field)) {
-				frm.set_df_property(field, "read_only", 1);
-			}
-		});
+	const items_total = flt(frm.doc.cumulative_items_total || frm.doc.taxable_value, 2);
+	const tax_amount = flt(frm.doc.tax_amount, 2);
+	const cum_after_tax = flt(frm.doc.cumulative_after_tax || (items_total + tax_amount), 2);
+	const freight = flt(frm.doc.freight, 2);
+	const insurance = flt(frm.doc.insurance, 2);
+	const packing = flt(frm.doc.packing_charges, 2);
+	const other = flt(frm.doc.other_charges, 2);
+	const logistics_cost = flt(frm.doc.logistics_cost || (freight + insurance + packing + other), 2);
+	const cum_after_logistics = flt(frm.doc.cumulative_after_logistics || (cum_after_tax + logistics_cost), 2);
+	const margin_pct = flt(frm.doc.internal_margin_percentage, 2);
+	const margin_amt = flt(frm.doc.internal_margin_amount, 2);
+	const grand_total = flt(frm.doc.grand_total, 2);
+	const advance_pct = flt(frm.doc.advance_percentage, 2);
+	const advance_amt = flt(frm.doc.advance_amount, 2);
+	const balance_due = flt(frm.doc.balance_due, 2);
+	const payment_status = frm.doc.payment_status || "Pending";
+
+	const fmt = (num) => {
+		return `${currency_sym} ${flt(num, 2).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+	};
+
+	let tax_desc = "";
+	if (is_usd) {
+		tax_desc = '<span class="text-muted" style="font-size: 11px;">(0.00 - Foreign Currency / USD Pricing)</span>';
+	} else if (is_internal) {
+		tax_desc = '<span class="text-muted" style="font-size: 11px;">(0.00 - Internal Transfer)</span>';
+	} else if (frm.doc.is_lut_applicable) {
+		tax_desc = '<span class="badge badge-warning" style="font-size: 10px;">LUT 0.1%</span>';
+	} else if (frm.doc.gst_type) {
+		tax_desc = `<span class="badge badge-info" style="font-size: 10px;">${frm.doc.gst_type}</span>`;
+	}
+
+	const status_badge_bg =
+		payment_status === "Fully Paid"
+			? "#dcfce7; color: #15803d; border: 1px solid #86efac;"
+			: (payment_status === "Pending"
+				? "#fef3c7; color: #b45309; border: 1px solid #fde68a;"
+				: "#e0e7ff; color: #3730a3; border: 1px solid #c7d2fe;");
+
+	let html = `
+		<div class="cumulative-summary-card" style="margin-bottom: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); overflow: hidden;">
+			<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: #ffffff; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+				<div>
+					<span style="font-size: 14px; font-weight: 700; letter-spacing: 0.3px;">
+						<i class="fa fa-calculator" style="margin-right: 8px; color: #38bdf8;"></i> Cumulative Amount &amp; Cost Breakdown
+					</span>
+					<span style="font-size: 11px; color: #94a3b8; margin-left: 8px;">(${currency})</span>
+				</div>
+				<div style="text-align: right;">
+					<span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #cbd5e1;">Cumulative Grand Total:</span>
+					<span style="font-size: 18px; font-weight: 700; color: #34d399; margin-left: 6px;">${fmt(grand_total)}</span>
+				</div>
+			</div>
+
+			<div style="padding: 16px;">
+				<div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -8px;">
+					<!-- Column 1: Progressive Running Totals -->
+					<div class="col-md-7" style="padding: 0 8px; flex: 1.2; min-width: 290px;">
+						<div style="border: 1px solid #f1f5f9; border-radius: 6px; background: #f8fafc; padding: 12px;">
+							<div style="font-weight: 600; font-size: 12px; color: #475569; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
+								<i class="fa fa-list-ol" style="color: #3b82f6; margin-right: 6px;"></i> Running Cumulative Progression
+							</div>
+
+							<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
+								<span style="color: #64748b;">1. Line Items Taxable Subtotal:</span>
+								<strong style="color: #1e293b;">${fmt(items_total)}</strong>
+							</div>
+
+							<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
+								<span style="color: #64748b;">2. Taxes / GST: ${tax_desc}</span>
+								<span style="color: #1e293b;">${fmt(tax_amount)}</span>
+							</div>
+
+							<div style="display: flex; justify-content: space-between; padding: 6px 8px; font-size: 12px; background: #e2e8f0; border-radius: 4px; margin: 4px 0; font-weight: 600;">
+								<span style="color: #334155;">&rarr; Cumulative Running Total (After Tax):</span>
+								<span style="color: #0f172a;">${fmt(cum_after_tax)}</span>
+							</div>
+
+							<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
+								<span style="color: #64748b;">3. Logistics &amp; Incidental Charges:</span>
+								<span style="color: #1e293b;">+ ${fmt(logistics_cost)}</span>
+							</div>
+							<div style="font-size: 11px; color: #94a3b8; padding-left: 12px; margin-bottom: 4px;">
+								Freight: ${fmt(freight)} &bull; Insurance: ${fmt(insurance)} &bull; Packing: ${fmt(packing)} &bull; Other: ${fmt(other)}
+							</div>
+
+							<div style="display: flex; justify-content: space-between; padding: 6px 8px; font-size: 12px; background: #e2e8f0; border-radius: 4px; margin: 4px 0; font-weight: 600;">
+								<span style="color: #334155;">&rarr; Cumulative Running Total (After Logistics):</span>
+								<span style="color: #0f172a;">${fmt(cum_after_logistics)}</span>
+							</div>
+
+							${is_internal ? `
+							<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
+								<span style="color: #64748b;">4. Internal Margin (${margin_pct}%):</span>
+								<span style="color: #1e293b;">+ ${fmt(margin_amt)}</span>
+							</div>
+							` : ''}
+
+							<div style="display: flex; justify-content: space-between; padding: 8px 10px; font-size: 13px; background: #dbeafe; border: 1px solid #bfdbfe; border-radius: 4px; margin-top: 8px; font-weight: 700;">
+								<span style="color: #1e40af;">Final Cumulative Amount (Grand Total):</span>
+								<span style="color: #1e40af;">${fmt(grand_total)}</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Column 2: Payment Settlement -->
+					<div class="col-md-5" style="padding: 0 8px; flex: 0.8; min-width: 240px;">
+						<div style="border: 1px solid #f1f5f9; border-radius: 6px; background: #f8fafc; padding: 12px; height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+							<div>
+								<div style="font-weight: 600; font-size: 12px; color: #475569; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
+									<i class="fa fa-credit-card" style="color: #10b981; margin-right: 6px;"></i> Payment Terms &amp; Status
+								</div>
+
+								<div style="margin-bottom: 10px;">
+									<div style="font-size: 11px; color: #64748b; margin-bottom: 2px;">Payment Status</div>
+									<span class="badge" style="padding: 4px 10px; font-size: 11px; font-weight: 600; background: ${status_badge_bg} border-radius: 12px;">
+										${payment_status}
+									</span>
+								</div>
+
+								<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
+									<span style="color: #64748b;">Advance Requirement (${advance_pct}%):</span>
+									<strong style="color: #0f172a;">${fmt(advance_amt)}</strong>
+								</div>
+
+								<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
+									<span style="color: #64748b;">Balance Payable:</span>
+									<strong style="color: ${balance_due > 0 ? '#b91c1c' : '#15803d'};">${fmt(balance_due)}</strong>
+								</div>
+							</div>
+
+							<div style="margin-top: 14px; padding: 8px; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 4px; font-size: 11px; color: #64748b;">
+								<i class="fa fa-info-circle" style="color: #3b82f6;"></i>
+								${is_usd ? 'USD pricing detected. Zero-rated/foreign export without Indian GST.' : (frm.doc.is_lut_applicable ? 'Supplied under LUT (0.1% GST Merchant Export).' : 'Standard domestic GST policy applied.')}
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	`;
+
+	const $field = $(frm.wrapper).find('[data-fieldname="cumulative_breakdown_html"]');
+	if ($field.length) {
+		$field.empty().html(html);
+	}
+	if (frm.fields_dict && frm.fields_dict.cumulative_breakdown_html && frm.fields_dict.cumulative_breakdown_html.$wrapper) {
+		frm.fields_dict.cumulative_breakdown_html.$wrapper.empty().html(html);
+	}
+	const $sec = $(frm.wrapper).find('[data-fieldname="sec_cumulative_breakdown"]');
+	if ($sec.length) {
+		$sec.removeClass("hide-control hide").show();
+		$sec.find(".section-body").removeClass("hide").show();
 	}
 }
 

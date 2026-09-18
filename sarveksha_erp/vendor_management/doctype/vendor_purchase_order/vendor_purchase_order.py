@@ -17,6 +17,9 @@ class VendorPurchaseOrder(Document):
         if self.is_new() or not self.prepared_by:
             self.prepared_by = frappe.session.user or "Administrator"
 
+        if (self.currency or "").upper() == "USD":
+            self.is_lut_applicable = 0
+
         self.validate_entity_policy()
         self.set_company_details()
         self.set_default_letter_head()
@@ -788,12 +791,13 @@ class VendorPurchaseOrder(Document):
         # Aggregate logistics cost
         self.logistics_cost = flt(freight + insurance + packing + other, 2)
 
-        # Determine if this is an internal / child company PO
+        # Determine if this is an internal / child company PO or USD foreign transaction
         is_internal = (self.po_type or "") == "Internal PO"
         is_child_company = not self._is_sri_entity(self.company) if self.company else False
-        is_tax_exempt = is_internal or is_child_company
+        is_usd = (self.currency or "").upper() == "USD"
+        is_tax_exempt = is_internal or is_child_company or is_usd
 
-        # ── INTERNAL PO: Force LUT off + clear all GST exposure ────────────
+        # ── INTERNAL PO or USD: Force LUT off + clear all GST exposure ────────────
         if is_tax_exempt:
             self.is_lut_applicable = 0
             self.lut_number = None if hasattr(self, 'lut_number') else None
@@ -1211,7 +1215,8 @@ def get_workflow_activity_history(docname):
 
     ignore_fields = {
         "modified", "modified_by", "__unsaved", "docstatus", "idx",
-        "naming_series", "workflow_history_html", "sec_workflow_history"
+        "naming_series", "workflow_history_html", "sec_workflow_history",
+        "sec_cumulative_breakdown", "cumulative_breakdown_html"
     }
 
     # User full name helper
