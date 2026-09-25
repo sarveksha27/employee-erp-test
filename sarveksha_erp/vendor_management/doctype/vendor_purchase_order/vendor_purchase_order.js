@@ -185,6 +185,94 @@ frappe.ui.form.on("Vendor Purchase Order", {
 
 		// Configure Print Button & Menu Visibility based on Workflow Stage and User Roles
 		const is_approved = frm.doc.workflow_state === "Approved" || frm.doc.docstatus === 1;
+		const can_forward_for_payment =
+			user_roles.includes("PO Approver") ||
+			user_roles.includes("Purchase User") ||
+			user_roles.includes("Purchase Manager") ||
+			is_admin;
+		const can_create_bill =
+			user_roles.includes("Accounts Clerk") ||
+			user_roles.includes("Accounts Manager") ||
+			user_roles.includes("Accounts User") ||
+			is_admin;
+
+		if (
+			is_approved &&
+			can_forward_for_payment &&
+			(!frm.doc.payment_workflow_status || frm.doc.payment_workflow_status === "Not Forwarded")
+		) {
+			frm.add_custom_button(__("Verify & Forward for Payment"), function () {
+				const dialog = new frappe.ui.Dialog({
+					title: __("Verify & Forward for Payment"),
+					fields: [
+						{
+							fieldname: "invoice_file",
+							fieldtype: "Attach",
+							label: __("Supplier Invoice"),
+							reqd: 1,
+						},
+						{
+							fieldname: "invoice_number",
+							fieldtype: "Data",
+							label: __("Supplier Invoice Number"),
+							reqd: 1,
+						},
+						{
+							fieldname: "invoice_date",
+							fieldtype: "Date",
+							label: __("Supplier Invoice Date"),
+							default: frappe.datetime.get_today(),
+							reqd: 1,
+						},
+					],
+					primary_action_label: __("Forward for Payment"),
+					primary_action(values) {
+						frappe.call({
+							method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.forward_vendor_purchase_order_for_payment",
+							args: {
+								po_name: frm.doc.name,
+								invoice_file: values.invoice_file,
+								invoice_number: values.invoice_number,
+								invoice_date: values.invoice_date,
+							},
+							freeze: true,
+							freeze_message: __("Forwarding Purchase Order to Finance..."),
+						}).then(() => {
+							dialog.hide();
+							frm.reload_doc();
+							frappe.show_alert({
+								message: __("Purchase Order forwarded to Finance."),
+								indicator: "green",
+							});
+						});
+					},
+				});
+				dialog.show();
+			});
+			frm.change_custom_button_type(__("Verify & Forward for Payment"), null, "primary");
+		}
+
+		if (is_approved && can_create_bill) {
+			if (frm.doc.purchase_invoice) {
+				frm.add_custom_button(__("View Bill"), function () {
+					frappe.set_route("Form", "Purchase Invoice", frm.doc.purchase_invoice);
+				});
+			} else if (["Forwarded for Payment", "Bill Draft"].includes(frm.doc.payment_workflow_status)) {
+				frm.add_custom_button(__("Create Bill"), function () {
+					frappe.call({
+						method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.make_purchase_invoice_from_vendor_purchase_order",
+						args: { source_name: frm.doc.name },
+						freeze: true,
+						freeze_message: __("Preparing Purchase Invoice..."),
+					}).then((r) => {
+						const doclist = frappe.model.sync(r.message);
+						frappe.set_route("Form", doclist[0].doctype, doclist[0].name);
+					});
+				});
+				frm.change_custom_button_type(__("Create Bill"), null, "primary");
+			}
+		}
+
 		const can_print = is_approved && (user_roles.includes("PO Generator") || is_admin);
 
 		// PI Generation Button for Internal POs (Only available on Internal PO, never on External/Vendor PO)
@@ -1189,12 +1277,8 @@ function toggle_payment_section(frm) {
 		has_accounts_or_admin;
 
 	const target_fields = [
-		"payment_status",
 		"advance_paid",
 		"balance_due",
-		"payment_pending",
-		"payment_partially_paid",
-		"payment_fully_paid",
 		"advance_percentage",
 		"payment_terms",
 		"advance_amount",
@@ -1207,6 +1291,14 @@ function toggle_payment_section(frm) {
 			frm.refresh_field(field);
 		}
 	});
+	["payment_status", "payment_pending", "payment_partially_paid", "payment_fully_paid"].forEach(
+		(field) => {
+			if (frm.get_field(field)) {
+				frm.set_df_property(field, "read_only", 1);
+				frm.refresh_field(field);
+			}
+		},
+	);
 }
 
 function lock_price_inputs_for_reviewers(frm) {

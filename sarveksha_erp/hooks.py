@@ -28,6 +28,10 @@ app_license = "mit"
 # app_include_css = "/assets/sarveksha_erp/css/sarveksha_erp.css"
 # app_include_js = "/assets/sarveksha_erp/js/sarveksha_erp.js"
 
+doctype_js = {
+    "Purchase Invoice": "public/js/purchase_invoice.js",
+}
+
 fixtures = [
     {
         "dt": "Role",
@@ -183,8 +187,18 @@ permission_query_conditions = {
 # Hook on document methods and events
 
 doc_events = {
+    "Purchase Invoice": {
+        "validate": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.validate_vendor_purchase_invoice_reference",
+        "after_insert": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
+        "on_submit": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
+        "on_cancel": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
+        "on_update_after_submit": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
+    },
     "Payment Entry": {
         "before_submit": "sarveksha_erp.payment_tracking.payment_entry_workflow.validate_payment_entry_workflow",
+        "on_submit": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
+        "on_cancel": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
+        "on_update_after_submit": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
     }
 }
 
