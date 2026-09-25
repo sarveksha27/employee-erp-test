@@ -32,13 +32,13 @@ fixtures = [
     {
         "dt": "Role",
         "filters": [
-            ["name", "in", ["PO Generator", "PO Verifier", "PO Approver", "Vendor & Equipment Manager"]]
+            ["name", "in", ["PO Generator", "PO Verifier", "PO Approver", "Vendor & Equipment Manager", "Accounts Clerk", "Accounts Manager"]]
         ]
     },
     {
         "dt": "Workflow",
         "filters": [
-            ["name", "in", ["Vendor Purchase Order Workflow"]]
+            ["name", "in", ["Vendor Purchase Order Workflow", "Payment Entry Approval Workflow"]]
         ]
     },
     {
@@ -51,7 +51,9 @@ fixtures = [
                 "Approved",
                 "Rejected by Approver",
                 "Rejected by Verifier",
-                "Cancelled"
+                "Cancelled",
+                "Pending Approval",
+                "Completed"
             ]]
         ]
     },
@@ -180,13 +182,11 @@ permission_query_conditions = {
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+    "Payment Entry": {
+        "before_submit": "sarveksha_erp.payment_tracking.payment_entry_workflow.validate_payment_entry_workflow",
+    }
+}
 
 # Scheduled Tasks
 # ---------------

@@ -73,6 +73,8 @@ def setup_roles_permissions_and_users():
         "PO Generator",
         "PO Verifier",
         "PO Approver",
+        "Accounts Clerk",
+        "Accounts Manager",
     ]
     for r in roles_to_ensure:
         if not frappe.db.exists("Role", r):
@@ -105,6 +107,24 @@ def setup_roles_permissions_and_users():
         if frappe.db.exists("DocType", dt):
             setup_custom_docperm(dt, "Vendor & Equipment Manager", rel_crud)
             frappe.clear_cache(doctype=dt)
+
+    # 3. Finance role permissions: Accounts Clerk can create/read/write but NOT submit Payment Entry
+    clerk_perms = {"read": 1, "write": 1, "create": 1, "delete": 0, "submit": 0, "cancel": 0, "print": 1, "email": 1}
+    manager_perms = {"read": 1, "write": 1, "create": 1, "delete": 1, "submit": 1, "cancel": 1, "amend": 1, "print": 1, "email": 1, "report": 1, "export": 1}
+
+    for dt in ["Payment Entry", "Purchase Invoice", "Journal Entry"]:
+        if frappe.db.exists("DocType", dt):
+            setup_custom_docperm(dt, "Accounts Clerk", clerk_perms)
+            setup_custom_docperm(dt, "Accounts Manager", manager_perms)
+            frappe.clear_cache(doctype=dt)
+
+    # 4. PROCUREMENT CONFIDENTIALITY FIREWALL — explicitly deny PO roles access to Payment Entry & Journal Entry
+    no_access = {"read": 0, "write": 0, "create": 0, "delete": 0, "submit": 0, "cancel": 0, "amend": 0, "print": 0, "email": 0, "report": 0, "export": 0}
+    for po_role in ["PO Generator", "PO Verifier", "PO Approver"]:
+        for dt in ["Payment Entry", "Journal Entry"]:
+            if frappe.db.exists("DocType", dt):
+                setup_custom_docperm(dt, po_role, no_access)
+                frappe.clear_cache(doctype=dt)
 
     def add_roles_direct(email, roles):
         for role in roles:
@@ -160,6 +180,34 @@ def setup_roles_permissions_and_users():
             "first_name": "Master Data Manager",
             "last_name": "",
             "roles": ["Vendor & Equipment Manager", "Desk User", "All", "PO Generator"],
+        },
+        {
+            "email": "finance_clerk1@sarveksha.com",
+            "username": "finance_clerk1",
+            "first_name": "Finance Clerk 1",
+            "last_name": "",
+            "roles": ["Accounts Clerk", "Accounts User", "Desk User", "All"],
+        },
+        {
+            "email": "finance_clerk2@sarveksha.com",
+            "username": "finance_clerk2",
+            "first_name": "Finance Clerk 2",
+            "last_name": "",
+            "roles": ["Accounts Clerk", "Accounts User", "Desk User", "All"],
+        },
+        {
+            "email": "finance_manager1@sarveksha.com",
+            "username": "finance_manager1",
+            "first_name": "Finance Manager 1",
+            "last_name": "",
+            "roles": ["Accounts Manager", "Accounts User", "Desk User", "All"],
+        },
+        {
+            "email": "finance_manager2@sarveksha.com",
+            "username": "finance_manager2",
+            "first_name": "Finance Manager 2",
+            "last_name": "",
+            "roles": ["Accounts Manager", "Accounts User", "Desk User", "All"],
         },
     ]
 

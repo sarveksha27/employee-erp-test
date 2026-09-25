@@ -89,5 +89,19 @@
   "modified": "2026-07-31 08:54:38.908819",
   "name": "Return to Generator",
   "workflow_action_name": "Return to Generator"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-09-25 12:00:00.000000",
+  "name": "Send for Approval",
+  "workflow_action_name": "Send for Approval"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-09-25 12:00:00.000000",
+  "name": "Approve & Submit",
+  "workflow_action_name": "Approve & Submit"
  }
 ]

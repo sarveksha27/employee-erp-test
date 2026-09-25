@@ -5,3 +5,4 @@
 # Post-model sync patches
 # sarveksha_erp.patches.fix_account_currencies
 sarveksha_erp.patches.provision_users
+sarveksha_erp.patches.provision_finance_users
