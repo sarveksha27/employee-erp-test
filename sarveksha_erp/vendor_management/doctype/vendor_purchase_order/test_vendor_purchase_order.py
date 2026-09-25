@@ -1,8 +1,16 @@
 import frappe
-from frappe.utils import flt
+from types import SimpleNamespace
+from frappe.utils import flt, nowdate
 from unittest.mock import patch
 from frappe.tests.utils import FrappeTestCase
-from sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order import has_permission
+from sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order import (
+	_get_item_code_for_equipment,
+	calculate_vendor_po_payment_rollup,
+	forward_vendor_purchase_order_for_payment,
+	has_permission,
+	make_purchase_invoice_from_vendor_purchase_order,
+	sync_vendor_purchase_order_payment_status,
+)
 
 # Mock _get_fiscal_years to ignore company constraints in test runs
 import erpnext.accounts.utils
@@ -52,6 +60,193 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 			})
 		po.save(ignore_permissions=True)
 		return po
+
+	def test_payment_rollup_tracks_forwarding_bills_and_payments(self):
+		self.assertEqual(
+			calculate_vendor_po_payment_rollup(False, [])['payment_workflow_status'],
+			'Not Forwarded',
+		)
+		self.assertEqual(
+			calculate_vendor_po_payment_rollup(True, [])['payment_workflow_status'],
+			'Forwarded for Payment',
+		)
+		self.assertEqual(
+			calculate_vendor_po_payment_rollup(True, [{"name": "PINV-DRAFT", "docstatus": 0}])['payment_workflow_status'],
+			'Bill Draft',
+		)
+
+		unpaid = calculate_vendor_po_payment_rollup(
+			True,
+			[{"name": "PINV-1", "docstatus": 1, "grand_total": 100, "outstanding_amount": 100}],
+		)
+		self.assertEqual(unpaid['payment_workflow_status'], 'Billed')
+		self.assertEqual(unpaid['payment_status'], 'Pending')
+
+		partial = calculate_vendor_po_payment_rollup(
+			True,
+			[{"name": "PINV-1", "docstatus": 1, "grand_total": 100, "outstanding_amount": 40}],
+		)
+		self.assertEqual(partial['payment_workflow_status'], 'Partially Paid')
+		self.assertEqual(partial['payment_status'], 'Partially Paid')
+		self.assertEqual(partial['billed_amount'], 100)
+		self.assertEqual(partial['outstanding_amount'], 40)
+
+		paid = calculate_vendor_po_payment_rollup(
+			True,
+			[{"name": "PINV-1", "docstatus": 1, "grand_total": 100, "outstanding_amount": 0}],
+		)
+		self.assertEqual(paid['payment_workflow_status'], 'Paid')
+		self.assertEqual(paid['payment_fully_paid'], 1)
+
+	def test_bill_mapper_requires_matching_erpnext_item(self):
+		with patch.object(frappe.db, "exists", return_value=False), patch.object(
+			frappe, "get_all", return_value=[]
+		):
+			with self.assertRaises(frappe.ValidationError):
+				_get_item_code_for_equipment(
+					frappe._dict(equipment="EQ-UNKNOWN", equipment_name="Unknown Equipment")
+				)
+
+	def test_bill_mapper_resolves_unique_item_name(self):
+		with patch.object(frappe.db, "exists", return_value=False), patch.object(
+			frappe, "get_all", return_value=["ITEM-001"]
+		):
+			self.assertEqual(
+				_get_item_code_for_equipment(
+					frappe._dict(equipment="EQ-001", equipment_name="Known Equipment")
+				),
+				"ITEM-001",
+			)
+
+	def test_purchase_invoice_has_vendor_purchase_order_link(self):
+		self.assertTrue(
+			frappe.db.exists("Custom Field", "Purchase Invoice-vendor_purchase_order")
+		)
+		self.assertIsNotNone(frappe.get_meta("Purchase Invoice").get_field("vendor_purchase_order"))
+
+	def test_purchase_invoice_mapper_transfers_item_quantity_and_rate(self):
+		source_item = SimpleNamespace(
+			equipment="EQ-001",
+			equipment_name="Known Equipment",
+			specification="Mapped specification",
+			quantity=4,
+			rate=125.5,
+			unit="Nos",
+		)
+		source_po = SimpleNamespace(
+			name="VPO-TEST",
+			docstatus=1,
+			workflow_state="Approved",
+			payment_workflow_status="Forwarded for Payment",
+			supplier_invoice_no="INV-001",
+			supplier_invoice_date="2026-09-20",
+			items=[source_item],
+			check_permission=lambda permission: None,
+		)
+		target_item = SimpleNamespace()
+		target_doc = SimpleNamespace(items=[target_item], run_method=lambda method: None)
+
+		def map_document(*args, **kwargs):
+			args[-1](source_po, target_doc)
+			return target_doc
+
+		with patch("sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order._require_finance_user"), patch(
+			"sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.frappe.get_doc",
+			return_value=source_po,
+		), patch(
+			"sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.frappe.db.get_value",
+			return_value=None,
+		), patch(
+			"sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order._get_item_code_for_equipment",
+			return_value="ITEM-001",
+		), patch(
+			"sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.frappe.db.exists",
+			return_value=True,
+		), patch(
+			"sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.get_mapped_doc",
+			side_effect=map_document,
+		):
+			mapped = make_purchase_invoice_from_vendor_purchase_order("VPO-TEST")
+
+		self.assertEqual(mapped.vendor_purchase_order, "VPO-TEST")
+		self.assertEqual(target_item.item_code, "ITEM-001")
+		self.assertEqual(target_item.qty, 4)
+		self.assertEqual(target_item.rate, 125.5)
+		self.assertEqual(target_item.uom, "Nos")
+
+	def test_forwarding_requires_invoice_and_updates_payment_state(self):
+		po = SimpleNamespace(
+			doctype="Vendor Purchase Order",
+			name="VPO-TEST",
+			docstatus=1,
+			workflow_state="Approved",
+			payment_workflow_status="Not Forwarded",
+			check_permission=lambda permission: None,
+			notify_update=lambda: None,
+		)
+		invoice_file = SimpleNamespace(
+			attached_to_doctype=None,
+			attached_to_name=None,
+			attached_to_field=None,
+			save=lambda ignore_permissions=False: None,
+		)
+		module_path = "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order"
+		with patch(f"{module_path}.frappe.get_roles", return_value=["PO Approver"]), patch(
+			f"{module_path}.frappe.get_doc", side_effect=[po, invoice_file, po]
+		), patch(f"{module_path}.frappe.db.get_value", return_value="FILE-1"), patch(
+			f"{module_path}.frappe.db.set_value"
+		) as set_value:
+			result = forward_vendor_purchase_order_for_payment(
+				"VPO-TEST", "/files/vendor-invoice.pdf", "INV-2026-01", nowdate()
+			)
+
+		self.assertEqual(result["payment_workflow_status"], "Forwarded for Payment")
+		updated_values = set_value.call_args.args[2]
+		self.assertEqual(updated_values["invoice_doc"], "/files/vendor-invoice.pdf")
+		self.assertEqual(updated_values["supplier_invoice_no"], "INV-2026-01")
+		self.assertEqual(updated_values["payment_workflow_status"], "Forwarded for Payment")
+
+	def test_forwarded_payment_status_cannot_be_manually_overridden(self):
+		po = self._create_test_po()
+		po.db_set("payment_forwarded_on", nowdate())
+		po.reload()
+		po.payment_status = "Fully Paid"
+		with self.assertRaises(frappe.PermissionError):
+			po.validate_payment_permissions()
+
+	def test_purchase_invoice_event_syncs_po_payment_status_and_balance(self):
+		po = SimpleNamespace(
+			doctype="Vendor Purchase Order",
+			name="VPO-TEST",
+			payment_forwarded_on=nowdate(),
+			grand_total=125,
+			advance_amount=25,
+			notify_update=lambda: None,
+		)
+		invoice = frappe._dict(
+			doctype="Purchase Invoice",
+			vendor_purchase_order="VPO-TEST",
+		)
+		module_path = "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order"
+		with patch(f"{module_path}.frappe.get_doc", return_value=po), patch(
+			f"{module_path}.frappe.get_all",
+			return_value=[
+				{
+					"name": "PINV-TEST",
+					"docstatus": 1,
+					"grand_total": 100,
+					"outstanding_amount": 40,
+				}
+			],
+		), patch(f"{module_path}.frappe.db.set_value") as set_value:
+			sync_vendor_purchase_order_payment_status(invoice)
+
+		updated_values = set_value.call_args.args[2]
+		self.assertEqual(updated_values["payment_status"], "Partially Paid")
+		self.assertEqual(updated_values["payment_workflow_status"], "Partially Paid")
+		self.assertEqual(updated_values["billed_amount"], 100)
+		self.assertEqual(updated_values["outstanding_amount"], 40)
+		self.assertEqual(updated_values["balance_due"], 40)
 
 	def test_internal_po_entity_policy(self):
 		"""Internal POs may target SRI only and must originate from a child company."""

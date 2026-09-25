@@ -4,6 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.model.mapper import get_mapped_doc
 from frappe.utils import flt, getdate, nowdate
 
 
@@ -468,6 +469,11 @@ class VendorPurchaseOrder(Document):
         payment_fields = ["payment_status", "payment_pending", "payment_partially_paid", "payment_fully_paid"]
         changed = any(previous.get(f) != self.get(f) for f in payment_fields)
         if changed:
+            if previous.payment_forwarded_on or self.payment_forwarded_on:
+                frappe.throw(
+                    _("Payment status is synchronized from Purchase Invoices and Payment Entries after forwarding."),
+                    frappe.PermissionError,
+                )
             old_state = previous.workflow_state or "Draft"
             if old_state in ["Draft", "Generated (Yet to be Verified)"]:
                 frappe.throw(
@@ -1011,6 +1017,271 @@ class VendorPurchaseOrder(Document):
                 _("You do not have permission to modify payment status."),
                 frappe.PermissionError
             )
+
+
+def _require_finance_user():
+    roles = set(frappe.get_roles(frappe.session.user))
+    allowed_roles = {"Accounts Clerk", "Accounts Manager", "Accounts User", "System Manager"}
+    if frappe.session.user != "Administrator" and not roles.intersection(allowed_roles):
+        frappe.throw(
+            _("Only finance users can create bills from a forwarded Purchase Order."),
+            frappe.PermissionError,
+        )
+
+
+def _get_item_code_for_equipment(item):
+    if item.equipment and frappe.db.exists("Item", item.equipment):
+        return item.equipment
+
+    matches = frappe.get_all(
+        "Item", filters={"item_name": item.equipment_name}, pluck="name", limit=2
+    )
+    if len(matches) == 1:
+        return matches[0]
+
+    frappe.throw(
+        _(
+            "No unique ERPNext Item matches equipment {0} ({1}). Create or correct the Item master before creating the bill."
+        ).format(item.equipment_name or item.equipment, item.equipment),
+        frappe.ValidationError,
+    )
+
+
+def calculate_vendor_po_payment_rollup(is_forwarded, invoices):
+    active_invoices = [invoice for invoice in invoices if int(invoice.get("docstatus") or 0) != 2]
+    submitted_invoices = [invoice for invoice in active_invoices if int(invoice.get("docstatus") or 0) == 1]
+    billed_amount = sum(flt(invoice.get("grand_total")) for invoice in submitted_invoices)
+    outstanding_amount = max(
+        sum(flt(invoice.get("outstanding_amount")) for invoice in submitted_invoices), 0
+    )
+    paid_amount = max(billed_amount - outstanding_amount, 0)
+
+    if billed_amount > 0 and outstanding_amount <= 0:
+        payment_status = "Fully Paid"
+        payment_workflow_status = "Paid"
+    elif paid_amount > 0:
+        payment_status = "Partially Paid"
+        payment_workflow_status = "Partially Paid"
+    elif submitted_invoices:
+        payment_status = "Pending"
+        payment_workflow_status = "Billed"
+    elif active_invoices:
+        payment_status = "Pending"
+        payment_workflow_status = "Bill Draft"
+    elif is_forwarded:
+        payment_status = "Pending"
+        payment_workflow_status = "Forwarded for Payment"
+    else:
+        payment_status = "Pending"
+        payment_workflow_status = "Not Forwarded"
+
+    return {
+        "purchase_invoice": active_invoices[0].get("name") if active_invoices else None,
+        "billed_amount": flt(billed_amount, 2),
+        "outstanding_amount": flt(outstanding_amount, 2),
+        "payment_status": payment_status,
+        "payment_workflow_status": payment_workflow_status,
+        "payment_pending": int(payment_status == "Pending"),
+        "payment_partially_paid": int(payment_status == "Partially Paid"),
+        "payment_fully_paid": int(payment_status == "Fully Paid"),
+    }
+
+
+@frappe.whitelist()
+def forward_vendor_purchase_order_for_payment(po_name, invoice_file, invoice_number, invoice_date):
+    roles = set(frappe.get_roles(frappe.session.user))
+    allowed_roles = {
+        "PO Approver", "Purchase User", "Purchase Manager", "System Manager"
+    }
+    if frappe.session.user != "Administrator" and not roles.intersection(allowed_roles):
+        frappe.throw(
+            _("You do not have permission to forward this Purchase Order for payment."),
+            frappe.PermissionError,
+        )
+
+    po = frappe.get_doc("Vendor Purchase Order", po_name)
+    po.check_permission("write")
+    if po.docstatus != 1 or po.workflow_state != "Approved":
+        frappe.throw(
+            _("Only an approved, submitted Purchase Order can be forwarded for payment."),
+            frappe.ValidationError,
+        )
+    if not invoice_file or not (invoice_number or "").strip() or not invoice_date:
+        frappe.throw(_("Attach the supplier invoice and enter its number and date."), frappe.ValidationError)
+    if getdate(invoice_date) > getdate(nowdate()):
+        frappe.throw(_("Supplier invoice date cannot be in the future."), frappe.ValidationError)
+    if po.payment_workflow_status not in (None, "", "Not Forwarded"):
+        frappe.throw(_("This Purchase Order has already entered payment processing."), frappe.ValidationError)
+
+    file_name = frappe.db.get_value("File", {"file_url": invoice_file}, "name")
+    if not file_name:
+        frappe.throw(_("The attached invoice file was not found. Upload it again and retry."), frappe.ValidationError)
+    file_doc = frappe.get_doc("File", file_name)
+    if file_doc.attached_to_doctype and (
+        file_doc.attached_to_doctype != po.doctype or file_doc.attached_to_name != po.name
+    ):
+        frappe.throw(_("This file is already attached to another document."), frappe.ValidationError)
+
+    file_doc.attached_to_doctype = po.doctype
+    file_doc.attached_to_name = po.name
+    file_doc.attached_to_field = "invoice_doc"
+    file_doc.save(ignore_permissions=True)
+    frappe.db.set_value(
+        po.doctype,
+        po.name,
+        {
+            "invoice_doc": invoice_file,
+            "supplier_invoice_no": invoice_number.strip(),
+            "supplier_invoice_date": getdate(invoice_date),
+            "payment_forwarded_by": frappe.session.user,
+            "payment_forwarded_on": frappe.utils.now_datetime(),
+            "payment_workflow_status": "Forwarded for Payment",
+        },
+        update_modified=True,
+    )
+    frappe.get_doc(po.doctype, po.name).notify_update()
+    return {"name": po.name, "payment_workflow_status": "Forwarded for Payment"}
+
+
+@frappe.whitelist()
+def make_purchase_invoice_from_vendor_purchase_order(source_name, target_doc=None):
+    _require_finance_user()
+    po = frappe.get_doc("Vendor Purchase Order", source_name)
+    po.check_permission("read")
+    if po.docstatus != 1 or po.workflow_state != "Approved":
+        frappe.throw(_("Only an approved Purchase Order can be billed."), frappe.ValidationError)
+    if po.payment_workflow_status not in ("Forwarded for Payment", "Bill Draft"):
+        frappe.throw(_("This Purchase Order has not been forwarded for payment."), frappe.ValidationError)
+
+    existing_invoice = frappe.db.get_value(
+        "Purchase Invoice",
+        {"vendor_purchase_order": po.name, "docstatus": ["!=", 2]},
+        "name",
+    )
+    if existing_invoice:
+        return frappe.get_doc("Purchase Invoice", existing_invoice)
+
+    for item in po.items:
+        _get_item_code_for_equipment(item)
+
+    def postprocess(source, target):
+        target.vendor_purchase_order = source.name
+        target.bill_no = source.supplier_invoice_no
+        target.bill_date = source.supplier_invoice_date
+        for source_item, target_item in zip(source.items, target.items):
+            target_item.item_code = _get_item_code_for_equipment(source_item)
+            target_item.item_name = source_item.equipment_name or source_item.equipment
+            target_item.description = (
+                source_item.specification or source_item.equipment_name or source_item.equipment
+            )
+            target_item.qty = flt(source_item.quantity)
+            target_item.rate = flt(source_item.rate)
+            target_item.uom = source_item.unit if frappe.db.exists("UOM", source_item.unit) else "Nos"
+            target_item.stock_uom = (
+                frappe.db.get_value("Item", target_item.item_code, "stock_uom") or target_item.uom
+            )
+            if target_item.uom == target_item.stock_uom:
+                target_item.conversion_factor = 1
+            else:
+                target_item.conversion_factor = frappe.db.get_value(
+                    "UOM Conversion Detail",
+                    {"parent": target_item.item_code, "uom": target_item.uom},
+                    "conversion_factor",
+                )
+                if not target_item.conversion_factor:
+                    frappe.throw(
+                        _("Item {0} has no conversion factor for PO unit {1}.").format(
+                            target_item.item_code, target_item.uom
+                        ),
+                        frappe.ValidationError,
+                    )
+        target.run_method("set_missing_values")
+        target.run_method("calculate_taxes_and_totals")
+
+    return get_mapped_doc(
+        "Vendor Purchase Order",
+        source_name,
+        {
+            "Vendor Purchase Order": {
+                "doctype": "Purchase Invoice",
+                "field_map": {
+                    "vendor": "supplier",
+                    "company": "company",
+                    "currency": "currency",
+                },
+            },
+            "Vendor Purchase Order Item": {
+                "doctype": "Purchase Invoice Item",
+                "field_map": {
+                    "equipment_name": "item_name",
+                    "specification": "description",
+                    "quantity": "qty",
+                    "rate": "rate",
+                    "unit": "uom",
+                },
+            },
+        },
+        target_doc,
+        postprocess,
+    )
+
+
+def validate_vendor_purchase_invoice_reference(doc, method=None):
+    if not doc.get("vendor_purchase_order"):
+        return
+
+    po = frappe.get_doc("Vendor Purchase Order", doc.vendor_purchase_order)
+    if po.docstatus != 1 or po.workflow_state != "Approved" or not po.payment_forwarded_on:
+        frappe.throw(
+            _("A Purchase Invoice can only reference an approved PO that has been forwarded for payment."),
+            frappe.ValidationError,
+        )
+    if doc.supplier != po.vendor or doc.company != po.company:
+        frappe.throw(
+            _("The Purchase Invoice supplier and company must match Vendor Purchase Order {0}.").format(po.name),
+            frappe.ValidationError,
+        )
+
+
+def sync_vendor_purchase_order_payment_status(doc, method=None):
+    po_names = set()
+    if doc.doctype == "Purchase Invoice" and doc.get("vendor_purchase_order"):
+        po_names.add(doc.vendor_purchase_order)
+    elif doc.doctype == "Payment Entry":
+        invoice_names = {
+            row.reference_name
+            for row in (doc.get("references") or [])
+            if row.reference_doctype == "Purchase Invoice" and row.reference_name
+        }
+        if invoice_names:
+            po_names.update(
+                filter(
+                    None,
+                    frappe.get_all(
+                        "Purchase Invoice",
+                        filters={"name": ["in", list(invoice_names)]},
+                        pluck="vendor_purchase_order",
+                    ),
+                )
+            )
+
+    for po_name in po_names:
+        po = frappe.get_doc("Vendor Purchase Order", po_name)
+        invoices = frappe.get_all(
+            "Purchase Invoice",
+            filters={"vendor_purchase_order": po_name, "docstatus": ["!=", 2]},
+            fields=["name", "docstatus", "grand_total", "outstanding_amount"],
+            order_by="modified desc",
+        )
+        rollup = calculate_vendor_po_payment_rollup(bool(po.payment_forwarded_on), invoices)
+        has_submitted_invoice = any(int(invoice.get("docstatus") or 0) == 1 for invoice in invoices)
+        rollup["balance_due"] = (
+            rollup["outstanding_amount"]
+            if has_submitted_invoice
+            else flt(po.grand_total) - flt(po.advance_amount)
+        )
+        frappe.db.set_value(po.doctype, po.name, rollup, update_modified=True)
+        frappe.get_doc(po.doctype, po.name).notify_update()
 
 
 def has_permission(doc, ptype="read", user=None):
