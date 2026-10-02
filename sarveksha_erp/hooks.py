@@ -196,7 +196,10 @@ doc_events = {
     },
     "Payment Entry": {
         "before_submit": "sarveksha_erp.payment_tracking.payment_entry_workflow.validate_payment_entry_workflow",
-        "on_submit": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
+        "on_submit": [
+            "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
+            "sarveksha_erp.payment_tracking.events.payment_entry_events.on_payment_entry_submit"
+        ],
         "on_cancel": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
         "on_update_after_submit": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
     }

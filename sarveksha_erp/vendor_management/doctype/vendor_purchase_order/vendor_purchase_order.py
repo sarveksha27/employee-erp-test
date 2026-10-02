@@ -1243,6 +1243,35 @@ def validate_vendor_purchase_invoice_reference(doc, method=None):
         )
 
 
+def recalculate_po_payment_status(po_name):
+    if not po_name:
+        return
+    try:
+        po = frappe.get_doc("Vendor Purchase Order", po_name)
+    except Exception:
+        return
+    invoices = frappe.get_all(
+        "Purchase Invoice",
+        filters={"vendor_purchase_order": po_name, "docstatus": ["!=", 2]},
+        fields=["name", "docstatus", "grand_total", "outstanding_amount"],
+        order_by="modified desc",
+    )
+    rollup = calculate_vendor_po_payment_rollup(bool(getattr(po, "payment_forwarded_on", None)), invoices)
+    has_submitted_invoice = any(int(invoice.get("docstatus") or 0) == 1 for invoice in invoices)
+    rollup["balance_due"] = (
+        rollup["outstanding_amount"]
+        if has_submitted_invoice
+        else flt(getattr(po, "grand_total", 0)) - flt(getattr(po, "advance_amount", 0))
+    )
+    if hasattr(po, "payment_tracking_status") or (hasattr(po, "as_dict") and "payment_tracking_status" in po.as_dict()):
+        rollup["payment_tracking_status"] = rollup.get("payment_workflow_status")
+    frappe.db.set_value(getattr(po, "doctype", "Vendor Purchase Order"), getattr(po, "name", po_name), rollup, update_modified=True)
+    if hasattr(po, "notify_update"):
+        po.notify_update()
+    elif frappe.db.exists("Vendor Purchase Order", po_name):
+        frappe.get_doc("Vendor Purchase Order", po_name).notify_update()
+
+
 def sync_vendor_purchase_order_payment_status(doc, method=None):
     po_names = set()
     if doc.doctype == "Purchase Invoice" and doc.get("vendor_purchase_order"):
@@ -1266,22 +1295,7 @@ def sync_vendor_purchase_order_payment_status(doc, method=None):
             )
 
     for po_name in po_names:
-        po = frappe.get_doc("Vendor Purchase Order", po_name)
-        invoices = frappe.get_all(
-            "Purchase Invoice",
-            filters={"vendor_purchase_order": po_name, "docstatus": ["!=", 2]},
-            fields=["name", "docstatus", "grand_total", "outstanding_amount"],
-            order_by="modified desc",
-        )
-        rollup = calculate_vendor_po_payment_rollup(bool(po.payment_forwarded_on), invoices)
-        has_submitted_invoice = any(int(invoice.get("docstatus") or 0) == 1 for invoice in invoices)
-        rollup["balance_due"] = (
-            rollup["outstanding_amount"]
-            if has_submitted_invoice
-            else flt(po.grand_total) - flt(po.advance_amount)
-        )
-        frappe.db.set_value(po.doctype, po.name, rollup, update_modified=True)
-        frappe.get_doc(po.doctype, po.name).notify_update()
+        recalculate_po_payment_status(po_name)
 
 
 def has_permission(doc, ptype="read", user=None):

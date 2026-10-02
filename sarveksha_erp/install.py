@@ -32,6 +32,7 @@ def sync_workspace_sidebars():
         sidebar_paths = [
             frappe.get_app_path("sarveksha_erp", "vendor_management", "workspace_sidebar", "vendor_management", "vendor_management.json"),
             frappe.get_app_path("sarveksha_erp", "equipment_management", "workspace_sidebar", "equipment_management", "equipment_management.json"),
+            frappe.get_app_path("sarveksha_erp", "payment_tracking", "workspace_sidebar", "payment_tracking", "payment_tracking.json"),
         ]
         for p in sidebar_paths:
             if os.path.exists(p):
@@ -39,6 +40,48 @@ def sync_workspace_sidebars():
         frappe.db.commit()
     except Exception:
         pass
+
+
+def sync_desktop_icons():
+    """Ensure Desktop Icons are created and configured with role restrictions."""
+    if not frappe.db.table_exists("Desktop Icon"):
+        return
+
+    icon_name = "Payment Tracking"
+    roles = ["Accounts Manager", "Accounts Clerk", "Accounts User", "System Manager"]
+
+    if not frappe.db.exists("Desktop Icon", icon_name):
+        doc = frappe.new_doc("Desktop Icon")
+        doc.name = icon_name
+        doc.label = icon_name
+        doc.link_to = icon_name
+        doc.link_type = "Workspace Sidebar"
+        doc.parent_icon = "ERPNext"
+        doc.app = "sarveksha_erp"
+        doc.icon = "payment"
+        doc.bg_color = "gray"
+        doc.standard = 1
+        doc.hidden = 0
+        for r in roles:
+            doc.append("roles", {"role": r})
+        doc.flags.ignore_permissions = True
+        doc.insert()
+    else:
+        doc = frappe.get_doc("Desktop Icon", icon_name)
+        doc.label = icon_name
+        doc.link_to = icon_name
+        doc.link_type = "Workspace Sidebar"
+        doc.parent_icon = "ERPNext"
+        doc.app = "sarveksha_erp"
+        doc.icon = "payment"
+        doc.hidden = 0
+        doc.roles = []
+        for r in roles:
+            doc.append("roles", {"role": r})
+        doc.flags.ignore_permissions = True
+        doc.save()
+
+    frappe.db.commit()
 
 
 def setup_custom_docperm(parent, role, perms):
@@ -254,10 +297,12 @@ def setup_roles_permissions_and_users():
 def after_install():
     copy_letterhead_assets()
     sync_workspace_sidebars()
+    sync_desktop_icons()
     setup_roles_permissions_and_users()
 
 
 def after_migrate():
     copy_letterhead_assets()
     sync_workspace_sidebars()
+    sync_desktop_icons()
     setup_roles_permissions_and_users()

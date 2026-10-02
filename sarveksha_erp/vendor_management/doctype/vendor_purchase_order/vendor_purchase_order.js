@@ -273,6 +273,19 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			}
 		}
 
+		// Send Payment Proof to Vendor when payment is completed
+		const is_payment_completed =
+			frm.doc.payment_tracking_status === "Paid" ||
+			frm.doc.payment_workflow_status === "Paid" ||
+			frm.doc.payment_status === "Fully Paid";
+
+		if (is_approved && is_payment_completed && !frm.doc.__islocal) {
+			frm.add_custom_button(__("Send Payment Proof to Vendor"), function () {
+				send_payment_proof_to_vendor(frm);
+			});
+			frm.change_custom_button_type(__("Send Payment Proof to Vendor"), null, "success");
+		}
+
 		const can_print = is_approved && (user_roles.includes("PO Generator") || is_admin);
 
 		// PI Generation Button for Internal POs (Only available on Internal PO, never on External/Vendor PO)
@@ -1821,4 +1834,68 @@ function set_entity_policy_filters(frm) {
 
 	frm.set_query("vendor", () => ({ filters: { disabled: 0 } }));
 	frm.set_query("company", () => ({}));
+}
+
+function send_payment_proof_to_vendor(frm) {
+	const po_ref = frm.doc.ref_number || frm.doc.name;
+	const vendor = frm.doc.vendor;
+
+	// Resolve vendor email and payment proof attachment
+	frappe.db.get_value("Supplier", vendor, ["supplier_name", "email_id"]).then((r) => {
+		const vendor_name = (r && r.message && r.message.supplier_name) || vendor;
+		let vendor_email = (r && r.message && r.message.email_id) || "";
+
+		// Fetch Payment Proof PDF from attachments
+		frappe.db
+			.get_list("File", {
+				filters: {
+					attached_to_doctype: frm.doc.doctype,
+					attached_to_name: frm.doc.name,
+				},
+				fields: ["name", "file_name", "file_url", "is_private"],
+				order_by: "creation desc",
+			})
+			.then((files) => {
+				const attachments = [];
+				if (files && files.length > 0) {
+					const proof_file = files.find(
+						(f) =>
+							f.file_name &&
+							(f.file_name.includes("Payment_Proof") ||
+								f.file_name.toLowerCase().includes("payment")),
+					);
+					if (proof_file) {
+						attachments.push(proof_file);
+					} else {
+						attachments.push(files[0]);
+					}
+				}
+
+				const formatted_amount = frappe.format(frm.doc.grand_total, {
+					fieldtype: "Currency",
+					currency: frm.doc.currency,
+				});
+
+				const message =
+					`<p>Dear ${vendor_name},</p>` +
+					`<p>We are pleased to inform you that payment for Purchase Order <b>${po_ref}</b> has been successfully executed and transferred.</p>` +
+					`<p>Please find attached the official <b>Payment Receipt Proof / Bank Advice</b> for your accounting reconciliation and dispatch records.</p>` +
+					`<table style="border-collapse: collapse; width: 100%; max-width: 480px; margin: 12px 0; border: 1px solid #e2e8f0; font-size: 13px;">` +
+					`<tr style="background:#f8fafc;"><td style="padding: 6px 10px; font-weight: bold; border: 1px solid #e2e8f0;">PO Reference:</td><td style="padding: 6px 10px; border: 1px solid #e2e8f0;">${po_ref}</td></tr>` +
+					`<tr><td style="padding: 6px 10px; font-weight: bold; border: 1px solid #e2e8f0;">Amount Paid:</td><td style="padding: 6px 10px; font-weight: bold; color: #0f766e; border: 1px solid #e2e8f0;">${frm.doc.currency || "USD"} ${formatted_amount}</td></tr>` +
+					`<tr style="background:#f8fafc;"><td style="padding: 6px 10px; font-weight: bold; border: 1px solid #e2e8f0;">Payment Date:</td><td style="padding: 6px 10px; border: 1px solid #e2e8f0;">${frappe.datetime.get_today()}</td></tr>` +
+					`<tr><td style="padding: 6px 10px; font-weight: bold; border: 1px solid #e2e8f0;">Status:</td><td style="padding: 6px 10px; font-weight: bold; color: #059669; border: 1px solid #e2e8f0;">Paid</td></tr>` +
+					`</table>` +
+					`<p>Kindly acknowledge receipt of this payment advice and update our team with the shipment and tracking details.</p>` +
+					`<br><p>Best regards,<br><b>Sarveksha Procurement Team</b></p>`;
+
+				new frappe.views.CommunicationComposer({
+					doc: frm.doc,
+					subject: `Payment Advice: Sarveksha PO ${po_ref} - Funds Transferred`,
+					recipients: vendor_email,
+					message: message,
+					attachments: attachments,
+				});
+			});
+	});
 }
