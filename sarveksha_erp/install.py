@@ -294,11 +294,18 @@ def setup_roles_permissions_and_users():
     frappe.db.commit()
 
 
+def setup_payment_entry_defaults():
+    """Setup company bank accounts, mode of payment accounts, and default print format."""
+    from sarveksha_erp.patches.setup_payment_entry_defaults import execute as setup_defaults
+    setup_defaults()
+
+
 def after_install():
     copy_letterhead_assets()
     sync_workspace_sidebars()
     sync_desktop_icons()
     setup_roles_permissions_and_users()
+    setup_payment_entry_defaults()
 
 
 def after_migrate():
@@ -306,3 +313,5 @@ def after_migrate():
     sync_workspace_sidebars()
     sync_desktop_icons()
     setup_roles_permissions_and_users()
+    setup_payment_entry_defaults()
+
