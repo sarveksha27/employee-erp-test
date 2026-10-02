@@ -112,6 +112,14 @@
     "balance_due",
     "col_break_payment",
     "company_bank",
+    "payment_workflow_status",
+    "supplier_invoice_no",
+    "supplier_invoice_date",
+    "payment_forwarded_by",
+    "payment_forwarded_on",
+    "purchase_invoice",
+    "billed_amount",
+    "outstanding_amount",
     "sec_approval",
     "prepared_by",
     "verified_by",
@@ -801,6 +809,60 @@
       "fieldname": "company_bank",
       "fieldtype": "Data",
       "label": "Company Bank (SRI)"
+    },
+    {
+      "default": "Not Forwarded",
+      "fieldname": "payment_workflow_status",
+      "fieldtype": "Select",
+      "label": "Payment Processing Status",
+      "options": "Not Forwarded\nForwarded for Payment\nBill Draft\nBilled\nPartially Paid\nPaid",
+      "read_only": 1
+    },
+    {
+      "fieldname": "supplier_invoice_no",
+      "fieldtype": "Data",
+      "label": "Supplier Invoice Number",
+      "read_only": 1
+    },
+    {
+      "fieldname": "supplier_invoice_date",
+      "fieldtype": "Date",
+      "label": "Supplier Invoice Date",
+      "read_only": 1
+    },
+    {
+      "fieldname": "payment_forwarded_by",
+      "fieldtype": "Link",
+      "label": "Forwarded for Payment By",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "payment_forwarded_on",
+      "fieldtype": "Datetime",
+      "label": "Forwarded for Payment On",
+      "read_only": 1
+    },
+    {
+      "fieldname": "purchase_invoice",
+      "fieldtype": "Link",
+      "label": "Purchase Invoice",
+      "options": "Purchase Invoice",
+      "read_only": 1
+    },
+    {
+      "fieldname": "billed_amount",
+      "fieldtype": "Currency",
+      "label": "Billed Amount",
+      "options": "currency",
+      "read_only": 1
+    },
+    {
+      "fieldname": "outstanding_amount",
+      "fieldtype": "Currency",
+      "label": "Invoice Outstanding",
+      "options": "currency",
+      "read_only": 1
     },
     {
       "fieldname": "sec_approval",

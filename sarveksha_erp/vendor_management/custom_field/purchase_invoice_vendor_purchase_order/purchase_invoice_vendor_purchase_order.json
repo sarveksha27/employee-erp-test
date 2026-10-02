@@ -1,0 +1,13 @@
+{
+ "allow_on_submit": 0,
+ "fieldname": "vendor_purchase_order",
+ "fieldtype": "Link",
+ "insert_after": "supplier",
+ "label": "Vendor Purchase Order",
+ "module": "Vendor Management",
+ "name": "Purchase Invoice-vendor_purchase_order",
+ "options": "Vendor Purchase Order",
+ "read_only": 1,
+ "dt": "Purchase Invoice",
+ "doctype": "Custom Field"
+}

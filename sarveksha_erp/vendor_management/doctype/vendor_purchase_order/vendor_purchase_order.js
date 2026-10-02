@@ -185,6 +185,107 @@ frappe.ui.form.on("Vendor Purchase Order", {
 
 		// Configure Print Button & Menu Visibility based on Workflow Stage and User Roles
 		const is_approved = frm.doc.workflow_state === "Approved" || frm.doc.docstatus === 1;
+		const can_forward_for_payment =
+			user_roles.includes("PO Approver") ||
+			user_roles.includes("Purchase User") ||
+			user_roles.includes("Purchase Manager") ||
+			is_admin;
+		const can_create_bill =
+			user_roles.includes("Accounts Clerk") ||
+			user_roles.includes("Accounts Manager") ||
+			user_roles.includes("Accounts User") ||
+			is_admin;
+
+		if (
+			is_approved &&
+			can_forward_for_payment &&
+			(!frm.doc.payment_workflow_status || frm.doc.payment_workflow_status === "Not Forwarded")
+		) {
+			frm.add_custom_button(__("Verify & Forward for Payment"), function () {
+				const dialog = new frappe.ui.Dialog({
+					title: __("Verify & Forward for Payment"),
+					fields: [
+						{
+							fieldname: "invoice_file",
+							fieldtype: "Attach",
+							label: __("Supplier Invoice"),
+							reqd: 1,
+						},
+						{
+							fieldname: "invoice_number",
+							fieldtype: "Data",
+							label: __("Supplier Invoice Number"),
+							reqd: 1,
+						},
+						{
+							fieldname: "invoice_date",
+							fieldtype: "Date",
+							label: __("Supplier Invoice Date"),
+							default: frappe.datetime.get_today(),
+							reqd: 1,
+						},
+					],
+					primary_action_label: __("Forward for Payment"),
+					primary_action(values) {
+						frappe.call({
+							method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.forward_vendor_purchase_order_for_payment",
+							args: {
+								po_name: frm.doc.name,
+								invoice_file: values.invoice_file,
+								invoice_number: values.invoice_number,
+								invoice_date: values.invoice_date,
+							},
+							freeze: true,
+							freeze_message: __("Forwarding Purchase Order to Finance..."),
+						}).then(() => {
+							dialog.hide();
+							frm.reload_doc();
+							frappe.show_alert({
+								message: __("Purchase Order forwarded to Finance."),
+								indicator: "green",
+							});
+						});
+					},
+				});
+				dialog.show();
+			});
+			frm.change_custom_button_type(__("Verify & Forward for Payment"), null, "primary");
+		}
+
+		if (is_approved && can_create_bill) {
+			if (frm.doc.purchase_invoice) {
+				frm.add_custom_button(__("View Bill"), function () {
+					frappe.set_route("Form", "Purchase Invoice", frm.doc.purchase_invoice);
+				});
+			} else if (["Forwarded for Payment", "Bill Draft"].includes(frm.doc.payment_workflow_status)) {
+				frm.add_custom_button(__("Create Bill"), function () {
+					frappe.call({
+						method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.make_purchase_invoice_from_vendor_purchase_order",
+						args: { source_name: frm.doc.name },
+						freeze: true,
+						freeze_message: __("Preparing Purchase Invoice..."),
+					}).then((r) => {
+						const doclist = frappe.model.sync(r.message);
+						frappe.set_route("Form", doclist[0].doctype, doclist[0].name);
+					});
+				});
+				frm.change_custom_button_type(__("Create Bill"), null, "primary");
+			}
+		}
+
+		// Send Payment Proof to Vendor when payment is completed
+		const is_payment_completed =
+			frm.doc.payment_tracking_status === "Paid" ||
+			frm.doc.payment_workflow_status === "Paid" ||
+			frm.doc.payment_status === "Fully Paid";
+
+		if (is_approved && is_payment_completed && !frm.doc.__islocal) {
+			frm.add_custom_button(__("Send Payment Proof to Vendor"), function () {
+				send_payment_proof_to_vendor(frm);
+			});
+			frm.change_custom_button_type(__("Send Payment Proof to Vendor"), null, "success");
+		}
+
 		const can_print = is_approved && (user_roles.includes("PO Generator") || is_admin);
 
 		// PI Generation Button for Internal POs (Only available on Internal PO, never on External/Vendor PO)
@@ -1189,12 +1290,8 @@ function toggle_payment_section(frm) {
 		has_accounts_or_admin;
 
 	const target_fields = [
-		"payment_status",
 		"advance_paid",
 		"balance_due",
-		"payment_pending",
-		"payment_partially_paid",
-		"payment_fully_paid",
 		"advance_percentage",
 		"payment_terms",
 		"advance_amount",
@@ -1207,6 +1304,14 @@ function toggle_payment_section(frm) {
 			frm.refresh_field(field);
 		}
 	});
+	["payment_status", "payment_pending", "payment_partially_paid", "payment_fully_paid"].forEach(
+		(field) => {
+			if (frm.get_field(field)) {
+				frm.set_df_property(field, "read_only", 1);
+				frm.refresh_field(field);
+			}
+		},
+	);
 }
 
 function lock_price_inputs_for_reviewers(frm) {
@@ -1729,4 +1834,68 @@ function set_entity_policy_filters(frm) {
 
 	frm.set_query("vendor", () => ({ filters: { disabled: 0 } }));
 	frm.set_query("company", () => ({}));
+}
+
+function send_payment_proof_to_vendor(frm) {
+	const po_ref = frm.doc.ref_number || frm.doc.name;
+	const vendor = frm.doc.vendor;
+
+	// Resolve vendor email and payment proof attachment
+	frappe.db.get_value("Supplier", vendor, ["supplier_name", "email_id"]).then((r) => {
+		const vendor_name = (r && r.message && r.message.supplier_name) || vendor;
+		let vendor_email = (r && r.message && r.message.email_id) || "";
+
+		// Fetch Payment Proof PDF from attachments
+		frappe.db
+			.get_list("File", {
+				filters: {
+					attached_to_doctype: frm.doc.doctype,
+					attached_to_name: frm.doc.name,
+				},
+				fields: ["name", "file_name", "file_url", "is_private"],
+				order_by: "creation desc",
+			})
+			.then((files) => {
+				const attachments = [];
+				if (files && files.length > 0) {
+					const proof_file = files.find(
+						(f) =>
+							f.file_name &&
+							(f.file_name.includes("Payment_Proof") ||
+								f.file_name.toLowerCase().includes("payment")),
+					);
+					if (proof_file) {
+						attachments.push(proof_file);
+					} else {
+						attachments.push(files[0]);
+					}
+				}
+
+				const formatted_amount = frappe.format(frm.doc.grand_total, {
+					fieldtype: "Currency",
+					currency: frm.doc.currency,
+				});
+
+				const message =
+					`<p>Dear ${vendor_name},</p>` +
+					`<p>We are pleased to inform you that payment for Purchase Order <b>${po_ref}</b> has been successfully executed and transferred.</p>` +
+					`<p>Please find attached the official <b>Payment Receipt Proof / Bank Advice</b> for your accounting reconciliation and dispatch records.</p>` +
+					`<table style="border-collapse: collapse; width: 100%; max-width: 480px; margin: 12px 0; border: 1px solid #e2e8f0; font-size: 13px;">` +
+					`<tr style="background:#f8fafc;"><td style="padding: 6px 10px; font-weight: bold; border: 1px solid #e2e8f0;">PO Reference:</td><td style="padding: 6px 10px; border: 1px solid #e2e8f0;">${po_ref}</td></tr>` +
+					`<tr><td style="padding: 6px 10px; font-weight: bold; border: 1px solid #e2e8f0;">Amount Paid:</td><td style="padding: 6px 10px; font-weight: bold; color: #0f766e; border: 1px solid #e2e8f0;">${frm.doc.currency || "USD"} ${formatted_amount}</td></tr>` +
+					`<tr style="background:#f8fafc;"><td style="padding: 6px 10px; font-weight: bold; border: 1px solid #e2e8f0;">Payment Date:</td><td style="padding: 6px 10px; border: 1px solid #e2e8f0;">${frappe.datetime.get_today()}</td></tr>` +
+					`<tr><td style="padding: 6px 10px; font-weight: bold; border: 1px solid #e2e8f0;">Status:</td><td style="padding: 6px 10px; font-weight: bold; color: #059669; border: 1px solid #e2e8f0;">Paid</td></tr>` +
+					`</table>` +
+					`<p>Kindly acknowledge receipt of this payment advice and update our team with the shipment and tracking details.</p>` +
+					`<br><p>Best regards,<br><b>Sarveksha Procurement Team</b></p>`;
+
+				new frappe.views.CommunicationComposer({
+					doc: frm.doc,
+					subject: `Payment Advice: Sarveksha PO ${po_ref} - Funds Transferred`,
+					recipients: vendor_email,
+					message: message,
+					attachments: attachments,
+				});
+			});
+	});
 }
