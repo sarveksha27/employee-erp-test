@@ -42,9 +42,7 @@ frappe.ui.form.on("Vendor Purchase Order", {
 		// Helper function to apply workflow action
 		const apply_action = function (action_name) {
 			const is_dirty = Boolean(
-				(frm.is_dirty && frm.is_dirty()) ||
-				frm.doc.__unsaved ||
-				frm.doc.__islocal
+				(frm.is_dirty && frm.is_dirty()) || frm.doc.__unsaved || frm.doc.__islocal,
 			);
 			if (is_dirty) {
 				frappe.msgprint(__("Please save changes before sending forward."));
@@ -199,7 +197,8 @@ frappe.ui.form.on("Vendor Purchase Order", {
 		if (
 			is_approved &&
 			can_forward_for_payment &&
-			(!frm.doc.payment_workflow_status || frm.doc.payment_workflow_status === "Not Forwarded")
+			(!frm.doc.payment_workflow_status ||
+				frm.doc.payment_workflow_status === "Not Forwarded")
 		) {
 			frm.add_custom_button(__("Verify & Forward for Payment"), function () {
 				const dialog = new frappe.ui.Dialog({
@@ -227,24 +226,26 @@ frappe.ui.form.on("Vendor Purchase Order", {
 					],
 					primary_action_label: __("Forward for Payment"),
 					primary_action(values) {
-						frappe.call({
-							method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.forward_vendor_purchase_order_for_payment",
-							args: {
-								po_name: frm.doc.name,
-								invoice_file: values.invoice_file,
-								invoice_number: values.invoice_number,
-								invoice_date: values.invoice_date,
-							},
-							freeze: true,
-							freeze_message: __("Forwarding Purchase Order to Finance..."),
-						}).then(() => {
-							dialog.hide();
-							frm.reload_doc();
-							frappe.show_alert({
-								message: __("Purchase Order forwarded to Finance."),
-								indicator: "green",
+						frappe
+							.call({
+								method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.forward_vendor_purchase_order_for_payment",
+								args: {
+									po_name: frm.doc.name,
+									invoice_file: values.invoice_file,
+									invoice_number: values.invoice_number,
+									invoice_date: values.invoice_date,
+								},
+								freeze: true,
+								freeze_message: __("Forwarding Purchase Order to Finance..."),
+							})
+							.then(() => {
+								dialog.hide();
+								frm.reload_doc();
+								frappe.show_alert({
+									message: __("Purchase Order forwarded to Finance."),
+									indicator: "green",
+								});
 							});
-						});
 					},
 				});
 				dialog.show();
@@ -257,17 +258,21 @@ frappe.ui.form.on("Vendor Purchase Order", {
 				frm.add_custom_button(__("View Bill"), function () {
 					frappe.set_route("Form", "Purchase Invoice", frm.doc.purchase_invoice);
 				});
-			} else if (["Forwarded for Payment", "Bill Draft"].includes(frm.doc.payment_workflow_status)) {
+			} else if (
+				["Forwarded for Payment", "Bill Draft"].includes(frm.doc.payment_workflow_status)
+			) {
 				frm.add_custom_button(__("Create Bill"), function () {
-					frappe.call({
-						method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.make_purchase_invoice_from_vendor_purchase_order",
-						args: { source_name: frm.doc.name },
-						freeze: true,
-						freeze_message: __("Preparing Purchase Invoice..."),
-					}).then((r) => {
-						const doclist = frappe.model.sync(r.message);
-						frappe.set_route("Form", doclist[0].doctype, doclist[0].name);
-					});
+					frappe
+						.call({
+							method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.make_purchase_invoice_from_vendor_purchase_order",
+							args: { source_name: frm.doc.name },
+							freeze: true,
+							freeze_message: __("Preparing Purchase Invoice..."),
+						})
+						.then((r) => {
+							const doclist = frappe.model.sync(r.message);
+							frappe.set_route("Form", doclist[0].doctype, doclist[0].name);
+						});
 				});
 				frm.change_custom_button_type(__("Create Bill"), null, "primary");
 			}
@@ -921,7 +926,7 @@ function calculate_gst_and_totals(frm) {
 				const rate = flt(row.rate) || 0;
 				const qty = flt(row.quantity) || 1;
 				const discount_pct = flt(row.discount_percent) || 0;
-				const gst_pct = is_tax_exempt ? 0 : (flt(row.gst_percentage) || 0);
+				const gst_pct = is_tax_exempt ? 0 : flt(row.gst_percentage) || 0;
 
 				const base_amount = rate * qty;
 				const discount_amount = base_amount * (discount_pct / 100);
@@ -1188,7 +1193,11 @@ function apply_dynamic_field_locks(frm) {
 	let is_reviewer_locked = false;
 	if (!is_admin && !is_generator) {
 		if (
-			["Generated (Yet to be Verified)", "Verified (Yet to be approved)", "Approved"].includes(state) &&
+			[
+				"Generated (Yet to be Verified)",
+				"Verified (Yet to be approved)",
+				"Approved",
+			].includes(state) &&
 			user_roles.includes("PO Verifier")
 		) {
 			is_reviewer_locked = true;
@@ -1285,9 +1294,7 @@ function toggle_payment_section(frm) {
 	// and only by authorized accounts/admin roles.
 	// In Draft or Generated (Yet to be Verified) stages, it is strictly read-only and greyed out.
 	const is_allowed =
-		state !== "Draft" &&
-		state !== "Generated (Yet to be Verified)" &&
-		has_accounts_or_admin;
+		state !== "Draft" && state !== "Generated (Yet to be Verified)" && has_accounts_or_admin;
 
 	const target_fields = [
 		"advance_paid",
@@ -1320,19 +1327,22 @@ function lock_price_inputs_for_reviewers(frm) {
 
 function render_cumulative_breakdown(frm) {
 	const currency = frm.doc.currency || "USD";
-	const currency_sym = currency === "USD" ? "$" : (currency === "INR" ? "₹" : (currency + " "));
+	const currency_sym = currency === "USD" ? "$" : currency === "INR" ? "₹" : currency + " ";
 	const is_usd = currency === "USD";
 	const is_internal = (frm.doc.po_type || "") === "Internal PO";
 
 	const items_total = flt(frm.doc.cumulative_items_total || frm.doc.taxable_value, 2);
 	const tax_amount = flt(frm.doc.tax_amount, 2);
-	const cum_after_tax = flt(frm.doc.cumulative_after_tax || (items_total + tax_amount), 2);
+	const cum_after_tax = flt(frm.doc.cumulative_after_tax || items_total + tax_amount, 2);
 	const freight = flt(frm.doc.freight, 2);
 	const insurance = flt(frm.doc.insurance, 2);
 	const packing = flt(frm.doc.packing_charges, 2);
 	const other = flt(frm.doc.other_charges, 2);
-	const logistics_cost = flt(frm.doc.logistics_cost || (freight + insurance + packing + other), 2);
-	const cum_after_logistics = flt(frm.doc.cumulative_after_logistics || (cum_after_tax + logistics_cost), 2);
+	const logistics_cost = flt(frm.doc.logistics_cost || freight + insurance + packing + other, 2);
+	const cum_after_logistics = flt(
+		frm.doc.cumulative_after_logistics || cum_after_tax + logistics_cost,
+		2,
+	);
 	const margin_pct = flt(frm.doc.internal_margin_percentage, 2);
 	const margin_amt = flt(frm.doc.internal_margin_amount, 2);
 	const grand_total = flt(frm.doc.grand_total, 2);
@@ -1347,9 +1357,11 @@ function render_cumulative_breakdown(frm) {
 
 	let tax_desc = "";
 	if (is_usd) {
-		tax_desc = '<span class="text-muted" style="font-size: 11px;">(0.00 - Foreign Currency / USD Pricing)</span>';
+		tax_desc =
+			'<span class="text-muted" style="font-size: 11px;">(0.00 - Foreign Currency / USD Pricing)</span>';
 	} else if (is_internal) {
-		tax_desc = '<span class="text-muted" style="font-size: 11px;">(0.00 - Internal Transfer)</span>';
+		tax_desc =
+			'<span class="text-muted" style="font-size: 11px;">(0.00 - Internal Transfer)</span>';
 	} else if (frm.doc.is_lut_applicable) {
 		tax_desc = '<span class="badge badge-warning" style="font-size: 10px;">LUT 0.1%</span>';
 	} else if (frm.doc.gst_type) {
@@ -1359,9 +1371,9 @@ function render_cumulative_breakdown(frm) {
 	const status_badge_bg =
 		payment_status === "Fully Paid"
 			? "#dcfce7; color: #15803d; border: 1px solid #86efac;"
-			: (payment_status === "Pending"
+			: payment_status === "Pending"
 				? "#fef3c7; color: #b45309; border: 1px solid #fde68a;"
-				: "#e0e7ff; color: #3730a3; border: 1px solid #c7d2fe;");
+				: "#e0e7ff; color: #3730a3; border: 1px solid #c7d2fe;";
 
 	let html = `
 		<div class="cumulative-summary-card" style="margin-bottom: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); overflow: hidden;">
@@ -1415,12 +1427,16 @@ function render_cumulative_breakdown(frm) {
 								<span style="color: #0f172a;">${fmt(cum_after_logistics)}</span>
 							</div>
 
-							${is_internal ? `
+							${
+								is_internal
+									? `
 							<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
 								<span style="color: #64748b;">4. Internal Margin (${margin_pct}%):</span>
 								<span style="color: #1e293b;">+ ${fmt(margin_amt)}</span>
 							</div>
-							` : ''}
+							`
+									: ""
+							}
 
 							<div style="display: flex; justify-content: space-between; padding: 8px 10px; font-size: 13px; background: #dbeafe; border: 1px solid #bfdbfe; border-radius: 4px; margin-top: 8px; font-weight: 700;">
 								<span style="color: #1e40af;">Final Cumulative Amount (Grand Total):</span>
@@ -1451,13 +1467,13 @@ function render_cumulative_breakdown(frm) {
 
 								<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
 									<span style="color: #64748b;">Balance Payable:</span>
-									<strong style="color: ${balance_due > 0 ? '#b91c1c' : '#15803d'};">${fmt(balance_due)}</strong>
+									<strong style="color: ${balance_due > 0 ? "#b91c1c" : "#15803d"};">${fmt(balance_due)}</strong>
 								</div>
 							</div>
 
 							<div style="margin-top: 14px; padding: 8px; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 4px; font-size: 11px; color: #64748b;">
 								<i class="fa fa-info-circle" style="color: #3b82f6;"></i>
-								${is_usd ? 'USD pricing detected. Zero-rated/foreign export without Indian GST.' : (frm.doc.is_lut_applicable ? 'Supplied under LUT (0.1% GST Merchant Export).' : 'Standard domestic GST policy applied.')}
+								${is_usd ? "USD pricing detected. Zero-rated/foreign export without Indian GST." : frm.doc.is_lut_applicable ? "Supplied under LUT (0.1% GST Merchant Export)." : "Standard domestic GST policy applied."}
 							</div>
 						</div>
 					</div>
@@ -1470,7 +1486,11 @@ function render_cumulative_breakdown(frm) {
 	if ($field.length) {
 		$field.empty().html(html);
 	}
-	if (frm.fields_dict && frm.fields_dict.cumulative_breakdown_html && frm.fields_dict.cumulative_breakdown_html.$wrapper) {
+	if (
+		frm.fields_dict &&
+		frm.fields_dict.cumulative_breakdown_html &&
+		frm.fields_dict.cumulative_breakdown_html.$wrapper
+	) {
 		frm.fields_dict.cumulative_breakdown_html.$wrapper.empty().html(html);
 	}
 	const $sec = $(frm.wrapper).find('[data-fieldname="sec_cumulative_breakdown"]');
@@ -1508,13 +1528,13 @@ function update_save_before_forward_guard(frm) {
 	if (!frm.page || !frm.page.wrapper) return;
 
 	const is_dirty = Boolean(
-		(frm.is_dirty && frm.is_dirty()) ||
-		frm.doc.__unsaved ||
-		frm.doc.__islocal
+		(frm.is_dirty && frm.is_dirty()) || frm.doc.__unsaved || frm.doc.__islocal,
 	);
 
 	const forward_btn = frm.page.wrapper
-		.find('[data-label="Send%20Forward"], [data-label="Send Forward"], button:contains("Send Forward")')
+		.find(
+			'[data-label="Send%20Forward"], [data-label="Send Forward"], button:contains("Send Forward")',
+		)
 		.filter(function () {
 			const label = $(this).attr("data-label");
 			const text = $(this).text().trim();
@@ -1665,7 +1685,8 @@ function render_workflow_activity_history(frm) {
 					let rowBg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
 					let changesHtml = "";
 					if (row.changes && row.changes.length > 0) {
-						changesHtml = '<div style="max-height: 140px; overflow-y: auto;"><ul style="margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.6; color: #334155;">';
+						changesHtml =
+							'<div style="max-height: 140px; overflow-y: auto;"><ul style="margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.6; color: #334155;">';
 						row.changes.forEach((chg) => {
 							let fieldName = frappe.utils.escape_html(chg.field || "");
 							let oldVal = frappe.utils.escape_html(chg.old || "");
@@ -1682,7 +1703,8 @@ function render_workflow_activity_history(frm) {
 						});
 						changesHtml += "</ul></div>";
 					} else {
-						changesHtml = '<span style="color: #94a3b8; font-style: italic;">No field modifications</span>';
+						changesHtml =
+							'<span style="color: #94a3b8; font-style: italic;">No field modifications</span>';
 					}
 
 					html += `
@@ -1723,12 +1745,18 @@ function render_workflow_activity_history(frm) {
 				rendered = true;
 			}
 
-			if (frm.fields_dict && frm.fields_dict.workflow_history_html && frm.fields_dict.workflow_history_html.$wrapper) {
+			if (
+				frm.fields_dict &&
+				frm.fields_dict.workflow_history_html &&
+				frm.fields_dict.workflow_history_html.$wrapper
+			) {
 				frm.fields_dict.workflow_history_html.$wrapper.empty().html(html);
 				rendered = true;
 			}
 
-			const $secBody = $(frm.wrapper).find('[data-fieldname="sec_workflow_history"] .section-body');
+			const $secBody = $(frm.wrapper).find(
+				'[data-fieldname="sec_workflow_history"] .section-body',
+			);
 			if ($secBody.length && (!rendered || !$secBody.find(".table-responsive").length)) {
 				$secBody.empty().html(html);
 			}
@@ -1772,7 +1800,6 @@ function export_history_to_excel(po_name, data) {
 		document.body.removeChild(link);
 	}
 }
-
 
 function set_quotation_governance_access(frm, state) {
 	const is_locked = !frm.is_new() && state !== "Draft";

@@ -16,18 +16,20 @@ frappe.ui.form.on("Purchase Invoice", {
 			frappe.model.can_create("Payment Entry")
 		) {
 			frm.add_custom_button(__("Create Payment Entry"), function () {
-				frappe.call({
-					method: "erpnext.accounts.doctype.payment_entry.payment_entry.get_payment_entry",
-					args: {
-						dt: frm.doc.doctype,
-						dn: frm.doc.name,
-					},
-					freeze: true,
-					freeze_message: __("Preparing Payment Entry..."),
-				}).then((response) => {
-					const doclist = frappe.model.sync(response.message);
-					frappe.set_route("Form", doclist[0].doctype, doclist[0].name);
-				});
+				frappe
+					.call({
+						method: "erpnext.accounts.doctype.payment_entry.payment_entry.get_payment_entry",
+						args: {
+							dt: frm.doc.doctype,
+							dn: frm.doc.name,
+						},
+						freeze: true,
+						freeze_message: __("Preparing Payment Entry..."),
+					})
+					.then((response) => {
+						const doclist = frappe.model.sync(response.message);
+						frappe.set_route("Form", doclist[0].doctype, doclist[0].name);
+					});
 			});
 			frm.change_custom_button_type(__("Create Payment Entry"), null, "primary");
 		}
