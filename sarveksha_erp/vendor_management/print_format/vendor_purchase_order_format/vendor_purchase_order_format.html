@@ -249,9 +249,7 @@
 
   <!-- ── SALUTATION ── -->
   <p>Dear Sir/Ma'am,</p>
-  <p>We are pleased to release this Purchase Order for the supply of <strong>{{ doc.equipment_name or doc.item_code or
-      "the specified goods" }}</strong>. Details and specifications are as per below. Please send your acceptance
-    confirmation via return email for further processing.</p>
+  <p>We are pleased to release this Purchase Order for the supply of <strong>the attached list of equipment</strong>. Details and specifications are as per below. Please send your acceptance confirmation via return email for further processing.</p>
 
   <!-- ── PRE-CONDITIONS ── -->
   <table class="fixed" style="margin-bottom:6px;">
@@ -511,10 +509,8 @@
     </tr>
   </table>
 
-  <!-- ── PAGE BREAK: CLEAN SPLIT TO PAGE 2 ── -->
-  <div style="page-break-before: always;"></div>
-
-  <!-- ── TERMS & CONDITIONS (PAGE 2) ── -->
+  <!-- ── TERMS & CONDITIONS ── -->
+  <div style="margin-top: 6px;"></div>
   {% if doc.standard_terms or doc.custom_terms %}
   <p style="margin:0 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
   <table class="fixed" style="margin-bottom:8px;">

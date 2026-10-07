@@ -18,9 +18,6 @@ class VendorPurchaseOrder(Document):
         if self.is_new() or not self.prepared_by:
             self.prepared_by = frappe.session.user or "Administrator"
 
-        if (self.currency or "").upper() == "USD":
-            self.is_lut_applicable = 0
-
         self.validate_entity_policy()
         self.set_company_details()
         self.set_default_letter_head()
@@ -254,8 +251,12 @@ class VendorPurchaseOrder(Document):
             self.letter_head = "Botswana (Sarveksha Botswana)"
         elif "baani" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Baani Minerals)"):
             self.letter_head = "Cameroon (Baani Minerals)"
+        elif "plc" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Sarveksha Cameroon PLC)"):
+            self.letter_head = "Cameroon (Sarveksha Cameroon PLC)"
         elif "mining" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Sarveksha Mining SARL)"):
             self.letter_head = "Cameroon (Sarveksha Mining SARL)"
+        elif "cameroon" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Sarveksha Cameroon PLC)"):
+            self.letter_head = "Cameroon (Sarveksha Cameroon PLC)"
         elif "bstp" in comp_name and frappe.db.exists("Letter Head", "Guinea (Sarveksha BSTP SAS)"):
             self.letter_head = "Guinea (Sarveksha BSTP SAS)"
         elif "sl limited" in comp_name and frappe.db.exists("Letter Head", "Sierra Leone (Sarveksha SL Limited)"):
@@ -269,9 +270,6 @@ class VendorPurchaseOrder(Document):
             return
 
         terms_to_add = []
-
-        if self.is_lut_applicable and frappe.db.exists("Terms and Conditions", "LUT Certificate Terms"):
-            terms_to_add.append("LUT Certificate Terms")
 
         if self.company:
             comp_name = (self.company or "").lower()
@@ -741,7 +739,6 @@ class VendorPurchaseOrder(Document):
             ("insurance", "Insurance"),
             ("packing_charges", "Packing Charges"),
             ("other_charges", "Other Charges"),
-            ("is_lut_applicable", "LUT Applicable"),
             ("vendor_gstin", "Vendor GSTIN"),
             ("company_gstin", "Company GSTIN"),
         ]
@@ -803,10 +800,13 @@ class VendorPurchaseOrder(Document):
         is_usd = (self.currency or "").upper() == "USD"
         is_tax_exempt = is_internal or is_child_company or is_usd
 
-        # ── INTERNAL PO or USD: Force LUT off + clear all GST exposure ────────────
+        # Default or sync gst_percentage
         if is_tax_exempt:
-            self.is_lut_applicable = 0
-            self.lut_number = None if hasattr(self, 'lut_number') else None
+            self.gst_percentage = 0.0
+        elif self.gst_percentage is None or self.gst_percentage == "":
+            self.gst_percentage = 18.0
+        else:
+            self.gst_percentage = flt(self.gst_percentage)
 
         total_taxable_value = 0.0
         total_item_tax = 0.0
@@ -814,23 +814,11 @@ class VendorPurchaseOrder(Document):
         if self.items:
             for item in self.items:
                 if is_tax_exempt:
-                    # Internal / Child Company POs are completely tax-free
                     item.gst_percentage = 0.0
-                elif self.is_lut_applicable:
-                    # LUT overrides ALL items to 0.1%
-                    item.gst_percentage = 0.1
+                elif item.gst_percentage is None or item.gst_percentage == "":
+                    item.gst_percentage = self.gst_percentage
                 else:
-                    # ── LUT REVERSION FIX ──────────────────────────────────────
-                    # When LUT is unchecked, do NOT leave gst_percentage at 0.1.
-                    # Restore from Equipment master if item value is still 0.1.
-                    current_gst = flt(item.gst_percentage)
-                    if current_gst == 0.1:
-                        master_gst = 18.0  # safe default
-                        if item.equipment and frappe.db.exists("Equipment", item.equipment):
-                            eq_gst = frappe.db.get_value("Equipment", item.equipment, "gst_percentage")
-                            if eq_gst is not None and flt(eq_gst) > 0:
-                                master_gst = flt(eq_gst)
-                        item.gst_percentage = master_gst
+                    item.gst_percentage = flt(item.gst_percentage)
 
                 rate = flt(item.rate)
                 qty = flt(item.quantity) or 1
@@ -850,22 +838,19 @@ class VendorPurchaseOrder(Document):
 
             # Keep legacy single-equipment fields synced with first item for backwards compatibility
             first = self.items[0]
-            self.equipment = first.equipment
-            self.equipment_name = first.equipment_name
+            self.equipment = getattr(first, 'equipment', None)
+            self.equipment_name = getattr(first, 'equipment_name', None)
             self.hsn_code = getattr(first, 'hsn_code', None)
             self.brand = getattr(first, 'brand', None)
             self.manufacturer = getattr(first, 'manufacturer', None)
-            self.quantity = first.quantity
+            self.quantity = getattr(first, 'quantity', None)
             self.unit = getattr(first, 'unit', None)
-            self.rate = first.rate
-            self.gst_percentage = first.gst_percentage
+            self.rate = getattr(first, 'rate', None)
             self.specification = getattr(first, 'specification', None)
         else:
             # Fallback for single item legacy POs
             if is_tax_exempt:
                 self.gst_percentage = 0.0
-            elif getattr(self, "is_lut_applicable", False):
-                self.gst_percentage = 0.1
 
             rate = flt(self.rate)
             qty = flt(self.quantity) or 1
@@ -900,13 +885,10 @@ class VendorPurchaseOrder(Document):
             vendor_gstin = self.vendor_gstin or ""
             company_gstin = self.company_gstin or ""
 
-            if self.is_lut_applicable:
-                gst_type = "IGST"
-            else:
-                gst_type = "IGST"
-                if len(vendor_gstin) >= 2 and len(company_gstin) >= 2:
-                    if vendor_gstin[:2] == company_gstin[:2]:
-                        gst_type = "CGST + SGST"
+            gst_type = "IGST"
+            if len(vendor_gstin) >= 2 and len(company_gstin) >= 2:
+                if vendor_gstin[:2] == company_gstin[:2]:
+                    gst_type = "CGST + SGST"
 
             self.gst_type = gst_type
 
@@ -1389,8 +1371,12 @@ def get_company_details(company):
             letter_head = "Botswana (Sarveksha Botswana)"
         elif "baani" in company_name:
             letter_head = "Cameroon (Baani Minerals)"
-        elif "mining" in company_name or "cameroon" in country:
+        elif "plc" in company_name:
+            letter_head = "Cameroon (Sarveksha Cameroon PLC)"
+        elif "mining" in company_name:
             letter_head = "Cameroon (Sarveksha Mining SARL)"
+        elif "cameroon" in company_name or "cameroon" in country:
+            letter_head = "Cameroon (Sarveksha Cameroon PLC)"
         elif "bstp" in company_name or "guinea" in country:
             letter_head = "Guinea (Sarveksha BSTP SAS)"
         elif "sl limited" in company_name or "sierra" in country:

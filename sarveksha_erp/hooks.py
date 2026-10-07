@@ -25,8 +25,8 @@ app_license = "mit"
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/sarveksha_erp/css/sarveksha_erp.css"
-# app_include_js = "/assets/sarveksha_erp/js/sarveksha_erp.js"
+app_include_css = "/assets/sarveksha_erp/css/sarveksha_erp.css"
+app_include_js = "/assets/sarveksha_erp/js/sarveksha_erp.js"
 
 doctype_js = {
     "Purchase Invoice": "public/js/purchase_invoice.js",

@@ -300,8 +300,80 @@ def setup_payment_entry_defaults():
     setup_defaults()
 
 
+def setup_letterheads():
+    """Ensure all corporate Letter Head records are properly configured."""
+    letter_heads = [
+        {
+            "name": "Cameroon (Sarveksha Cameroon PLC)",
+            "image": "/files/letterhead_cameroon_plc.png",
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>SARVEKSHA CAMEROON PLC</strong><br>Mining, Mining Services, Construction, Public Works, Trading and Commerce | RCCM: RC / YAO/ 2025 / B / 969</div>',
+            "is_default": 0,
+        },
+        {
+            "name": "Cameroon (Sarveksha Mining SARL)",
+            "image": "/files/letterhead_cameroon_mining.png",
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha Mining SARL</strong><br>BATIMENT ET TRAVAUX PUBLICS; COMMERCE GENERAL (IMPORT-EXPORT); REPRESENTATION COMMERCIALE; AGRO-BUSINESS; PECHE; CONSULTATION; TRANSPORT LOGISTIQUE; PRESTATIONS DE SERVICES; DIVERS. | RCCM: CM-NSI-02-2025-B12-00560</div>',
+            "is_default": 0,
+        },
+        {
+            "name": "Cameroon (Baani Minerals)",
+            "image": "/files/letterhead_cameroon_baani.png",
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Baani Minerals</strong><br>Mining, Mining Services, Construction, Public Works, Trading and Commerce | RCCM: CM-NSI-02-2025-B12-00784</div>',
+            "is_default": 0,
+        },
+        {
+            "name": "Botswana (Sarveksha Botswana)",
+            "image": "/files/letterhead_botswana.png",
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha Botswana Proprietary Limited</strong><br>Equipment and Public Works; General Trading; Construction &amp; Civil &amp; Erection Work | UIN: BW00009608412</div>',
+            "is_default": 0,
+        },
+        {
+            "name": "Guinea (Sarveksha BSTP SAS)",
+            "image": "/files/letterhead_guinea_bstp.png",
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha BSTP SAS</strong><br>BATIMENT ET TRAVAUX PUBLICS; COMMERCE GENERAL (IMPORT-EXPORT); REPRESENTATION COMMERCIALE; AGRO-BUSINESS; PECHE; CONSULTATION; TRANSPORT LOGISTIQUE; PRESTATIONS DE SERVICES; DIVERS.</div>',
+            "is_default": 0,
+        },
+        {
+            "name": "Sierra Leone (Sarveksha SL Limited)",
+            "image": "/files/letterhead_sierra_leone.png",
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha SL Limited</strong><br>Mining, Mineral Processing, Mining Services, Mineral Trading, Public Works; General Trading; Construction &amp; Civil &amp; Erection Work | Reg No: SL120624SARVE22162 | TIN NO: 1001412648</div>',
+            "is_default": 0,
+        },
+        {
+            "name": "India (Sarveksha Realty)",
+            "image": "/files/letterhead_sri_india.png",
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;">\n        Sarveksha Realty &amp; Inframine LLP | Sparsh 303, Plot 101-102, Sec 44 Seawoods, Navi Mumbai, 400706 |\n        Phone: (+91) 9769008220 | Email: sudheerg@sarveksha.com\n    </div>',
+            "is_default": 1,
+        },
+    ]
+
+    for lh in letter_heads:
+        lh_name = lh["name"]
+        content_html = f'''<div style="text-align: left;">\n<img src="{lh["image"]}" alt="{lh_name}"\nheight="" style="height: px;">\n</div>'''
+        if frappe.db.exists("Letter Head", lh_name):
+            doc = frappe.get_doc("Letter Head", lh_name)
+        else:
+            doc = frappe.new_doc("Letter Head")
+            doc.name = lh_name
+            doc.letter_head_name = lh_name
+
+        doc.source = "Image"
+        doc.footer_source = "HTML"
+        doc.disabled = 0
+        doc.is_default = lh.get("is_default", 0)
+        doc.image = lh["image"]
+        doc.align = "Left"
+        doc.content = content_html
+        doc.footer = lh["footer"]
+        doc.flags.ignore_permissions = True
+        doc.save()
+
+    frappe.db.commit()
+
+
 def after_install():
     copy_letterhead_assets()
+    setup_letterheads()
     sync_workspace_sidebars()
     sync_desktop_icons()
     setup_roles_permissions_and_users()
@@ -310,6 +382,7 @@ def after_install():
 
 def after_migrate():
     copy_letterhead_assets()
+    setup_letterheads()
     sync_workspace_sidebars()
     sync_desktop_icons()
     setup_roles_permissions_and_users()
