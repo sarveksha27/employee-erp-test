@@ -40,7 +40,7 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			user_roles.includes("System Manager") || user_roles.includes("Administrator");
 
 		// Helper function to apply workflow action
-		const apply_action = function (action_name) {
+		const apply_action = function (action_name, refresh_timeline = false) {
 			const is_dirty = Boolean(
 				(frm.is_dirty && frm.is_dirty()) ||
 				frm.doc.__unsaved ||
@@ -61,7 +61,11 @@ frappe.ui.form.on("Vendor Purchase Order", {
 					})
 					.then((doc) => {
 						frappe.model.sync(doc);
-						return frm.reload_doc();
+						return frm.reload_doc().then(() => {
+							if (refresh_timeline && frm.timeline) {
+								frm.timeline.refresh();
+							}
+						});
 					})
 					.then(() => {
 						frappe.show_alert({
@@ -78,6 +82,60 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			};
 
 			execute_action();
+		};
+
+		const prompt_send_back = function (target, comment_field) {
+			let is_submitting = false;
+			const dialog = new frappe.ui.Dialog({
+				title: __("Send Back to {0}", [target]),
+				fields: [
+					{
+						label: __("Reason / Corrective Action Required"),
+						fieldname: "remarks",
+						fieldtype: "Small Text",
+						reqd: 1,
+					},
+				],
+				primary_action_label: __("Save / Confirm"),
+				primary_action: async function (values) {
+					const reason = (values.remarks || "").trim();
+					if (!reason) {
+						frappe.msgprint(__("Please enter a reason before sending back."));
+						return;
+					}
+					if (is_submitting) {
+						return;
+					}
+
+					is_submitting = true;
+					dialog.get_primary_btn().prop("disabled", true);
+					try {
+						await frm.set_value(comment_field, reason);
+						await frm.save();
+						await frappe.xcall("frappe.desk.form.utils.add_comment", {
+							reference_doctype: frm.doctype,
+							reference_name: frm.doc.name,
+							content: reason,
+							comment_email: frappe.session.user,
+							comment_by: frappe.session.user_fullname,
+						});
+						if (frm.timeline) {
+							frm.timeline.refresh();
+						}
+						dialog.hide();
+						apply_action("Send Back", true);
+					} catch (err) {
+						is_submitting = false;
+						dialog.get_primary_btn().prop("disabled", false);
+						frappe.msgprint({
+							title: __("Unable to Send Back"),
+							message: err.message || __("The reason could not be saved. Please try again."),
+							indicator: "red",
+						});
+					}
+				},
+			});
+			dialog.show();
 		};
 
 		// Clear existing custom buttons first
@@ -129,24 +187,7 @@ frappe.ui.form.on("Vendor Purchase Order", {
 				frm.change_custom_button_type(__("Send Forward"), null, "primary");
 
 				frm.add_custom_button(__("Send Back"), function () {
-					frappe.prompt(
-						[
-							{
-								label: __("Reason / Corrective Action Required"),
-								fieldname: "remarks",
-								fieldtype: "Small Text",
-								reqd: 1,
-							},
-						],
-						function (values) {
-							frm.set_value("approver_comments", values.remarks);
-							frm.save().then(() => {
-								apply_action("Send Back");
-							});
-						},
-						__("Send Back to Verifier"),
-						__("Submit"),
-					);
+					prompt_send_back(__("Verifier"), "approver_comments");
 				});
 				frm.change_custom_button_type(__("Send Back"), null, "danger");
 			}

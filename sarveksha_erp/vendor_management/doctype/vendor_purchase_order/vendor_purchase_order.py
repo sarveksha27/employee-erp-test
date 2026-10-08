@@ -1,6 +1,8 @@
 # Copyright (c) 2026, Sarveksha and contributors
 # For license information, please see license.txt
 
+import re
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -239,28 +241,63 @@ class VendorPurchaseOrder(Document):
         if details_arr:
             self.company_address = "\n".join([d for d in details_arr if d])
 
+    @staticmethod
+    def _normalize_company_tokens(value):
+        """Create stable, case-insensitive tokens from company and letterhead labels."""
+        if not value:
+            return set()
+        value = value.lower().replace("&", " and ").replace("-", " ")
+        return {token for token in re.findall(r"[a-z0-9]+", value) if token}
+
+    @classmethod
+    def _resolve_letter_head_for_company(cls, company_name):
+        """Match a Letter Head by company alias or fallback country naming conventions."""
+        if not company_name:
+            return None
+
+        company_doc = frappe.db.get_value("Company", company_name, ["name", "default_letter_head"], as_dict=True)
+        if company_doc and company_doc.default_letter_head and frappe.db.exists("Letter Head", company_doc.default_letter_head):
+            return company_doc.default_letter_head
+
+        company_tokens = cls._normalize_company_tokens(company_name)
+        if not company_tokens:
+            return None
+
+        letter_heads = frappe.get_all(
+            "Letter Head",
+            fields=["name"],
+            filters={"disabled": 0},
+            order_by="name asc",
+            limit=200,
+        )
+        for letter_head in letter_heads or []:
+            candidate_name = letter_head.get("name")
+            if not candidate_name or not frappe.db.exists("Letter Head", candidate_name):
+                continue
+
+            candidate_tokens = cls._normalize_company_tokens(candidate_name)
+            if not candidate_tokens:
+                continue
+
+            if company_tokens & candidate_tokens:
+                return candidate_name
+
+            if company_tokens.issubset(candidate_tokens) or candidate_tokens.issubset(company_tokens):
+                return candidate_name
+
+        return None
+
     def set_default_letter_head(self):
         """Auto-detect and set default letter head based on Company."""
         if not self.company:
             return
 
-        comp_lh = frappe.db.get_value("Company", self.company, "default_letter_head")
-        if comp_lh and frappe.db.exists("Letter Head", comp_lh):
-            self.letter_head = comp_lh
+        resolved = self._resolve_letter_head_for_company(self.company)
+        if resolved:
+            self.letter_head = resolved
             return
 
-        comp_name = (self.company or "").lower()
-        if "botswana" in comp_name and frappe.db.exists("Letter Head", "Botswana (Sarveksha Botswana)"):
-            self.letter_head = "Botswana (Sarveksha Botswana)"
-        elif "baani" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Baani Minerals)"):
-            self.letter_head = "Cameroon (Baani Minerals)"
-        elif "mining" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Sarveksha Mining SARL)"):
-            self.letter_head = "Cameroon (Sarveksha Mining SARL)"
-        elif "bstp" in comp_name and frappe.db.exists("Letter Head", "Guinea (Sarveksha BSTP SAS)"):
-            self.letter_head = "Guinea (Sarveksha BSTP SAS)"
-        elif "sl limited" in comp_name and frappe.db.exists("Letter Head", "Sierra Leone (Sarveksha SL Limited)"):
-            self.letter_head = "Sierra Leone (Sarveksha SL Limited)"
-        elif frappe.db.exists("Letter Head", "India (Sarveksha Realty)"):
+        if frappe.db.exists("Letter Head", "India (Sarveksha Realty)"):
             self.letter_head = "India (Sarveksha Realty)"
 
     def set_default_terms(self):

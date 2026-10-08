@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import os
+import re
 from io import BytesIO
 from typing import Literal
 from PIL import Image
@@ -78,6 +79,35 @@ def download_pdf(
 	frappe.local.response.type = "pdf"
 
 
+def _normalize_company_tokens(value):
+	if not value:
+		return set()
+	value = value.lower().replace("&", " and ").replace("-", " ")
+	return {token for token in re.findall(r"[a-z0-9]+", value) if token}
+
+
+def _resolve_letterhead_name_for_company(company_name):
+	if not company_name:
+		return None
+
+	company_default = frappe.db.get_value("Company", company_name, "default_letter_head")
+	if company_default and frappe.db.exists("Letter Head", company_default):
+		return company_default
+
+	company_tokens = _normalize_company_tokens(company_name)
+	if not company_tokens:
+		return None
+
+	for letter_head in frappe.get_all("Letter Head", fields=["name"], filters={"disabled": 0}, order_by="name asc"):
+		candidate_name = letter_head.get("name")
+		if not candidate_name or not frappe.db.exists("Letter Head", candidate_name):
+			continue
+		candidate_tokens = _normalize_company_tokens(candidate_name)
+		if company_tokens & candidate_tokens or company_tokens.issubset(candidate_tokens) or candidate_tokens.issubset(company_tokens):
+			return candidate_name
+	return None
+
+
 def get_letterhead_image_path(doctype: str, doc) -> str | None:
 	"""
 	Resolves the disk file path of the full-page stationery image for the document.
@@ -92,7 +122,7 @@ def get_letterhead_image_path(doctype: str, doc) -> str | None:
 	elif doctype == "Vendor Purchase Order":
 		lh_name = getattr(doc, "letter_head", None)
 		if not lh_name and getattr(doc, "company", None):
-			lh_name = frappe.db.get_value("Company", doc.company, "default_letter_head")
+			lh_name = _resolve_letterhead_name_for_company(doc.company)
 		if not lh_name:
 			lh_name = frappe.db.get_value("Letter Head", {"disabled": 0, "is_default": 1}, "name")
 		if lh_name and frappe.db.exists("Letter Head", lh_name):
@@ -100,7 +130,7 @@ def get_letterhead_image_path(doctype: str, doc) -> str | None:
 	else:
 		lh_name = getattr(doc, "letter_head", None)
 		if not lh_name and getattr(doc, "company", None):
-			lh_name = frappe.db.get_value("Company", doc.company, "default_letter_head")
+			lh_name = _resolve_letterhead_name_for_company(doc.company)
 		if lh_name and frappe.db.exists("Letter Head", lh_name):
 			lh_img = frappe.db.get_value("Letter Head", lh_name, "image")
 
