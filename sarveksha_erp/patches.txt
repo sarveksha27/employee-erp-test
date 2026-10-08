@@ -7,3 +7,4 @@
 sarveksha_erp.patches.provision_users
 sarveksha_erp.patches.provision_finance_users
 sarveksha_erp.patches.setup_payment_entry_defaults
+sarveksha_erp.patches.v1_setup_departments_and_permissions

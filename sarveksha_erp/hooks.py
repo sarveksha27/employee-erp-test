@@ -74,7 +74,14 @@ fixtures = [
         "filters": [
             ["name", "in", ["Vendor PO List Buttons"]]
         ]
-    }
+    },
+    {
+        "dt": "Custom DocPerm",
+        "filters": [
+            ["parent", "in", ["Payment Entry", "Journal Entry", "Purchase Invoice", "Supplier", "Bank Account", "Vendor Purchase Order"]],
+            ["role", "in", ["PO Generator", "PO Verifier", "PO Approver", "Accounts Clerk", "Accounts Manager", "System Manager"]]
+        ]
+    },
 ]
 
 # include js, css files in header of web template
@@ -178,10 +185,16 @@ after_migrate = "sarveksha_erp.install.after_migrate"
 
 has_permission = {
     "Vendor Purchase Order": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.has_permission",
+    "Payment Entry": "sarveksha_erp.patches.v1_setup_departments_and_permissions.payment_entry_has_permission",
 }
 
 permission_query_conditions = {
     "Vendor Purchase Order": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.get_permission_query_conditions",
+    "Payment Entry": "sarveksha_erp.patches.v1_setup_departments_and_permissions.payment_entry_permission_query_conditions",
+}
+
+override_whitelisted_methods = {
+    "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.get_supplier_payment_details": "sarveksha_erp.patches.v1_setup_departments_and_permissions.get_supplier_payment_details",
 }
 
 # Document Events

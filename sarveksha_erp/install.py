@@ -46,6 +46,9 @@ def sync_desktop_icons():
     """Ensure Desktop Icons are created and configured with role restrictions."""
     if not frappe.db.table_exists("Desktop Icon"):
         return
+    if not frappe.get_meta("Desktop Icon").get_field("roles"):
+        # Current Frappe stores role restrictions on Workspace, not Desktop Icon.
+        return
 
     icon_name = "Payment Tracking"
     roles = ["Accounts Manager", "Accounts Clerk", "Accounts User", "System Manager"]
@@ -84,9 +87,9 @@ def sync_desktop_icons():
     frappe.db.commit()
 
 
-def setup_custom_docperm(parent, role, perms):
+def setup_custom_docperm(parent, role, perms, permlevel=0):
     """Helper to upsert a Custom DocPerm record."""
-    filters = {"parent": parent, "role": role, "permlevel": 0}
+    filters = {"parent": parent, "role": role, "permlevel": permlevel}
     name = frappe.db.get_value("Custom DocPerm", filters, "name")
     if name:
         doc = frappe.get_doc("Custom DocPerm", name)
@@ -96,7 +99,7 @@ def setup_custom_docperm(parent, role, perms):
         doc.parenttype = "DocType"
         doc.parentfield = "permissions"
         doc.role = role
-        doc.permlevel = 0
+        doc.permlevel = permlevel
     for k, v in perms.items():
         setattr(doc, k, v)
     doc.flags.ignore_permissions = True
@@ -378,6 +381,8 @@ def after_install():
     sync_desktop_icons()
     setup_roles_permissions_and_users()
     setup_payment_entry_defaults()
+    from sarveksha_erp.patches.v1_setup_departments_and_permissions import execute as setup_depts
+    setup_depts()
 
 
 def after_migrate():
@@ -387,4 +392,5 @@ def after_migrate():
     sync_desktop_icons()
     setup_roles_permissions_and_users()
     setup_payment_entry_defaults()
-
+    from sarveksha_erp.patches.v1_setup_departments_and_permissions import execute as setup_depts
+    setup_depts()
