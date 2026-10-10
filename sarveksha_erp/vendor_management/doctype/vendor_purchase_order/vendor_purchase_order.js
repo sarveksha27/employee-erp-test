@@ -19,7 +19,7 @@ frappe.ui.form.on("Vendor Purchase Order", {
 
 		// Hide standard workflow actions menu
 		if (frm.states) {
-			frm.states.show_actions = function () {};
+			frm.states.show_actions = function () { };
 			frm.page.clear_actions_menu();
 		}
 
@@ -32,6 +32,13 @@ frappe.ui.form.on("Vendor Purchase Order", {
 
 		// Render custom buttons based on workflow state & user roles
 		const state = frm.doc.workflow_state || "Draft";
+		const can_access_internal_remarks = frappe.user_roles.some((role) =>
+			["PO Verifier", "PO Approver", "System Manager", "Administrator"].includes(role),
+		);
+		if (frm.fields_dict.internal_review_remarks) {
+			frm.set_df_property("internal_review_remarks", "hidden", !can_access_internal_remarks);
+			frm.set_df_property("internal_review_remarks", "read_only", !can_access_internal_remarks);
+		}
 		set_quotation_governance_access(frm, state);
 		render_quotation_attachments(frm);
 		set_entity_policy_filters(frm);
@@ -42,9 +49,7 @@ frappe.ui.form.on("Vendor Purchase Order", {
 		// Helper function to apply workflow action
 		const apply_action = function (action_name, refresh_timeline = false) {
 			const is_dirty = Boolean(
-				(frm.is_dirty && frm.is_dirty()) ||
-				frm.doc.__unsaved ||
-				frm.doc.__islocal
+				(frm.is_dirty && frm.is_dirty()) || frm.doc.__unsaved || frm.doc.__islocal,
 			);
 			if (is_dirty) {
 				frappe.msgprint(__("Please save changes before sending forward."));
@@ -84,6 +89,59 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			execute_action();
 		};
 
+		// Helper function to open review comments / send back popup dialog
+		const open_review_comments_dialog = function (fieldname, title_text) {
+			const current_comments = frm.doc[fieldname] || "";
+
+			const dialog = new frappe.ui.Dialog({
+				title: title_text || __("Reason / Corrective Action Required"),
+				fields: [
+					{
+						label: __("Reason / Corrective Action Required"),
+						fieldname: "remarks",
+						fieldtype: "Small Text",
+						default: current_comments,
+					},
+				],
+				primary_action_label: __("Send Back"),
+				primary_action: function (values) {
+					const remarks = values && values.remarks ? values.remarks.trim() : "";
+					if (!remarks) {
+						frappe.msgprint(
+							__("Please enter the Reason / Corrective Action Required before sending back."),
+						);
+						return;
+					}
+					frm.set_value(fieldname, remarks);
+					dialog.hide();
+					frm.save().then(() => {
+						apply_action("Send Back");
+					});
+				},
+				secondary_action_label: __("Save Comments"),
+				secondary_action: function () {
+					const remarks = dialog.get_value("remarks") || "";
+					frm.set_value(fieldname, remarks);
+					dialog.hide();
+					frm.save().then(() => {
+						frappe.show_alert({
+							message: __("Comments saved successfully."),
+							indicator: "green",
+						});
+					});
+				},
+			});
+
+			if (dialog.$wrapper) {
+				const primary_btn = dialog.$wrapper.find(".btn-primary");
+				if (primary_btn.length) {
+					primary_btn.removeClass("btn-primary").addClass("btn-danger");
+				}
+			}
+
+			dialog.show();
+		};
+
 		const prompt_send_back = function (target, comment_field) {
 			let is_submitting = false;
 			const dialog = new frappe.ui.Dialog({
@@ -119,17 +177,19 @@ frappe.ui.form.on("Vendor Purchase Order", {
 							comment_email: frappe.session.user,
 							comment_by: frappe.session.user_fullname,
 						});
+						dialog.hide();
 						if (frm.timeline) {
 							frm.timeline.refresh();
 						}
-						dialog.hide();
 						apply_action("Send Back", true);
 					} catch (err) {
 						is_submitting = false;
 						dialog.get_primary_btn().prop("disabled", false);
 						frappe.msgprint({
 							title: __("Unable to Send Back"),
-							message: err.message || __("The reason could not be saved. Please try again."),
+							message:
+								err.message ||
+								__("The reason could not be saved. Please try again."),
 							indicator: "red",
 						});
 					}
@@ -157,23 +217,9 @@ frappe.ui.form.on("Vendor Purchase Order", {
 				frm.change_custom_button_type(__("Send Forward"), null, "primary");
 
 				frm.add_custom_button(__("Send Back"), function () {
-					frappe.prompt(
-						[
-							{
-								label: __("Reason / Corrective Action Required"),
-								fieldname: "remarks",
-								fieldtype: "Small Text",
-								reqd: 1,
-							},
-						],
-						function (values) {
-							frm.set_value("verifier_comments", values.remarks);
-							frm.save().then(() => {
-								apply_action("Send Back");
-							});
-						},
+					open_review_comments_dialog(
+						"verifier_comments",
 						__("Send Back to Generator"),
-						__("Submit"),
 					);
 				});
 				frm.change_custom_button_type(__("Send Back"), null, "danger");
@@ -193,9 +239,9 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			}
 		}
 
-		// Allow Administrator/System Manager to permanently delete the PO
+		// Allow Administrator/System Manager to permanently delete the PO from Menu
 		if (is_admin && frm.doc.name && !frm.doc.__islocal) {
-			frm.add_custom_button(__("Delete PO"), function () {
+			frm.page.add_menu_item(__("Delete PO"), function () {
 				frappe.confirm(
 					__(
 						"This will permanently delete Purchase Order {0}. This action cannot be undone. Continue?",
@@ -221,7 +267,6 @@ frappe.ui.form.on("Vendor Purchase Order", {
 					},
 				);
 			});
-			frm.change_custom_button_type(__("Delete PO"), null, "danger");
 		}
 
 		// Configure Print Button & Menu Visibility based on Workflow Stage and User Roles
@@ -237,10 +282,15 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			user_roles.includes("Accounts User") ||
 			is_admin;
 
+		// Forward for Payment is strictly for Approved POs
 		if (
 			is_approved &&
+			!frm.doc.__islocal &&
+			frm.doc.name &&
+			frm.doc.workflow_state !== "Cancelled" &&
 			can_forward_for_payment &&
-			(!frm.doc.payment_workflow_status || frm.doc.payment_workflow_status === "Not Forwarded")
+			(!frm.doc.payment_workflow_status ||
+				frm.doc.payment_workflow_status === "Not Forwarded")
 		) {
 			frm.add_custom_button(__("Verify & Forward for Payment"), function () {
 				const dialog = new frappe.ui.Dialog({
@@ -268,24 +318,26 @@ frappe.ui.form.on("Vendor Purchase Order", {
 					],
 					primary_action_label: __("Forward for Payment"),
 					primary_action(values) {
-						frappe.call({
-							method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.forward_vendor_purchase_order_for_payment",
-							args: {
-								po_name: frm.doc.name,
-								invoice_file: values.invoice_file,
-								invoice_number: values.invoice_number,
-								invoice_date: values.invoice_date,
-							},
-							freeze: true,
-							freeze_message: __("Forwarding Purchase Order to Finance..."),
-						}).then(() => {
-							dialog.hide();
-							frm.reload_doc();
-							frappe.show_alert({
-								message: __("Purchase Order forwarded to Finance."),
-								indicator: "green",
+						frappe
+							.call({
+								method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.forward_vendor_purchase_order_for_payment",
+								args: {
+									po_name: frm.doc.name,
+									invoice_file: values.invoice_file,
+									invoice_number: values.invoice_number,
+									invoice_date: values.invoice_date,
+								},
+								freeze: true,
+								freeze_message: __("Forwarding Purchase Order to Finance..."),
+							})
+							.then(() => {
+								dialog.hide();
+								frm.reload_doc();
+								frappe.show_alert({
+									message: __("Purchase Order forwarded to Finance."),
+									indicator: "green",
+								});
 							});
-						});
 					},
 				});
 				dialog.show();
@@ -293,22 +345,26 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			frm.change_custom_button_type(__("Verify & Forward for Payment"), null, "primary");
 		}
 
-		if (is_approved && can_create_bill) {
+		if (is_approved && !frm.doc.__islocal && frm.doc.name && frm.doc.workflow_state !== "Cancelled" && can_create_bill) {
 			if (frm.doc.purchase_invoice) {
 				frm.add_custom_button(__("View Bill"), function () {
 					frappe.set_route("Form", "Purchase Invoice", frm.doc.purchase_invoice);
 				});
-			} else if (["Forwarded for Payment", "Bill Draft"].includes(frm.doc.payment_workflow_status)) {
+			} else if (
+				["Forwarded for Payment", "Bill Draft"].includes(frm.doc.payment_workflow_status)
+			) {
 				frm.add_custom_button(__("Create Bill"), function () {
-					frappe.call({
-						method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.make_purchase_invoice_from_vendor_purchase_order",
-						args: { source_name: frm.doc.name },
-						freeze: true,
-						freeze_message: __("Preparing Purchase Invoice..."),
-					}).then((r) => {
-						const doclist = frappe.model.sync(r.message);
-						frappe.set_route("Form", doclist[0].doctype, doclist[0].name);
-					});
+					frappe
+						.call({
+							method: "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.make_purchase_invoice_from_vendor_purchase_order",
+							args: { source_name: frm.doc.name },
+							freeze: true,
+							freeze_message: __("Preparing Purchase Invoice..."),
+						})
+						.then((r) => {
+							const doclist = frappe.model.sync(r.message);
+							frappe.set_route("Form", doclist[0].doctype, doclist[0].name);
+						});
 				});
 				frm.change_custom_button_type(__("Create Bill"), null, "primary");
 			}
@@ -327,15 +383,13 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			frm.change_custom_button_type(__("Send Payment Proof to Vendor"), null, "success");
 		}
 
-		const can_print = is_approved && (user_roles.includes("PO Generator") || is_admin);
-
-		// PI Generation Button for Internal POs (Only available on Internal PO, never on External/Vendor PO)
+		// PI Generation Button for Approved Purchase Orders
 		if (
 			is_approved &&
-			frm.doc.po_type === "Internal PO" &&
 			!frm.doc.__islocal &&
 			frm.doc.name &&
-			(user_roles.includes("PO Generator") || is_admin)
+			frm.doc.workflow_state !== "Cancelled" &&
+			(user_roles.includes("PO Generator") || user_roles.includes("PO Approver") || is_admin)
 		) {
 			frappe.db
 				.get_value(
@@ -350,17 +404,6 @@ frappe.ui.form.on("Vendor Purchase Order", {
 							frappe.set_route("Form", "Proforma Invoice", existing_pi);
 						});
 						frm.change_custom_button_type(__("View PI"), null, "info");
-
-						frm.add_custom_button(__("Generate PI"), function () {
-							frappe.show_alert({
-								message: __(
-									"Proforma Invoice {0} is already generated for this PO. Passing on to it.",
-									[existing_pi],
-								),
-								indicator: "blue",
-							});
-							frappe.set_route("Form", "Proforma Invoice", existing_pi);
-						});
 					} else {
 						frm.add_custom_button(__("Generate PI"), function () {
 							frappe.db
@@ -399,34 +442,42 @@ frappe.ui.form.on("Vendor Purchase Order", {
 				});
 		}
 
+		const can_view_po =
+			!frm.doc.__islocal &&
+			frm.doc.name &&
+			(user_roles.includes("PO Generator") ||
+				user_roles.includes("PO Verifier") ||
+				user_roles.includes("PO Approver") ||
+				user_roles.includes("Purchase Manager") ||
+				user_roles.includes("Purchase User") ||
+				is_admin);
+
 		const open_compiled_pdf = function () {
+			if (frm.is_dirty && frm.is_dirty()) {
+				frappe.msgprint(__("Please save the document first to preview the latest changes."));
+				return;
+			}
 			const pdf_url = frappe.urllib.get_full_url(
 				`/api/method/frappe.utils.print_format.download_pdf?doctype=Vendor%20Purchase%20Order&name=${encodeURIComponent(frm.doc.name)}`,
 			);
 			window.open(pdf_url, "_blank");
 		};
 
-		if (can_print) {
-			frm.add_custom_button(__("Print PO"), open_compiled_pdf);
-			frm.change_custom_button_type(__("Print PO"), null, "primary");
+		if (can_view_po) {
+			const btn_label = is_approved ? __("Print PO") : __("View PO");
+			frm.add_custom_button(btn_label, open_compiled_pdf);
+			frm.change_custom_button_type(btn_label, null, "primary");
 
 			// Intercept standard Frappe print actions
 			frm.print_doc = open_compiled_pdf;
-		}
 
-		if (!can_print) {
-			frm.page.hide_menu_item(__("Print"));
-			frm.page.hide_menu_item(__("PDF"));
-			if (frm.page.btn_print) frm.page.btn_print.hide();
-			if (frm.page.set_print_btn_display) frm.page.set_print_btn_display(false);
-		} else {
 			frm.page.show_menu_item(__("Print"));
 			frm.page.show_menu_item(__("PDF"));
 			if (frm.page.btn_print) frm.page.btn_print.show();
 			if (frm.page.set_print_btn_display) frm.page.set_print_btn_display(true);
 
 			setTimeout(() => {
-				if (frm.page) {
+				if (frm.page && frm.page.menu) {
 					frm.page.menu
 						.find('[data-label="Print"]')
 						.off("click")
@@ -445,6 +496,11 @@ frappe.ui.form.on("Vendor Purchase Order", {
 						});
 				}
 			}, 300);
+		} else {
+			frm.page.hide_menu_item(__("Print"));
+			frm.page.hide_menu_item(__("PDF"));
+			if (frm.page.btn_print) frm.page.btn_print.hide();
+			if (frm.page.set_print_btn_display) frm.page.set_print_btn_display(false);
 		}
 
 		// Hide "+ New" button for Verifiers/Approvers in Form View
@@ -545,9 +601,6 @@ frappe.ui.form.on("Vendor Purchase Order", {
 					if (!frm.doc.standard_terms || frm.doc.standard_terms.length === 0) {
 						const company_name = (frm.doc.company || "").toLowerCase();
 						let terms_to_add = [];
-						if (frm.doc.is_lut_applicable) {
-							terms_to_add.push("LUT Certificate Terms");
-						}
 
 						if (company_name.includes("bstp"))
 							terms_to_add.push("Guinea BSTP SAS Procurement Terms");
@@ -667,24 +720,15 @@ frappe.ui.form.on("Vendor Purchase Order", {
 		calculate_gst_and_totals(frm);
 	},
 	currency: function (frm) {
-		const is_usd = (frm.doc.currency || "").toUpperCase() === "USD";
-		if (is_usd) {
-			frm.toggle_display("is_lut_applicable", false);
-			if (frm.doc.is_lut_applicable) {
-				frm.set_value("is_lut_applicable", 0);
-			}
-		} else {
-			const is_internal = (frm.doc.po_type || "") === "Internal PO";
-			const is_child_co =
-				frm.doc.company && frm.doc.company !== "Sarveksha Realty and Inframine LLP";
-			frm.toggle_display("is_lut_applicable", !is_internal && !is_child_co);
-		}
 		calculate_gst_and_totals(frm);
 	},
-	is_lut_applicable: function (frm) {
-		if (frm.doc.is_lut_applicable) {
-			frm.set_value("standard_terms", [{ standard_term: "LUT Certificate Terms" }]);
-			frm.trigger("standard_terms");
+	gst_percentage: function (frm) {
+		const gst_pct = flt(frm.doc.gst_percentage);
+		if (frm.doc.items && frm.doc.items.length > 0) {
+			frm.doc.items.forEach((row) => {
+				row.gst_percentage = gst_pct;
+			});
+			frm.refresh_field("items");
 		}
 		calculate_gst_and_totals(frm);
 	},
@@ -836,6 +880,13 @@ frappe.ui.form.on("Vendor Purchase Order", {
 
 // ─── CHILD TABLE GRID TRIGGERS (Vendor Purchase Order Item) ───
 frappe.ui.form.on("Vendor Purchase Order Item", {
+	items_add: function (frm, cdt, cdn) {
+		const parent_gst =
+			frm.doc.gst_percentage !== undefined && frm.doc.gst_percentage !== null
+				? flt(frm.doc.gst_percentage)
+				: 18;
+		frappe.model.set_value(cdt, cdn, "gst_percentage", parent_gst);
+	},
 	equipment: function (frm, cdt, cdn) {
 		let row = locals[cdt][cdn];
 		if (!row.equipment) return;
@@ -899,7 +950,6 @@ frappe.ui.form.on("Vendor Purchase Order Item", {
 });
 
 // ─── MASTER CALCULATION ENGINE ────────────────────────────────
-// ─── MASTER CALCULATION ENGINE ────────────────────────────────
 function calculate_gst_and_totals(frm) {
 	const is_usd = (frm.doc.currency || "").toUpperCase() === "USD";
 	const is_internal = (frm.doc.po_type || "") === "Internal PO";
@@ -907,228 +957,200 @@ function calculate_gst_and_totals(frm) {
 		frm.doc.company && frm.doc.company !== "Sarveksha Realty and Inframine LLP";
 	const is_tax_exempt = is_internal || is_child_co || is_usd;
 
-	// If pricing is detected in USD, there must be no LUT preference
-	if (is_usd) {
-		frm.toggle_display("is_lut_applicable", false);
-		if (frm.doc.is_lut_applicable) {
-			frm.set_value("is_lut_applicable", 0);
+	let parent_gst = flt(frm.doc.gst_percentage);
+	if (is_tax_exempt) {
+		parent_gst = 0;
+		if (frm.doc.gst_percentage !== 0) {
+			frm.set_value("gst_percentage", 0);
 		}
-	} else if (!is_internal && !is_child_co) {
-		frm.toggle_display("is_lut_applicable", true);
+	} else if (
+		frm.doc.gst_percentage === undefined ||
+		frm.doc.gst_percentage === null ||
+		frm.doc.gst_percentage === ""
+	) {
+		parent_gst = 18.0;
+		frm.set_value("gst_percentage", 18.0);
 	}
 
-	const is_lut = !is_usd && frm.doc.is_lut_applicable;
-
-	let total_taxable_value = 0;
-	let total_item_tax = 0;
-
-	// We need to handle LUT reversion asynchronously for items with Equipment master
-	// To keep it synchronous-safe, we collect items needing reversion and use a queue
-	const reversion_promises = [];
+	let tv = 0;
+	let tt = 0;
 
 	if (frm.doc.items && frm.doc.items.length > 0) {
 		frm.doc.items.forEach((row) => {
-			if (is_tax_exempt) {
-				row.gst_percentage = 0;
-			} else if (is_lut) {
-				row.gst_percentage = 0.1;
-			} else {
-				// ── LUT REVERSION ─────────────────────────────────────────────
-				// If the item's GST% is exactly 0.1, it was set by LUT.
-				// Restore from Equipment master (async but we handle it after)
-				if (flt(row.gst_percentage) === 0.1 && row.equipment) {
-					reversion_promises.push(
-						frappe.db
-							.get_value("Equipment", row.equipment, "gst_percentage")
-							.then((r) => {
-								const master_gst =
-									r && r.message && flt(r.message.gst_percentage) > 0
-										? flt(r.message.gst_percentage)
-										: 18.0;
-								row.gst_percentage = master_gst;
-							}),
-					);
-				}
-			}
+			const rate = flt(row.rate) || 0;
+			const qty = flt(row.quantity) || 1;
+			const discount_pct = flt(row.discount_percent) || 0;
+			const row_gst = is_tax_exempt
+				? 0
+				: row.gst_percentage !== undefined &&
+					row.gst_percentage !== null &&
+					row.gst_percentage !== ""
+					? flt(row.gst_percentage)
+					: parent_gst;
+
+			row.gst_percentage = row_gst;
+
+			const base_amount = rate * qty;
+			const discount_amount = base_amount * (discount_pct / 100);
+			const taxable_amount = base_amount - discount_amount;
+			const tax_amount = taxable_amount * (row_gst / 100);
+			const total_amount = taxable_amount + tax_amount;
+
+			row.taxable_amount = flt(taxable_amount, 2);
+			row.tax_amount = flt(tax_amount, 2);
+			row.total_amount = flt(total_amount, 2);
+
+			tv += row.taxable_amount;
+			tt += row.tax_amount;
 		});
+		frm.refresh_field("items");
+
+		const first = frm.doc.items[0];
+		if (first) {
+			if (first.quantity !== undefined && first.quantity !== null && first.quantity !== "") {
+				frm.set_value("quantity", flt(first.quantity));
+			}
+			if (first.equipment) frm.set_value("equipment", first.equipment);
+			if (first.equipment_name) frm.set_value("equipment_name", first.equipment_name);
+			if (first.rate !== undefined && first.rate !== null && first.rate !== "") {
+				frm.set_value("rate", flt(first.rate));
+			}
+			if (first.unit) frm.set_value("unit", first.unit);
+		}
+	} else {
+		const rate = flt(frm.doc.rate) || 0;
+		const qty = flt(frm.doc.quantity) || 1;
+		const discount_pct = flt(frm.doc.discount_percent) || 0;
+		const base_amount = rate * qty;
+		const discount_amount = base_amount * (discount_pct / 100);
+		tv = base_amount - discount_amount;
+		tt = is_tax_exempt ? 0 : tv * (parent_gst / 100);
 	}
 
-	const _do_calculate = () => {
-		let tv = 0;
-		let tt = 0;
+	const total_taxable_value = flt(tv, 2);
+	let total_item_tax = flt(tt, 2);
 
-		if (frm.doc.items && frm.doc.items.length > 0) {
-			frm.doc.items.forEach((row) => {
-				const rate = flt(row.rate) || 0;
-				const qty = flt(row.quantity) || 1;
-				const discount_pct = flt(row.discount_percent) || 0;
-				const gst_pct = is_tax_exempt ? 0 : (flt(row.gst_percentage) || 0);
+	const freight = flt(frm.doc.freight) || 0;
+	const insurance = flt(frm.doc.insurance) || 0;
+	const packing = flt(frm.doc.packing_charges) || 0;
+	const other = flt(frm.doc.other_charges) || 0;
+	const advance_pct = flt(frm.doc.advance_percentage) || 0;
 
-				const base_amount = rate * qty;
-				const discount_amount = base_amount * (discount_pct / 100);
-				const taxable_amount = base_amount - discount_amount;
-				const tax_amount = taxable_amount * (gst_pct / 100);
-				const total_amount = taxable_amount + tax_amount;
+	const logistics_cost = flt(freight + insurance + packing + other, 2);
 
-				row.taxable_amount = flt(taxable_amount, 2);
-				row.tax_amount = flt(tax_amount, 2);
-				row.total_amount = flt(total_amount, 2);
+	let gst_type = "IGST";
+	let cgst = 0,
+		sgst = 0,
+		igst = 0;
 
-				tv += row.taxable_amount;
-				tt += row.tax_amount;
-			});
-			frm.refresh_field("items");
-		}
-
-		total_taxable_value = tv;
-		total_item_tax = tt;
-
-		const freight = flt(frm.doc.freight) || 0;
-		const insurance = flt(frm.doc.insurance) || 0;
-		const packing = flt(frm.doc.packing_charges) || 0;
-		const other = flt(frm.doc.other_charges) || 0;
-		const advance_pct = flt(frm.doc.advance_percentage) || 0;
-
-		// Logistics cost aggregation
-		const logistics_cost = flt(freight + insurance + packing + other, 2);
-
-		let gst_type = "IGST";
-		let cgst = 0,
-			sgst = 0,
-			igst = 0;
-
+	if (is_tax_exempt || total_item_tax === 0) {
 		if (is_tax_exempt) {
 			gst_type = "";
-			total_item_tax = 0;
-			if (frm.doc.items && frm.doc.items.length > 0) {
-				frm.doc.items.forEach((row) => {
-					row.gst_percentage = 0;
-					row.tax_amount = 0;
-					row.total_amount = row.taxable_amount;
-				});
-				frm.refresh_field("items");
-			}
 			frm.toggle_display(
-				["gst_type", "cgst_amount", "sgst_amount", "igst_amount", "tax_amount", "sec_tax"],
+				["gst_type", "cgst_amount", "sgst_amount", "igst_amount", "tax_amount"],
 				false,
 			);
 		} else {
 			frm.toggle_display(
-				["gst_type", "cgst_amount", "sgst_amount", "igst_amount", "tax_amount", "sec_tax"],
+				["gst_type", "cgst_amount", "sgst_amount", "igst_amount", "tax_amount"],
 				true,
 			);
-			const vendor_gstin = frm.doc.vendor_gstin || "";
-			const company_gstin = frm.doc.company_gstin || "";
-			if (is_lut) {
-				gst_type = "IGST";
-				igst = total_item_tax;
-			} else if (
-				vendor_gstin.length >= 2 &&
-				company_gstin.length >= 2 &&
-				vendor_gstin.substring(0, 2) === company_gstin.substring(0, 2)
-			) {
-				gst_type = "CGST + SGST";
-				cgst = total_item_tax / 2;
-				sgst = total_item_tax / 2;
-			} else {
-				gst_type = "IGST";
-				igst = total_item_tax;
-			}
 		}
-
-		// Internal Margin (Internal PO only: 5% - 30%)
-		let internal_margin_amount = 0;
-		let internal_margin_pct = 0;
-		if (is_internal) {
-			internal_margin_pct = flt(frm.doc.internal_margin_percentage) || 5.0;
-			internal_margin_amount = flt(
-				(total_taxable_value + logistics_cost) * (internal_margin_pct / 100),
-				2,
-			);
+	} else {
+		frm.toggle_display(
+			["gst_type", "cgst_amount", "sgst_amount", "igst_amount", "tax_amount"],
+			true,
+		);
+		const vendor_gstin = frm.doc.vendor_gstin || "";
+		const company_gstin = frm.doc.company_gstin || "";
+		if (
+			vendor_gstin.length >= 2 &&
+			company_gstin.length >= 2 &&
+			vendor_gstin.substring(0, 2) === company_gstin.substring(0, 2)
+		) {
+			gst_type = "CGST + SGST";
+			cgst = flt(total_item_tax / 2, 2);
+			sgst = flt(total_item_tax / 2, 2);
+			igst = 0;
+		} else {
+			gst_type = "IGST";
+			igst = flt(total_item_tax, 2);
+			cgst = 0;
+			sgst = 0;
 		}
+	}
 
-		const grand_total = flt(
-			total_taxable_value + total_item_tax + logistics_cost + internal_margin_amount,
+	let internal_margin_amount = 0;
+	let internal_margin_pct = 0;
+	if (is_internal) {
+		internal_margin_pct = flt(frm.doc.internal_margin_percentage) || 5.0;
+		internal_margin_amount = flt(
+			(total_taxable_value + logistics_cost) * (internal_margin_pct / 100),
 			2,
 		);
-		const advance_amount = flt(grand_total * (advance_pct / 100), 2);
-		const balance_due = flt(grand_total - advance_amount, 2);
-
-		frm.set_value("taxable_value", flt(total_taxable_value, 2));
-		frm.set_value("logistics_cost", logistics_cost);
-		frm.set_value("gst_type", gst_type);
-		frm.set_value("cgst_amount", flt(cgst, 2));
-		frm.set_value("sgst_amount", flt(sgst, 2));
-		frm.set_value("igst_amount", flt(igst, 2));
-		frm.set_value("tax_amount", flt(total_item_tax, 2));
-
-		// ── RUNNING TOTALS ────────────────────────────────────────────────────
-		const cumulative_items_total = flt(total_taxable_value, 2);
-		const cumulative_after_tax = flt(total_taxable_value + total_item_tax, 2);
-		const cumulative_after_logistics = flt(cumulative_after_tax + logistics_cost, 2);
-		if (frm.fields_dict.cumulative_items_total) {
-			frm.set_value("cumulative_items_total", cumulative_items_total);
-		} else {
-			frm.doc.cumulative_items_total = cumulative_items_total;
-		}
-		if (frm.fields_dict.cumulative_after_tax) {
-			frm.set_value("cumulative_after_tax", cumulative_after_tax);
-		} else {
-			frm.doc.cumulative_after_tax = cumulative_after_tax;
-		}
-		if (frm.fields_dict.cumulative_after_logistics) {
-			frm.set_value("cumulative_after_logistics", cumulative_after_logistics);
-		} else {
-			frm.doc.cumulative_after_logistics = cumulative_after_logistics;
-		}
-
-		// ── TAX EXEMPT / USD / INTERNAL PO: Hide tax fields, keeping pricing intact ────────
-		frm.toggle_display(
-			[
-				"is_lut_applicable",
-				"gst_percentage",
-				"gst_type",
-				"cgst_amount",
-				"sgst_amount",
-				"igst_amount",
-				"tax_amount",
-				"cumulative_after_tax",
-			],
-			!is_tax_exempt,
-		);
-		if (is_tax_exempt) {
-			// Clear LUT and tax inputs to avoid confusion
-			frm.set_value("is_lut_applicable", 0);
-			frm.set_value("gst_type", "");
-			frm.set_value("cgst_amount", 0);
-			frm.set_value("sgst_amount", 0);
-			frm.set_value("igst_amount", 0);
-			frm.set_value("tax_amount", 0);
-		}
-
-		if (is_internal) {
-			frm.set_value("internal_margin_percentage", internal_margin_pct);
-			frm.set_value("internal_margin_amount", internal_margin_amount);
-		} else {
-			frm.set_value("internal_margin_percentage", 0);
-			frm.set_value("internal_margin_amount", 0);
-		}
-		frm.set_value("grand_total", grand_total);
-		frm.set_value("advance_amount", advance_amount);
-		frm.set_value("balance_due", balance_due);
-
-		render_cumulative_breakdown(frm);
-	};
-
-	// If there are LUT reversion fetches pending, wait for them then calculate
-	if (reversion_promises.length > 0) {
-		Promise.all(reversion_promises).then(_do_calculate);
-	} else {
-		_do_calculate();
 	}
+
+	const cumulative_items_total = total_taxable_value;
+	const cumulative_after_tax = flt(total_taxable_value + total_item_tax, 2);
+	const cumulative_after_logistics = flt(cumulative_after_tax + logistics_cost, 2);
+	const grand_total = flt(cumulative_after_logistics + internal_margin_amount, 2);
+	const advance_amount = flt(grand_total * (advance_pct / 100), 2);
+	const balance_due = flt(grand_total - advance_amount, 2);
+
+	frm.set_value("taxable_value", total_taxable_value);
+	if (frm.fields_dict.cumulative_items_total) {
+		frm.set_value("cumulative_items_total", cumulative_items_total);
+	}
+	frm.set_value("logistics_cost", logistics_cost);
+	frm.set_value("gst_type", gst_type);
+	frm.set_value("cgst_amount", cgst);
+	frm.set_value("sgst_amount", sgst);
+	frm.set_value("igst_amount", igst);
+	frm.set_value("tax_amount", total_item_tax);
+	if (frm.fields_dict.cumulative_after_tax) {
+		frm.set_value("cumulative_after_tax", cumulative_after_tax);
+	}
+	if (frm.fields_dict.cumulative_after_logistics) {
+		frm.set_value("cumulative_after_logistics", cumulative_after_logistics);
+	}
+
+	frm.toggle_display(
+		[
+			"gst_percentage",
+			"gst_type",
+			"cgst_amount",
+			"sgst_amount",
+			"igst_amount",
+			"tax_amount",
+			"cumulative_after_tax",
+		],
+		!is_tax_exempt,
+	);
+	if (is_tax_exempt) {
+		frm.set_value("gst_type", "");
+		frm.set_value("cgst_amount", 0);
+		frm.set_value("sgst_amount", 0);
+		frm.set_value("igst_amount", 0);
+		frm.set_value("tax_amount", 0);
+	}
+
+	if (is_internal) {
+		frm.set_value("internal_margin_percentage", internal_margin_pct);
+		frm.set_value("internal_margin_amount", internal_margin_amount);
+	} else {
+		frm.set_value("internal_margin_percentage", 0);
+		frm.set_value("internal_margin_amount", 0);
+	}
+
+	frm.set_value("grand_total", grand_total);
+	frm.set_value("advance_amount", advance_amount);
+	frm.set_value("balance_due", balance_due);
+
+	render_cumulative_breakdown(frm);
 }
 
 function set_port_filter(frm) {
+	if (!frm.fields_dict.port) return;
 	frm.set_query("port", function () {
 		if (frm.doc.default_port) {
 			const ports = frm.doc.default_port
@@ -1229,7 +1251,11 @@ function apply_dynamic_field_locks(frm) {
 	let is_reviewer_locked = false;
 	if (!is_admin && !is_generator) {
 		if (
-			["Generated (Yet to be Verified)", "Verified (Yet to be approved)", "Approved"].includes(state) &&
+			[
+				"Generated (Yet to be Verified)",
+				"Verified (Yet to be approved)",
+				"Approved",
+			].includes(state) &&
 			user_roles.includes("PO Verifier")
 		) {
 			is_reviewer_locked = true;
@@ -1254,11 +1280,22 @@ function apply_dynamic_field_locks(frm) {
 		"expected_delivery_time",
 		"delivery_location",
 		"warehouse",
+		"transport_mode",
 		"port",
 		"cha",
 		"shipment_type",
 		"shipment_subtype",
 		"container_number",
+		"airport",
+		"air_carrier",
+		"flight_number",
+		"awb_number",
+		"transporter_name",
+		"vehicle_number",
+		"lr_number",
+		"eway_bill_number",
+		"courier_service",
+		"tracking_number",
 		"invoice_doc",
 		"shipping_bill",
 		"bill_of_lading",
@@ -1326,9 +1363,7 @@ function toggle_payment_section(frm) {
 	// and only by authorized accounts/admin roles.
 	// In Draft or Generated (Yet to be Verified) stages, it is strictly read-only and greyed out.
 	const is_allowed =
-		state !== "Draft" &&
-		state !== "Generated (Yet to be Verified)" &&
-		has_accounts_or_admin;
+		state !== "Draft" && state !== "Generated (Yet to be Verified)" && has_accounts_or_admin;
 
 	const target_fields = [
 		"advance_paid",
@@ -1361,19 +1396,22 @@ function lock_price_inputs_for_reviewers(frm) {
 
 function render_cumulative_breakdown(frm) {
 	const currency = frm.doc.currency || "USD";
-	const currency_sym = currency === "USD" ? "$" : (currency === "INR" ? "₹" : (currency + " "));
+	const currency_sym = currency === "USD" ? "$" : currency === "INR" ? "₹" : currency + " ";
 	const is_usd = currency === "USD";
 	const is_internal = (frm.doc.po_type || "") === "Internal PO";
 
 	const items_total = flt(frm.doc.cumulative_items_total || frm.doc.taxable_value, 2);
 	const tax_amount = flt(frm.doc.tax_amount, 2);
-	const cum_after_tax = flt(frm.doc.cumulative_after_tax || (items_total + tax_amount), 2);
+	const cum_after_tax = flt(frm.doc.cumulative_after_tax || items_total + tax_amount, 2);
 	const freight = flt(frm.doc.freight, 2);
 	const insurance = flt(frm.doc.insurance, 2);
 	const packing = flt(frm.doc.packing_charges, 2);
 	const other = flt(frm.doc.other_charges, 2);
-	const logistics_cost = flt(frm.doc.logistics_cost || (freight + insurance + packing + other), 2);
-	const cum_after_logistics = flt(frm.doc.cumulative_after_logistics || (cum_after_tax + logistics_cost), 2);
+	const logistics_cost = flt(frm.doc.logistics_cost || freight + insurance + packing + other, 2);
+	const cum_after_logistics = flt(
+		frm.doc.cumulative_after_logistics || cum_after_tax + logistics_cost,
+		2,
+	);
 	const margin_pct = flt(frm.doc.internal_margin_percentage, 2);
 	const margin_amt = flt(frm.doc.internal_margin_amount, 2);
 	const grand_total = flt(frm.doc.grand_total, 2);
@@ -1388,9 +1426,11 @@ function render_cumulative_breakdown(frm) {
 
 	let tax_desc = "";
 	if (is_usd) {
-		tax_desc = '<span class="text-muted" style="font-size: 11px;">(0.00 - Foreign Currency / USD Pricing)</span>';
+		tax_desc =
+			'<span class="text-muted" style="font-size: 11px;">(0.00 - Foreign Currency / USD Pricing)</span>';
 	} else if (is_internal) {
-		tax_desc = '<span class="text-muted" style="font-size: 11px;">(0.00 - Internal Transfer)</span>';
+		tax_desc =
+			'<span class="text-muted" style="font-size: 11px;">(0.00 - Internal Transfer)</span>';
 	} else if (frm.doc.is_lut_applicable) {
 		tax_desc = '<span class="badge badge-warning" style="font-size: 10px;">LUT 0.1%</span>';
 	} else if (frm.doc.gst_type) {
@@ -1400,9 +1440,9 @@ function render_cumulative_breakdown(frm) {
 	const status_badge_bg =
 		payment_status === "Fully Paid"
 			? "#dcfce7; color: #15803d; border: 1px solid #86efac;"
-			: (payment_status === "Pending"
+			: payment_status === "Pending"
 				? "#fef3c7; color: #b45309; border: 1px solid #fde68a;"
-				: "#e0e7ff; color: #3730a3; border: 1px solid #c7d2fe;");
+				: "#e0e7ff; color: #3730a3; border: 1px solid #c7d2fe;";
 
 	let html = `
 		<div class="cumulative-summary-card" style="margin-bottom: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); overflow: hidden;">
@@ -1456,12 +1496,15 @@ function render_cumulative_breakdown(frm) {
 								<span style="color: #0f172a;">${fmt(cum_after_logistics)}</span>
 							</div>
 
-							${is_internal ? `
+							${is_internal
+			? `
 							<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
 								<span style="color: #64748b;">4. Internal Margin (${margin_pct}%):</span>
 								<span style="color: #1e293b;">+ ${fmt(margin_amt)}</span>
 							</div>
-							` : ''}
+							`
+			: ""
+		}
 
 							<div style="display: flex; justify-content: space-between; padding: 8px 10px; font-size: 13px; background: #dbeafe; border: 1px solid #bfdbfe; border-radius: 4px; margin-top: 8px; font-weight: 700;">
 								<span style="color: #1e40af;">Final Cumulative Amount (Grand Total):</span>
@@ -1492,13 +1535,13 @@ function render_cumulative_breakdown(frm) {
 
 								<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
 									<span style="color: #64748b;">Balance Payable:</span>
-									<strong style="color: ${balance_due > 0 ? '#b91c1c' : '#15803d'};">${fmt(balance_due)}</strong>
+									<strong style="color: ${balance_due > 0 ? "#b91c1c" : "#15803d"};">${fmt(balance_due)}</strong>
 								</div>
 							</div>
 
 							<div style="margin-top: 14px; padding: 8px; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 4px; font-size: 11px; color: #64748b;">
 								<i class="fa fa-info-circle" style="color: #3b82f6;"></i>
-								${is_usd ? 'USD pricing detected. Zero-rated/foreign export without Indian GST.' : (frm.doc.is_lut_applicable ? 'Supplied under LUT (0.1% GST Merchant Export).' : 'Standard domestic GST policy applied.')}
+								${is_usd ? "USD pricing detected. Zero-rated/foreign export without Indian GST." : frm.doc.is_lut_applicable ? "Supplied under LUT (0.1% GST Merchant Export)." : "Standard domestic GST policy applied."}
 							</div>
 						</div>
 					</div>
@@ -1511,7 +1554,11 @@ function render_cumulative_breakdown(frm) {
 	if ($field.length) {
 		$field.empty().html(html);
 	}
-	if (frm.fields_dict && frm.fields_dict.cumulative_breakdown_html && frm.fields_dict.cumulative_breakdown_html.$wrapper) {
+	if (
+		frm.fields_dict &&
+		frm.fields_dict.cumulative_breakdown_html &&
+		frm.fields_dict.cumulative_breakdown_html.$wrapper
+	) {
 		frm.fields_dict.cumulative_breakdown_html.$wrapper.empty().html(html);
 	}
 	const $sec = $(frm.wrapper).find('[data-fieldname="sec_cumulative_breakdown"]');
@@ -1549,13 +1596,13 @@ function update_save_before_forward_guard(frm) {
 	if (!frm.page || !frm.page.wrapper) return;
 
 	const is_dirty = Boolean(
-		(frm.is_dirty && frm.is_dirty()) ||
-		frm.doc.__unsaved ||
-		frm.doc.__islocal
+		(frm.is_dirty && frm.is_dirty()) || frm.doc.__unsaved || frm.doc.__islocal,
 	);
 
 	const forward_btn = frm.page.wrapper
-		.find('[data-label="Send%20Forward"], [data-label="Send Forward"], button:contains("Send Forward")')
+		.find(
+			'[data-label="Send%20Forward"], [data-label="Send Forward"], button:contains("Send Forward")',
+		)
 		.filter(function () {
 			const label = $(this).attr("data-label");
 			const text = $(this).text().trim();
@@ -1706,7 +1753,8 @@ function render_workflow_activity_history(frm) {
 					let rowBg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
 					let changesHtml = "";
 					if (row.changes && row.changes.length > 0) {
-						changesHtml = '<div style="max-height: 140px; overflow-y: auto;"><ul style="margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.6; color: #334155;">';
+						changesHtml =
+							'<div style="max-height: 140px; overflow-y: auto;"><ul style="margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.6; color: #334155;">';
 						row.changes.forEach((chg) => {
 							let fieldName = frappe.utils.escape_html(chg.field || "");
 							let oldVal = frappe.utils.escape_html(chg.old || "");
@@ -1723,7 +1771,8 @@ function render_workflow_activity_history(frm) {
 						});
 						changesHtml += "</ul></div>";
 					} else {
-						changesHtml = '<span style="color: #94a3b8; font-style: italic;">No field modifications</span>';
+						changesHtml =
+							'<span style="color: #94a3b8; font-style: italic;">No field modifications</span>';
 					}
 
 					html += `
@@ -1764,12 +1813,18 @@ function render_workflow_activity_history(frm) {
 				rendered = true;
 			}
 
-			if (frm.fields_dict && frm.fields_dict.workflow_history_html && frm.fields_dict.workflow_history_html.$wrapper) {
+			if (
+				frm.fields_dict &&
+				frm.fields_dict.workflow_history_html &&
+				frm.fields_dict.workflow_history_html.$wrapper
+			) {
 				frm.fields_dict.workflow_history_html.$wrapper.empty().html(html);
 				rendered = true;
 			}
 
-			const $secBody = $(frm.wrapper).find('[data-fieldname="sec_workflow_history"] .section-body');
+			const $secBody = $(frm.wrapper).find(
+				'[data-fieldname="sec_workflow_history"] .section-body',
+			);
 			if ($secBody.length && (!rendered || !$secBody.find(".table-responsive").length)) {
 				$secBody.empty().html(html);
 			}
@@ -1813,7 +1868,6 @@ function export_history_to_excel(po_name, data) {
 		document.body.removeChild(link);
 	}
 }
-
 
 function set_quotation_governance_access(frm, state) {
 	const is_locked = !frm.is_new() && state !== "Draft";

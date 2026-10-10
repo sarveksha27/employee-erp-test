@@ -1,0 +1,85 @@
+/* Sarveksha ERP Custom Styling */
+
+/* Version badges removed */
+.sarveksha-navbar-version-badge,
+.sarveksha-pagehead-version-badge,
+.sarveksha-sidebar-version-container {
+	display: none !important;
+}
+
+/* Sidebar Bottom Version Info (Positioned directly above user details) */
+.sarveksha-sidebar-version-container {
+	padding: 4px 10px;
+	margin-bottom: 6px;
+	user-select: none;
+}
+
+.sarveksha-sidebar-version-container .sarveksha-version-inner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 5px 10px;
+	border-radius: 8px;
+	background: var(--bg-subtle, rgba(0, 0, 0, 0.03));
+	border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--text-muted, #64748b);
+	transition: all 0.2s ease;
+}
+
+.sarveksha-sidebar-version-container .sarveksha-app-name {
+	font-weight: 600;
+	color: var(--text-color, #1e293b);
+	letter-spacing: -0.1px;
+}
+
+.sarveksha-sidebar-version-container .sarveksha-app-version {
+	font-size: 10.5px;
+	font-weight: 600;
+	padding: 2px 7px;
+	border-radius: 9999px;
+	background: #eef2ff;
+	color: #4338ca;
+	border: 1px solid #c7d2fe;
+	line-height: 1.2;
+}
+
+/* Dark Mode Overrides */
+[data-theme="dark"] .sarveksha-navbar-version-badge .badge-version,
+[data-theme-mode="dark"] .sarveksha-navbar-version-badge .badge-version,
+[data-theme="dark"] .sarveksha-pagehead-version-badge .badge-version,
+[data-theme-mode="dark"] .sarveksha-pagehead-version-badge .badge-version,
+[data-theme="dark"] .sarveksha-sidebar-version-container .sarveksha-app-version,
+[data-theme-mode="dark"] .sarveksha-sidebar-version-container .sarveksha-app-version {
+	background: #1e1b4b;
+	color: #a5b4fc;
+	border-color: #3730a3;
+}
+
+[data-theme="dark"] .sarveksha-sidebar-version-container .sarveksha-version-inner,
+[data-theme-mode="dark"] .sarveksha-sidebar-version-container .sarveksha-version-inner {
+	background: rgba(255, 255, 255, 0.04);
+	border-color: rgba(255, 255, 255, 0.08);
+	color: #94a3b8;
+}
+
+[data-theme="dark"] .sarveksha-sidebar-version-container .sarveksha-app-name,
+[data-theme-mode="dark"] .sarveksha-sidebar-version-container .sarveksha-app-name {
+	color: #f1f5f9;
+}
+
+/* Collapsed Sidebar Mode Handling */
+.body-sidebar-container:not(.expanded) .sarveksha-sidebar-version-container {
+	padding: 4px 6px;
+	text-align: center;
+}
+
+.body-sidebar-container:not(.expanded) .sarveksha-sidebar-version-container .sarveksha-app-name {
+	display: none;
+}
+
+.body-sidebar-container:not(.expanded) .sarveksha-sidebar-version-container .sarveksha-version-inner {
+	justify-content: center;
+	padding: 4px 2px;
+}

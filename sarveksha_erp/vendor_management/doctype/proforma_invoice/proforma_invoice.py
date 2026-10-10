@@ -17,19 +17,13 @@ class ProformaInvoice(Document):
 		self.calculate_totals()
 
 	def validate_internal_po_reference(self):
-		"""Enforce: PI can ONLY be raised from a referenced Internal PO, never from External PO."""
+		"""Enforce: PI must reference a valid Purchase Order (Internal or External)."""
 		if not self.internal_po:
-			frappe.throw(_("A referenced Internal Purchase Order is required to generate a Proforma Invoice."))
+			frappe.throw(_("A referenced Purchase Order is required to generate a Proforma Invoice."))
 
 		po = frappe.get_doc("Vendor Purchase Order", self.internal_po)
-		if (po.po_type or "") != "Internal PO":
-			frappe.throw(
-				_("Proforma Invoices can only be raised for referenced Internal POs. "
-				  "Purchase Order {0} is an External PO and cannot have a Proforma Invoice.").format(self.internal_po),
-				frappe.ValidationError
-			)
 
-		# Enforce: Only 1 active Proforma Invoice can be generated per Internal PO
+		# Enforce: Only 1 active Proforma Invoice can be generated per PO
 		filters = {
 			"internal_po": self.internal_po,
 			"docstatus": ["!=", 2],
@@ -40,7 +34,7 @@ class ProformaInvoice(Document):
 		existing_pi = frappe.db.get_value("Proforma Invoice", filters, "name")
 		if existing_pi:
 			frappe.throw(
-				_("A Proforma Invoice ({0}) has already been generated from Internal PO {1}. Another PI cannot be generated.").format(
+				_("A Proforma Invoice ({0}) has already been generated from PO {1}. Another PI cannot be generated.").format(
 					existing_pi, self.internal_po
 				),
 				frappe.ValidationError,
@@ -176,7 +170,7 @@ class ProformaInvoice(Document):
 @frappe.whitelist()
 def get_internal_po_details(internal_po):
 	"""
-	Fetches details from referenced Internal PO to populate the Proforma Invoice.
+	Fetches details from referenced PO to populate the Proforma Invoice.
 	Note: Logistics charges are intentionally NOT fetched automatically from the PO
 	as per business requirement; they must be entered manually.
 	"""
@@ -184,12 +178,6 @@ def get_internal_po_details(internal_po):
 		return {}
 
 	po = frappe.get_doc("Vendor Purchase Order", internal_po)
-	if po.po_type != "Internal PO":
-		frappe.throw(
-			_("Proforma Invoice can only reference an Internal PO (Child Company -> SRI). "
-			  "{0} is a Vendor PO and is not permitted.").format(internal_po),
-			frappe.ValidationError
-		)
 
 	# Fetch company destination/ports
 	company_doc = frappe.get_doc("Company", po.company) if po.company else None

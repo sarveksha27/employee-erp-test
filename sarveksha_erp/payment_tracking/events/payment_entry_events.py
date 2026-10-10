@@ -371,3 +371,23 @@ def dispatch_finance_audit_notification(po, doc, currency: str, formatted_amount
         )
     except Exception as e:
         frappe.log_error(title="Failed to send finance audit email", message=str(e))
+
+
+@frappe.whitelist()
+def get_mode_of_payment_account(mode_of_payment, company):
+    """Fetch default account for given mode of payment and company."""
+    if not mode_of_payment or not company:
+        return None
+    account = frappe.db.get_value(
+        "Mode of Payment Account",
+        {"parent": mode_of_payment, "company": company},
+        "default_account",
+    )
+    if not account:
+        mop_type = frappe.db.get_value("Mode of Payment", mode_of_payment, "type")
+        if mop_type == "Cash":
+            account = frappe.db.get_value("Company", company, "default_cash_account")
+        else:
+            account = frappe.db.get_value("Company", company, "default_bank_account")
+    return account
+

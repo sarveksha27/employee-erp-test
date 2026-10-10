@@ -12,12 +12,13 @@ While the print format engine supports company letterheads, several corporate en
 |---|---|---|---|
 | **Odhav Holdings** | Sierra Leone | **MISSING** | High-resolution SVG / PNG header image with registered office in Freetown, Sierra Leone. |
 | **Globe Multitrade and Service LLC** | United Arab Emirates | **MISSING** | High-resolution SVG / PNG header image with Dubai / UAE corporate registration details. |
+| **Sarveksha Cameroon PLC** | Cameroon | Present (`letterhead_cameroon_plc.png`) | Asset exists on disk. |
+| **Sarveksha Mining SARL** | Cameroon | Present (`letterhead_cameroon_mining.png`) | Asset exists on disk. |
+| **Baani Minerals** | Cameroon / Sierra Leone | Present (`letterhead_cameroon_baani.png`) | Asset exists on disk. |
+| **Sarveksha Botswana Proprietary Limited** | Botswana | Present (`letterhead_botswana.png`) | Asset exists on disk. |
+| **Sarveksha BSTP SAS** | Guinea | Present (`letterhead_guinea_bstp.png`) | Asset exists on disk. |
+| **Sarveksha SL Limited** | Sierra Leone | Present (`letterhead_sierra_leone.png`) | Asset exists on disk. |
 | **Sarveksha Realty and Inframine LLP** | India | Present (`letterhead_sri_india.png`) | Asset exists on disk. |
-| **Sarveksha BSTP SAS** | Guinea | Present (`letterhead_guinea_bstp.jpeg`) | Asset exists on disk. |
-| **Sarveksha SL Limited** | Sierra Leone | Present (`letterhead_sierra_leone.jpeg`) | Asset exists on disk. |
-| **Baani Minerals** | Sierra Leone | Present (`letterhead_cameroon_baani.jpeg`) | Asset exists on disk. |
-| **Sarveksha Mining SARL** | Cameroon | Present (`letterhead_cameroon_mining.jpeg`) | Asset exists on disk. |
-| **Sarveksha Botswana Proprietary Limited** | Botswana | Present (`letterhead_botswana.jpeg`) | Asset exists on disk. |
 
 > [!IMPORTANT]
 > To resolve this gap:

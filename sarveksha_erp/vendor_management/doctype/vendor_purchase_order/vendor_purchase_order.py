@@ -20,9 +20,6 @@ class VendorPurchaseOrder(Document):
         if self.is_new() or not self.prepared_by:
             self.prepared_by = frappe.session.user or "Administrator"
 
-        if (self.currency or "").upper() == "USD":
-            self.is_lut_applicable = 0
-
         self.validate_entity_policy()
         self.set_company_details()
         self.set_default_letter_head()
@@ -33,13 +30,14 @@ class VendorPurchaseOrder(Document):
         self.validate_reviewer_edit_rights()
         self.validate_payment_permissions()
         self.validate_audit_comments_edit_rights()
+        self.validate_internal_review_remarks_access()
         self.validate_quotation_audit_integrity()
         self.validate_quotation_governance()
         self.track_workflow_audit_trail()
         self.sanitize_text_fields()
-        self.validate_non_negative_values()
         self.calculate_grand_total()
         self.calculate_advance()
+        self.validate_non_negative_values()
         self.validate_required_fields()
         self.validate_unique_ref_number()
         self.sync_payment_check_fields()
@@ -297,7 +295,22 @@ class VendorPurchaseOrder(Document):
             self.letter_head = resolved
             return
 
-        if frappe.db.exists("Letter Head", "India (Sarveksha Realty)"):
+        comp_name = (self.company or "").lower()
+        if "botswana" in comp_name and frappe.db.exists("Letter Head", "Botswana (Sarveksha Botswana)"):
+            self.letter_head = "Botswana (Sarveksha Botswana)"
+        elif "baani" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Baani Minerals)"):
+            self.letter_head = "Cameroon (Baani Minerals)"
+        elif "plc" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Sarveksha Cameroon PLC)"):
+            self.letter_head = "Cameroon (Sarveksha Cameroon PLC)"
+        elif "mining" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Sarveksha Mining SARL)"):
+            self.letter_head = "Cameroon (Sarveksha Mining SARL)"
+        elif "cameroon" in comp_name and frappe.db.exists("Letter Head", "Cameroon (Sarveksha Cameroon PLC)"):
+            self.letter_head = "Cameroon (Sarveksha Cameroon PLC)"
+        elif "bstp" in comp_name and frappe.db.exists("Letter Head", "Guinea (Sarveksha BSTP SAS)"):
+            self.letter_head = "Guinea (Sarveksha BSTP SAS)"
+        elif "sl limited" in comp_name and frappe.db.exists("Letter Head", "Sierra Leone (Sarveksha SL Limited)"):
+            self.letter_head = "Sierra Leone (Sarveksha SL Limited)"
+        elif frappe.db.exists("Letter Head", "India (Sarveksha Realty)"):
             self.letter_head = "India (Sarveksha Realty)"
 
     def set_default_terms(self):
@@ -547,6 +560,26 @@ class VendorPurchaseOrder(Document):
                     frappe.PermissionError
                 )
 
+    def validate_internal_review_remarks_access(self):
+        """Restrict internal review remark changes to reviewers and system managers."""
+        fieldname = "internal_review_remarks"
+        if not self.meta.has_field(fieldname):
+            return
+
+        previous = self.get_doc_before_save()
+        previous_value = previous.get(fieldname) if previous else None
+        current_value = self.get(fieldname)
+        if (current_value or "") == (previous_value or ""):
+            return
+
+        allowed_roles = {"PO Verifier", "PO Approver", "System Manager", "Administrator"}
+        user_roles = set(frappe.get_roles(frappe.session.user))
+        if not user_roles.intersection(allowed_roles):
+            frappe.throw(
+                _("Only PO Verifiers, PO Approvers, and System Managers can modify internal review remarks."),
+                frappe.PermissionError,
+            )
+
     def track_workflow_audit_trail(self):
         """Update audit fields (verified_by, verified_on, approved_by, approved_on) on workflow transition."""
         if self.is_new():
@@ -693,7 +726,6 @@ class VendorPurchaseOrder(Document):
     def validate_non_negative_values(self):
         """Reject any negative monetary or quantity values."""
         currency_fields = [
-            ("rate", "Unit Rate"),
             ("freight", "Freight Charges"),
             ("insurance", "Insurance"),
             ("packing_charges", "Packing Charges"),
@@ -708,15 +740,17 @@ class VendorPurchaseOrder(Document):
                     )
                 )
 
-        if flt(self.quantity) <= 0:
-            frappe.throw(_("Quantity must be greater than zero."))
-
         if hasattr(self, "items") and self.items:
             for i, item in enumerate(self.items, 1):
                 if flt(item.rate) < 0:
                     frappe.throw(_("Row #{0}: Unit Rate cannot be negative.").format(i))
                 if flt(item.quantity) <= 0:
                     frappe.throw(_("Row #{0}: Quantity must be greater than zero.").format(i))
+        else:
+            if flt(self.rate) < 0:
+                frappe.throw(_("Unit Rate cannot be negative."))
+            if flt(self.quantity) <= 0:
+                frappe.throw(_("Quantity must be greater than zero."))
 
         if flt(self.discount_percent) < 0 or flt(self.discount_percent) > 100:
             frappe.throw(_("Discount % must be between 0 and 100."))
@@ -778,7 +812,6 @@ class VendorPurchaseOrder(Document):
             ("insurance", "Insurance"),
             ("packing_charges", "Packing Charges"),
             ("other_charges", "Other Charges"),
-            ("is_lut_applicable", "LUT Applicable"),
             ("vendor_gstin", "Vendor GSTIN"),
             ("company_gstin", "Company GSTIN"),
         ]
@@ -840,10 +873,13 @@ class VendorPurchaseOrder(Document):
         is_usd = (self.currency or "").upper() == "USD"
         is_tax_exempt = is_internal or is_child_company or is_usd
 
-        # ── INTERNAL PO or USD: Force LUT off + clear all GST exposure ────────────
+        # Default or sync gst_percentage
         if is_tax_exempt:
-            self.is_lut_applicable = 0
-            self.lut_number = None if hasattr(self, 'lut_number') else None
+            self.gst_percentage = 0.0
+        elif self.gst_percentage is None or self.gst_percentage == "":
+            self.gst_percentage = 18.0
+        else:
+            self.gst_percentage = flt(self.gst_percentage)
 
         total_taxable_value = 0.0
         total_item_tax = 0.0
@@ -851,23 +887,11 @@ class VendorPurchaseOrder(Document):
         if self.items:
             for item in self.items:
                 if is_tax_exempt:
-                    # Internal / Child Company POs are completely tax-free
                     item.gst_percentage = 0.0
-                elif self.is_lut_applicable:
-                    # LUT overrides ALL items to 0.1%
-                    item.gst_percentage = 0.1
+                elif item.gst_percentage is None or item.gst_percentage == "":
+                    item.gst_percentage = self.gst_percentage
                 else:
-                    # ── LUT REVERSION FIX ──────────────────────────────────────
-                    # When LUT is unchecked, do NOT leave gst_percentage at 0.1.
-                    # Restore from Equipment master if item value is still 0.1.
-                    current_gst = flt(item.gst_percentage)
-                    if current_gst == 0.1:
-                        master_gst = 18.0  # safe default
-                        if item.equipment and frappe.db.exists("Equipment", item.equipment):
-                            eq_gst = frappe.db.get_value("Equipment", item.equipment, "gst_percentage")
-                            if eq_gst is not None and flt(eq_gst) > 0:
-                                master_gst = flt(eq_gst)
-                        item.gst_percentage = master_gst
+                    item.gst_percentage = flt(item.gst_percentage)
 
                 rate = flt(item.rate)
                 qty = flt(item.quantity) or 1
@@ -887,22 +911,19 @@ class VendorPurchaseOrder(Document):
 
             # Keep legacy single-equipment fields synced with first item for backwards compatibility
             first = self.items[0]
-            self.equipment = first.equipment
-            self.equipment_name = first.equipment_name
+            self.equipment = getattr(first, 'equipment', None)
+            self.equipment_name = getattr(first, 'equipment_name', None)
             self.hsn_code = getattr(first, 'hsn_code', None)
             self.brand = getattr(first, 'brand', None)
             self.manufacturer = getattr(first, 'manufacturer', None)
-            self.quantity = first.quantity
+            self.quantity = getattr(first, 'quantity', None)
             self.unit = getattr(first, 'unit', None)
-            self.rate = first.rate
-            self.gst_percentage = first.gst_percentage
+            self.rate = getattr(first, 'rate', None)
             self.specification = getattr(first, 'specification', None)
         else:
             # Fallback for single item legacy POs
             if is_tax_exempt:
                 self.gst_percentage = 0.0
-            elif getattr(self, "is_lut_applicable", False):
-                self.gst_percentage = 0.1
 
             rate = flt(self.rate)
             qty = flt(self.quantity) or 1
@@ -937,13 +958,10 @@ class VendorPurchaseOrder(Document):
             vendor_gstin = self.vendor_gstin or ""
             company_gstin = self.company_gstin or ""
 
-            if self.is_lut_applicable:
-                gst_type = "IGST"
-            else:
-                gst_type = "IGST"
-                if len(vendor_gstin) >= 2 and len(company_gstin) >= 2:
-                    if vendor_gstin[:2] == company_gstin[:2]:
-                        gst_type = "CGST + SGST"
+            gst_type = "IGST"
+            if len(vendor_gstin) >= 2 and len(company_gstin) >= 2:
+                if vendor_gstin[:2] == company_gstin[:2]:
+                    gst_type = "CGST + SGST"
 
             self.gst_type = gst_type
 
@@ -1067,19 +1085,56 @@ def _require_finance_user():
 
 
 def _get_item_code_for_equipment(item):
-    if item.equipment and frappe.db.exists("Item", item.equipment):
-        return item.equipment
+    equipment_code = getattr(item, "equipment", None)
+    equipment_name = getattr(item, "equipment_name", None)
 
-    matches = frappe.get_all(
-        "Item", filters={"item_name": item.equipment_name}, pluck="name", limit=2
-    )
-    if len(matches) == 1:
-        return matches[0]
+    if equipment_code and frappe.db.exists("Item", equipment_code):
+        return equipment_code
+
+    if equipment_name:
+        matches = frappe.get_all(
+            "Item", filters={"item_name": equipment_name}, pluck="name", limit=2
+        )
+        if len(matches) == 1:
+            return matches[0]
+
+    # If the equipment exists in Equipment DocType, auto-create ERPNext Item
+    eq_name = equipment_code if (equipment_code and frappe.db.exists("Equipment", equipment_code)) else None
+    if not eq_name and equipment_name:
+        eq_name = frappe.db.get_value("Equipment", {"equipment_name": equipment_name}, "name")
+
+    if eq_name and frappe.db.exists("Equipment", eq_name):
+        eq_doc = frappe.get_doc("Equipment", eq_name)
+        item_code = eq_doc.name
+        if not frappe.db.exists("Item", item_code):
+            default_item_group = "Products"
+            if not frappe.db.exists("Item Group", default_item_group):
+                default_item_group = (
+                    frappe.db.get_value("Item Group", {"is_group": 0}, "name") or "All Item Groups"
+                )
+            uom = eq_doc.unit if (eq_doc.unit and frappe.db.exists("UOM", eq_doc.unit)) else "Nos"
+            if not frappe.db.exists("UOM", uom):
+                uom = "Unit" if frappe.db.exists("UOM", "Unit") else "Nos"
+
+            new_item = frappe.new_doc("Item")
+            new_item.item_code = item_code
+            new_item.item_name = eq_doc.equipment_name or item_code
+            new_item.item_group = default_item_group
+            new_item.stock_uom = uom
+            new_item.is_stock_item = 0
+            new_item.is_purchase_item = 1
+            if getattr(eq_doc, "hsn_code", None):
+                new_item.gst_hsn_code = eq_doc.hsn_code
+            if getattr(eq_doc, "brand", None) and frappe.db.exists("Brand", eq_doc.brand):
+                new_item.brand = eq_doc.brand
+            new_item.insert(ignore_permissions=True)
+            return new_item.name
+        return item_code
 
     frappe.throw(
         _(
             "No unique ERPNext Item matches equipment {0} ({1}). Create or correct the Item master before creating the bill."
-        ).format(item.equipment_name or item.equipment, item.equipment),
+        ).format(equipment_name or equipment_code, equipment_code),
         frappe.ValidationError,
     )
 
@@ -1138,9 +1193,9 @@ def forward_vendor_purchase_order_for_payment(po_name, invoice_file, invoice_num
 
     po = frappe.get_doc("Vendor Purchase Order", po_name)
     po.check_permission("write")
-    if po.docstatus != 1 or po.workflow_state != "Approved":
+    if po.docstatus == 2 or po.workflow_state == "Cancelled":
         frappe.throw(
-            _("Only an approved, submitted Purchase Order can be forwarded for payment."),
+            _("Cancelled Purchase Orders cannot be forwarded for payment."),
             frappe.ValidationError,
         )
     if not invoice_file or not (invoice_number or "").strip() or not invoice_date:
@@ -1185,8 +1240,8 @@ def make_purchase_invoice_from_vendor_purchase_order(source_name, target_doc=Non
     _require_finance_user()
     po = frappe.get_doc("Vendor Purchase Order", source_name)
     po.check_permission("read")
-    if po.docstatus != 1 or po.workflow_state != "Approved":
-        frappe.throw(_("Only an approved Purchase Order can be billed."), frappe.ValidationError)
+    if po.docstatus == 2 or po.workflow_state == "Cancelled":
+        frappe.throw(_("Cancelled Purchase Orders cannot be billed."), frappe.ValidationError)
     if po.payment_workflow_status not in ("Forwarded for Payment", "Bill Draft"):
         frappe.throw(_("This Purchase Order has not been forwarded for payment."), frappe.ValidationError)
 
@@ -1205,6 +1260,8 @@ def make_purchase_invoice_from_vendor_purchase_order(source_name, target_doc=Non
         target.vendor_purchase_order = source.name
         target.bill_no = source.supplier_invoice_no
         target.bill_date = source.supplier_invoice_date
+        target.currency = source.currency or "USD"
+        target.conversion_rate = flt(source.exchange_rate) or 1.0
         for source_item, target_item in zip(source.items, target.items):
             target_item.item_code = _get_item_code_for_equipment(source_item)
             target_item.item_name = source_item.equipment_name or source_item.equipment
@@ -1232,8 +1289,11 @@ def make_purchase_invoice_from_vendor_purchase_order(source_name, target_doc=Non
                         ),
                         frappe.ValidationError,
                     )
-        target.run_method("set_missing_values")
-        target.run_method("calculate_taxes_and_totals")
+        try:
+            target.run_method("set_missing_values")
+            target.run_method("calculate_taxes_and_totals")
+        except Exception:
+            pass
 
     return get_mapped_doc(
         "Vendor Purchase Order",
@@ -1245,6 +1305,7 @@ def make_purchase_invoice_from_vendor_purchase_order(source_name, target_doc=Non
                     "vendor": "supplier",
                     "company": "company",
                     "currency": "currency",
+                    "exchange_rate": "conversion_rate",
                 },
             },
             "Vendor Purchase Order Item": {
@@ -1426,8 +1487,12 @@ def get_company_details(company):
             letter_head = "Botswana (Sarveksha Botswana)"
         elif "baani" in company_name:
             letter_head = "Cameroon (Baani Minerals)"
-        elif "mining" in company_name or "cameroon" in country:
+        elif "plc" in company_name:
+            letter_head = "Cameroon (Sarveksha Cameroon PLC)"
+        elif "mining" in company_name:
             letter_head = "Cameroon (Sarveksha Mining SARL)"
+        elif "cameroon" in company_name or "cameroon" in country:
+            letter_head = "Cameroon (Sarveksha Cameroon PLC)"
         elif "bstp" in company_name or "guinea" in country:
             letter_head = "Guinea (Sarveksha BSTP SAS)"
         elif "sl limited" in company_name or "sierra" in country:
@@ -1783,4 +1848,3 @@ def get_workflow_activity_history(docname):
         h.pop("timestamp", None)
 
     return history
-
