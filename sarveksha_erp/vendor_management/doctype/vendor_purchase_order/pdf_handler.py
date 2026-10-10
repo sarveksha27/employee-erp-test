@@ -4,7 +4,7 @@
 import os
 from io import BytesIO
 from typing import Literal
-from PIL import Image
+from PIL import Image, ImageDraw
 from pypdf import PdfReader, PdfWriter, PageObject, Transformation
 
 import frappe
@@ -49,17 +49,16 @@ def download_pdf(
 			pdf_options={"print-media-type": ""},
 		)
 
-	# 1. Apply full-page stationery image as background with data overlaid
-	if not no_letterhead:
-		try:
-			pdf_file = apply_stationery_background(doc, doctype, pdf_file)
-		except Exception as e:
-			frappe.log_error(
-				title=f"Stationery Background Error: {name}",
-				message=f"Error applying background for {name}: {str(e)}\n\n{frappe.get_traceback()}",
-				reference_doctype=doctype,
-				reference_name=name,
-			)
+	# 1. Apply full-page stationery image as background with data overlaid (and watermark for unapproved POs)
+	try:
+		pdf_file = apply_stationery_background(doc, doctype, pdf_file, no_letterhead=bool(no_letterhead))
+	except Exception as e:
+		frappe.log_error(
+			title=f"Stationery Background Error: {name}",
+			message=f"Error applying background for {name}: {str(e)}\n\n{frappe.get_traceback()}",
+			reference_doctype=doctype,
+			reference_name=name,
+		)
 
 	# 2. If Vendor Purchase Order, append any external quotation/inspection attachments
 	if doctype == "Vendor Purchase Order":
@@ -122,16 +121,25 @@ def get_letterhead_image_path(doctype: str, doc) -> str | None:
 	return None
 
 
-def create_a4_stationery_page(img_path: str) -> PageObject | None:
+def create_a4_stationery_page(img_path: str, remove_middle: bool = False) -> PageObject | None:
 	"""
 	Converts a high-resolution full-page letterhead stationery image (PNG, JPEG)
 	into an exact standard A4 PDF page (595.28 x 841.89 pt) without squeezing, distortion,
 	or PyPDF clipping artifacts.
+	If remove_middle is True (draft/unapproved documents), the central watermark logo
+	in the stationery is removed so that only the top header, bottom footer, and side margins remain.
 	"""
 	if not img_path or not os.path.exists(img_path):
 		return None
 	try:
 		src_img = Image.open(img_path).convert("RGB")
+		if remove_middle:
+			w, h = src_img.size
+			draw = ImageDraw.Draw(src_img)
+			# Blank out central watermark logo: preserve top header (y < 0.18*h),
+			# bottom footer (y > 0.88*h), and right margin stripe (x > 0.90*w)
+			draw.rectangle([0, int(0.18 * h), int(0.90 * w), int(0.88 * h)], fill=(255, 255, 255))
+
 		dpi_x = (src_img.width / A4_WIDTH) * 72.0
 		dpi_y = (src_img.height / A4_HEIGHT) * 72.0
 		dpi = (dpi_x + dpi_y) / 2.0
@@ -151,26 +159,119 @@ def create_a4_stationery_page(img_path: str) -> PageObject | None:
 		return None
 
 
-def apply_stationery_background(doc, doctype: str, pdf_bytes: bytes) -> bytes:
+def get_po_watermark_text(doc) -> str | None:
 	"""
-	Stamps the full-page stationery background image under each page of the generated PDF document.
+	Determines the watermark text for unapproved Vendor Purchase Orders.
+	Approved orders receive no watermark.
+	"""
+	state = (getattr(doc, "workflow_state", None) or "Draft").strip()
+	if state == "Approved":
+		return None
+	if state == "Draft":
+		return "DRAFT"
+	if state == "Generated (Yet to be Verified)":
+		return "NOT COMPLETED"
+	if state == "Verified (Yet to be approved)":
+		return "NOT APPROVED"
+	if state == "Cancelled":
+		return "CANCELLED"
+	return "NOT APPROVED"
+
+
+def create_a4_watermark_page(watermark_text: str) -> PageObject | None:
+	"""
+	Generates a transparent standard A4 PDF page containing a prominent diagonal
+	watermark banner to overlay behind purchase order content with 50% transparency.
+	"""
+	if not watermark_text:
+		return None
+	try:
+		from frappe.utils.pdf import get_pdf
+		html = f"""
+		<!DOCTYPE html>
+		<html>
+		<head>
+		<style>
+		  @page {{ size: A4; margin: 0; }}
+		  html, body {{ margin: 0; padding: 0; height: 100%; overflow: hidden; background: transparent; }}
+		  .watermark-box {{
+		    position: absolute;
+		    top: 40%;
+		    left: 5%;
+		    width: 90%;
+		    text-align: center;
+		    font-family: Arial, Helvetica, sans-serif;
+		    font-size: 68px;
+		    font-weight: 900;
+		    color: rgba(220, 38, 38, 0.50);
+		    border: 6px dashed rgba(220, 38, 38, 0.50);
+		    border-radius: 16px;
+		    padding: 16px 12px;
+		    box-sizing: border-box;
+		    letter-spacing: 8px;
+		    text-transform: uppercase;
+		    transform: rotate(-35deg);
+		    -webkit-transform: rotate(-35deg);
+		  }}
+		</style>
+		</head>
+		<body>
+		  <div class="watermark-box">{watermark_text}</div>
+		</body>
+		</html>
+		"""
+		pdf_bytes = get_pdf(html, {
+			"page-size": "A4",
+			"margin-top": "0mm",
+			"margin-bottom": "0mm",
+			"margin-left": "0mm",
+			"margin-right": "0mm",
+			"disable-smart-shrinking": "",
+		})
+		reader = PdfReader(BytesIO(pdf_bytes))
+		if reader.pages:
+			return reader.pages[0]
+		return None
+	except Exception as e:
+		frappe.log_error(
+			title="Watermark Generation Error",
+			message=f"Failed creating watermark page for '{watermark_text}': {str(e)}",
+		)
+		return None
+
+
+def apply_stationery_background(doc, doctype: str, pdf_bytes: bytes, no_letterhead: bool = False) -> bytes:
+	"""
+	Stamps the full-page stationery background image under each page of the generated PDF document,
+	along with an approval status watermark (e.g. DRAFT, NOT APPROVED) if the PO is not yet approved.
+	For draft/unapproved documents, the middle logo is removed from the stationery image and
+	a watermark is generated with 50% transparency.
 	The content (tables, text, numbers) is printed directly over the stationery background with 100%
 	transparency, ensuring no white card or rectangle obscures the letterhead.
 	"""
-	img_path = get_letterhead_image_path(doctype, doc)
-	if not img_path:
+	img_path = None if no_letterhead else get_letterhead_image_path(doctype, doc)
+	watermark_text = get_po_watermark_text(doc) if doctype == "Vendor Purchase Order" else None
+	# In draft/unapproved orders, remove middle logo image from stationery
+	remove_middle = bool(watermark_text)
+
+	if not img_path and not watermark_text:
 		return pdf_bytes
 
 	try:
 		reader = PdfReader(BytesIO(pdf_bytes))
 		writer = PdfWriter()
+		wm_page = create_a4_watermark_page(watermark_text) if watermark_text else None
 
 		for page in reader.pages:
 			norm_content = normalize_page_to_a4(page)
-			bg_page = create_a4_stationery_page(img_path)
-			if bg_page:
+			bg_page = create_a4_stationery_page(img_path, remove_middle=remove_middle) if img_path else None
+
+			if bg_page or wm_page:
 				canvas = PageObject.create_blank_page(width=A4_WIDTH, height=A4_HEIGHT)
-				canvas.merge_page(bg_page)
+				if bg_page:
+					canvas.merge_page(bg_page)
+				if wm_page:
+					canvas.merge_page(wm_page)
 				canvas.merge_page(norm_content)
 				writer.add_page(canvas)
 			else:

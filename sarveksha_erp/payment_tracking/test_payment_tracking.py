@@ -294,6 +294,28 @@ class TestPaymentTracking(FrappeTestCase):
         # Reset user
         frappe.set_user("Administrator")
 
+    def test_payment_entry_defaults_and_mode_accounts(self):
+        """Verify Mode of Payment accounts and default print format are properly configured."""
+        from sarveksha_erp.payment_tracking.events.payment_entry_events import get_mode_of_payment_account
+
+        # Verify Credit Card mode has default account for Sarveksha company
+        cc_account = get_mode_of_payment_account("Credit Card", "Sarveksha Realty and Inframine LLP")
+        self.assertTrue(bool(cc_account))
+        self.assertTrue(frappe.db.exists("Account", cc_account))
+
+        # Verify Wire Transfer mode
+        wire_account = get_mode_of_payment_account("Wire Transfer", "Sarveksha Realty and Inframine LLP")
+        self.assertTrue(bool(wire_account))
+
+        # Verify Cash mode
+        cash_account = get_mode_of_payment_account("Cash", "Sarveksha Realty and Inframine LLP")
+        self.assertTrue(bool(cash_account))
+
+        # Verify Default Print Format is Payment Receipt Proof
+        print_fmt = frappe.db.get_value("Property Setter", {"doc_type": "Payment Entry", "property": "default_print_format"}, "value")
+        self.assertEqual(print_fmt, "Payment Receipt Proof")
+
+
 
 def run_test_suite():
     suite = unittest.TestLoader().loadTestsFromTestCase(TestPaymentTracking)
