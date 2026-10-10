@@ -252,14 +252,13 @@
           {% if doc.vendor_pan %}<br><span class="lbl">PAN:</span> {{ doc.vendor_pan }}{% endif %}
         </td>
         <td class="lbl" style="border-bottom:none !important;">Ref No. :-</td>
-        <td style="border-bottom:none !important; border-left:1px solid #000 !important;">{{ doc.ref_number or doc.name
-          }}</td>
+        <td style="border-bottom:none !important; border-left:1px solid #000 !important;">{{ doc.name }}</td>
       </tr>
       <tr>
         <td class="lbl" style="border-top:1px solid #000 !important; border-bottom:none !important;">Date :-</td>
         <td
           style="border-top:1px solid #000 !important; border-bottom:none !important; border-left:1px solid #000 !important;">
-          {{ doc.get_formatted("po_date") }}</td>
+          {{ frappe.utils.formatdate(doc.po_date, "dd-mm-yyyy") }}</td>
       </tr>
       <tr>
         <td class="lbl" style="border-top:1px solid #000 !important; border-bottom:none !important;">Quotation No. :-
@@ -291,7 +290,16 @@
 
   <!-- ── SALUTATION ── -->
   <p>Dear Sir/Ma'am,</p>
-  <p>We are pleased to release this Purchase Order for the supply of <strong>the attached list of equipment</strong>. Details and specifications are as per below. Please send your acceptance confirmation via return email for further processing.</p>
+  {% set item_names = [] %}
+  {% for row in doc.items or [] %}
+  {% set item_name = (row.equipment_name or row.equipment or "")|trim %}
+  {% if item_name and item_name not in item_names %}
+  {% set _ = item_names.append(item_name) %}
+  {% endif %}
+  {% endfor %}
+  <p>We are pleased to release this Purchase Order for the supply of
+    <strong>{{ item_names|join(", ") if item_names else "the specified items" }}</strong>. Details and specifications
+    are as per below. Please send your acceptance confirmation via return email for further processing.</p>
 
   <!-- ── PRE-CONDITIONS ── -->
   <table class="fixed" style="margin-bottom:6px;">
@@ -560,15 +568,17 @@
       <tr>
         <td style="line-height:1.4;">
           {% if doc.standard_terms %}
-          {% for row in doc.standard_terms %}
+          <ol>
+          {% for row in doc.standard_terms|sort(attribute="idx") %}
           {% if row.standard_term and frappe.db.exists("Terms and Conditions", row.standard_term) %}
           {% set st_doc = frappe.get_doc("Terms and Conditions", row.standard_term) %}
-          <div class="standard-terms-print" style="margin-bottom: 6px;">
+          <li class="standard-terms-print" style="margin-bottom: 6px;">
             <strong>{{ row.standard_term }}</strong>
             <div>{{ st_doc.terms }}</div>
-          </div>
+          </li>
           {% endif %}
           {% endfor %}
+          </ol>
           {% endif %}
           {% if doc.custom_terms %}
           <div class="custom-terms-print" style="margin-top: 6px;">

@@ -1,6 +1,8 @@
 # Copyright (c) 2026, Sarveksha and contributors
 # For license information, please see license.txt
 
+import re
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -28,6 +30,7 @@ class VendorPurchaseOrder(Document):
         self.validate_reviewer_edit_rights()
         self.validate_payment_permissions()
         self.validate_audit_comments_edit_rights()
+        self.validate_internal_review_remarks_access()
         self.validate_quotation_audit_integrity()
         self.validate_quotation_governance()
         self.track_workflow_audit_trail()
@@ -236,14 +239,60 @@ class VendorPurchaseOrder(Document):
         if details_arr:
             self.company_address = "\n".join([d for d in details_arr if d])
 
+    @staticmethod
+    def _normalize_company_tokens(value):
+        """Create stable, case-insensitive tokens from company and letterhead labels."""
+        if not value:
+            return set()
+        value = value.lower().replace("&", " and ").replace("-", " ")
+        return {token for token in re.findall(r"[a-z0-9]+", value) if token}
+
+    @classmethod
+    def _resolve_letter_head_for_company(cls, company_name):
+        """Match a Letter Head by company alias or fallback country naming conventions."""
+        if not company_name:
+            return None
+
+        company_doc = frappe.db.get_value("Company", company_name, ["name", "default_letter_head"], as_dict=True)
+        if company_doc and company_doc.default_letter_head and frappe.db.exists("Letter Head", company_doc.default_letter_head):
+            return company_doc.default_letter_head
+
+        company_tokens = cls._normalize_company_tokens(company_name)
+        if not company_tokens:
+            return None
+
+        letter_heads = frappe.get_all(
+            "Letter Head",
+            fields=["name"],
+            filters={"disabled": 0},
+            order_by="name asc",
+            limit=200,
+        )
+        for letter_head in letter_heads or []:
+            candidate_name = letter_head.get("name")
+            if not candidate_name or not frappe.db.exists("Letter Head", candidate_name):
+                continue
+
+            candidate_tokens = cls._normalize_company_tokens(candidate_name)
+            if not candidate_tokens:
+                continue
+
+            if company_tokens & candidate_tokens:
+                return candidate_name
+
+            if company_tokens.issubset(candidate_tokens) or candidate_tokens.issubset(company_tokens):
+                return candidate_name
+
+        return None
+
     def set_default_letter_head(self):
         """Auto-detect and set default letter head based on Company."""
         if not self.company:
             return
 
-        comp_lh = frappe.db.get_value("Company", self.company, "default_letter_head")
-        if comp_lh and frappe.db.exists("Letter Head", comp_lh):
-            self.letter_head = comp_lh
+        resolved = self._resolve_letter_head_for_company(self.company)
+        if resolved:
+            self.letter_head = resolved
             return
 
         comp_name = (self.company or "").lower()
@@ -270,6 +319,9 @@ class VendorPurchaseOrder(Document):
             return
 
         terms_to_add = []
+
+        if self.is_lut_applicable and frappe.db.exists("Terms and Conditions", "LUT Certificate Terms"):
+            terms_to_add.append("LUT Certificate Terms")
 
         if self.company:
             comp_name = (self.company or "").lower()
@@ -507,6 +559,26 @@ class VendorPurchaseOrder(Document):
                     _("Approver comments can only be edited during the 'Verified (Yet to be approved)' stage."),
                     frappe.PermissionError
                 )
+
+    def validate_internal_review_remarks_access(self):
+        """Restrict internal review remark changes to reviewers and system managers."""
+        fieldname = "internal_review_remarks"
+        if not self.meta.has_field(fieldname):
+            return
+
+        previous = self.get_doc_before_save()
+        previous_value = previous.get(fieldname) if previous else None
+        current_value = self.get(fieldname)
+        if (current_value or "") == (previous_value or ""):
+            return
+
+        allowed_roles = {"PO Verifier", "PO Approver", "System Manager", "Administrator"}
+        user_roles = set(frappe.get_roles(frappe.session.user))
+        if not user_roles.intersection(allowed_roles):
+            frappe.throw(
+                _("Only PO Verifiers, PO Approvers, and System Managers can modify internal review remarks."),
+                frappe.PermissionError,
+            )
 
     def track_workflow_audit_trail(self):
         """Update audit fields (verified_by, verified_on, approved_by, approved_on) on workflow transition."""
@@ -1776,4 +1848,3 @@ def get_workflow_activity_history(docname):
         h.pop("timestamp", None)
 
     return history
-
