@@ -1,37 +1,10 @@
 /* Sarveksha ERP Custom Styling */
 
-/* Navbar Version Badge */
-.sarveksha-navbar-version-badge {
-	display: inline-flex;
-	align-items: center;
-	margin-left: 12px;
-	vertical-align: middle;
-	user-select: none;
-}
-
-.sarveksha-navbar-version-badge .badge-version,
-.sarveksha-pagehead-version-badge .badge-version {
-	font-size: 11px;
-	font-weight: 600;
-	line-height: 1;
-	padding: 3px 8px;
-	border-radius: 9999px;
-	background: #eef2ff;
-	color: #4338ca;
-	border: 1px solid #c7d2fe;
-	letter-spacing: 0.2px;
-	display: inline-flex;
-	align-items: center;
-	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-	transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.sarveksha-pagehead-version-badge {
-	display: inline-flex;
-	align-items: center;
-	margin-left: 10px;
-	vertical-align: middle;
-	user-select: none;
+/* Version badges removed */
+.sarveksha-navbar-version-badge,
+.sarveksha-pagehead-version-badge,
+.sarveksha-sidebar-version-container {
+	display: none !important;
 }
 
 /* Sidebar Bottom Version Info (Positioned directly above user details) */

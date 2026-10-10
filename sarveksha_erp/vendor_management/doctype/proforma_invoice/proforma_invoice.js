@@ -3,11 +3,11 @@
 
 frappe.ui.form.on('Proforma Invoice', {
     setup: function(frm) {
-        // Enforce: ONLY Internal POs can be selected (No External/Vendor POs)
+        // Allow referencing both Internal and External Purchase Orders (excluding Cancelled)
         frm.set_query('internal_po', function() {
             return {
                 filters: {
-                    'po_type': 'Internal PO'
+                    'workflow_state': ['!=', 'Cancelled']
                 }
             };
         });

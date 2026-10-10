@@ -19,7 +19,7 @@ frappe.ui.form.on("Vendor Purchase Order", {
 
 		// Hide standard workflow actions menu
 		if (frm.states) {
-			frm.states.show_actions = function () {};
+			frm.states.show_actions = function () { };
 			frm.page.clear_actions_menu();
 		}
 
@@ -78,6 +78,59 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			execute_action();
 		};
 
+		// Helper function to open review comments / send back popup dialog
+		const open_review_comments_dialog = function (fieldname, title_text) {
+			const current_comments = frm.doc[fieldname] || "";
+
+			const dialog = new frappe.ui.Dialog({
+				title: title_text || __("Reason / Corrective Action Required"),
+				fields: [
+					{
+						label: __("Reason / Corrective Action Required"),
+						fieldname: "remarks",
+						fieldtype: "Small Text",
+						default: current_comments,
+					},
+				],
+				primary_action_label: __("Send Back"),
+				primary_action: function (values) {
+					const remarks = values && values.remarks ? values.remarks.trim() : "";
+					if (!remarks) {
+						frappe.msgprint(
+							__("Please enter the Reason / Corrective Action Required before sending back."),
+						);
+						return;
+					}
+					frm.set_value(fieldname, remarks);
+					dialog.hide();
+					frm.save().then(() => {
+						apply_action("Send Back");
+					});
+				},
+				secondary_action_label: __("Save Comments"),
+				secondary_action: function () {
+					const remarks = dialog.get_value("remarks") || "";
+					frm.set_value(fieldname, remarks);
+					dialog.hide();
+					frm.save().then(() => {
+						frappe.show_alert({
+							message: __("Comments saved successfully."),
+							indicator: "green",
+						});
+					});
+				},
+			});
+
+			if (dialog.$wrapper) {
+				const primary_btn = dialog.$wrapper.find(".btn-primary");
+				if (primary_btn.length) {
+					primary_btn.removeClass("btn-primary").addClass("btn-danger");
+				}
+			}
+
+			dialog.show();
+		};
+
 		// Clear existing custom buttons first
 		frm.clear_custom_buttons();
 
@@ -97,23 +150,9 @@ frappe.ui.form.on("Vendor Purchase Order", {
 				frm.change_custom_button_type(__("Send Forward"), null, "primary");
 
 				frm.add_custom_button(__("Send Back"), function () {
-					frappe.prompt(
-						[
-							{
-								label: __("Reason / Corrective Action Required"),
-								fieldname: "remarks",
-								fieldtype: "Small Text",
-								reqd: 1,
-							},
-						],
-						function (values) {
-							frm.set_value("verifier_comments", values.remarks);
-							frm.save().then(() => {
-								apply_action("Send Back");
-							});
-						},
+					open_review_comments_dialog(
+						"verifier_comments",
 						__("Send Back to Generator"),
-						__("Submit"),
 					);
 				});
 				frm.change_custom_button_type(__("Send Back"), null, "danger");
@@ -127,32 +166,18 @@ frappe.ui.form.on("Vendor Purchase Order", {
 				frm.change_custom_button_type(__("Send Forward"), null, "primary");
 
 				frm.add_custom_button(__("Send Back"), function () {
-					frappe.prompt(
-						[
-							{
-								label: __("Reason / Corrective Action Required"),
-								fieldname: "remarks",
-								fieldtype: "Small Text",
-								reqd: 1,
-							},
-						],
-						function (values) {
-							frm.set_value("approver_comments", values.remarks);
-							frm.save().then(() => {
-								apply_action("Send Back");
-							});
-						},
+					open_review_comments_dialog(
+						"approver_comments",
 						__("Send Back to Verifier"),
-						__("Submit"),
 					);
 				});
 				frm.change_custom_button_type(__("Send Back"), null, "danger");
 			}
 		}
 
-		// Allow Administrator/System Manager to permanently delete the PO
+		// Allow Administrator/System Manager to permanently delete the PO from Menu
 		if (is_admin && frm.doc.name && !frm.doc.__islocal) {
-			frm.add_custom_button(__("Delete PO"), function () {
+			frm.page.add_menu_item(__("Delete PO"), function () {
 				frappe.confirm(
 					__(
 						"This will permanently delete Purchase Order {0}. This action cannot be undone. Continue?",
@@ -178,7 +203,6 @@ frappe.ui.form.on("Vendor Purchase Order", {
 					},
 				);
 			});
-			frm.change_custom_button_type(__("Delete PO"), null, "danger");
 		}
 
 		// Configure Print Button & Menu Visibility based on Workflow Stage and User Roles
@@ -194,8 +218,12 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			user_roles.includes("Accounts User") ||
 			is_admin;
 
+		// Forward for Payment is strictly for Approved POs
 		if (
 			is_approved &&
+			!frm.doc.__islocal &&
+			frm.doc.name &&
+			frm.doc.workflow_state !== "Cancelled" &&
 			can_forward_for_payment &&
 			(!frm.doc.payment_workflow_status ||
 				frm.doc.payment_workflow_status === "Not Forwarded")
@@ -253,7 +281,7 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			frm.change_custom_button_type(__("Verify & Forward for Payment"), null, "primary");
 		}
 
-		if (is_approved && can_create_bill) {
+		if (is_approved && !frm.doc.__islocal && frm.doc.name && frm.doc.workflow_state !== "Cancelled" && can_create_bill) {
 			if (frm.doc.purchase_invoice) {
 				frm.add_custom_button(__("View Bill"), function () {
 					frappe.set_route("Form", "Purchase Invoice", frm.doc.purchase_invoice);
@@ -291,15 +319,13 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			frm.change_custom_button_type(__("Send Payment Proof to Vendor"), null, "success");
 		}
 
-		const can_print = is_approved && (user_roles.includes("PO Generator") || is_admin);
-
-		// PI Generation Button for Internal POs (Only available on Internal PO, never on External/Vendor PO)
+		// PI Generation Button for Approved Purchase Orders
 		if (
 			is_approved &&
-			frm.doc.po_type === "Internal PO" &&
 			!frm.doc.__islocal &&
 			frm.doc.name &&
-			(user_roles.includes("PO Generator") || is_admin)
+			frm.doc.workflow_state !== "Cancelled" &&
+			(user_roles.includes("PO Generator") || user_roles.includes("PO Approver") || is_admin)
 		) {
 			frappe.db
 				.get_value(
@@ -314,17 +340,6 @@ frappe.ui.form.on("Vendor Purchase Order", {
 							frappe.set_route("Form", "Proforma Invoice", existing_pi);
 						});
 						frm.change_custom_button_type(__("View PI"), null, "info");
-
-						frm.add_custom_button(__("Generate PI"), function () {
-							frappe.show_alert({
-								message: __(
-									"Proforma Invoice {0} is already generated for this PO. Passing on to it.",
-									[existing_pi],
-								),
-								indicator: "blue",
-							});
-							frappe.set_route("Form", "Proforma Invoice", existing_pi);
-						});
 					} else {
 						frm.add_custom_button(__("Generate PI"), function () {
 							frappe.db
@@ -363,34 +378,42 @@ frappe.ui.form.on("Vendor Purchase Order", {
 				});
 		}
 
+		const can_view_po =
+			!frm.doc.__islocal &&
+			frm.doc.name &&
+			(user_roles.includes("PO Generator") ||
+				user_roles.includes("PO Verifier") ||
+				user_roles.includes("PO Approver") ||
+				user_roles.includes("Purchase Manager") ||
+				user_roles.includes("Purchase User") ||
+				is_admin);
+
 		const open_compiled_pdf = function () {
+			if (frm.is_dirty && frm.is_dirty()) {
+				frappe.msgprint(__("Please save the document first to preview the latest changes."));
+				return;
+			}
 			const pdf_url = frappe.urllib.get_full_url(
 				`/api/method/frappe.utils.print_format.download_pdf?doctype=Vendor%20Purchase%20Order&name=${encodeURIComponent(frm.doc.name)}`,
 			);
 			window.open(pdf_url, "_blank");
 		};
 
-		if (can_print) {
-			frm.add_custom_button(__("Print PO"), open_compiled_pdf);
-			frm.change_custom_button_type(__("Print PO"), null, "primary");
+		if (can_view_po) {
+			const btn_label = is_approved ? __("Print PO") : __("View PO");
+			frm.add_custom_button(btn_label, open_compiled_pdf);
+			frm.change_custom_button_type(btn_label, null, "primary");
 
 			// Intercept standard Frappe print actions
 			frm.print_doc = open_compiled_pdf;
-		}
 
-		if (!can_print) {
-			frm.page.hide_menu_item(__("Print"));
-			frm.page.hide_menu_item(__("PDF"));
-			if (frm.page.btn_print) frm.page.btn_print.hide();
-			if (frm.page.set_print_btn_display) frm.page.set_print_btn_display(false);
-		} else {
 			frm.page.show_menu_item(__("Print"));
 			frm.page.show_menu_item(__("PDF"));
 			if (frm.page.btn_print) frm.page.btn_print.show();
 			if (frm.page.set_print_btn_display) frm.page.set_print_btn_display(true);
 
 			setTimeout(() => {
-				if (frm.page) {
+				if (frm.page && frm.page.menu) {
 					frm.page.menu
 						.find('[data-label="Print"]')
 						.off("click")
@@ -409,6 +432,11 @@ frappe.ui.form.on("Vendor Purchase Order", {
 						});
 				}
 			}, 300);
+		} else {
+			frm.page.hide_menu_item(__("Print"));
+			frm.page.hide_menu_item(__("PDF"));
+			if (frm.page.btn_print) frm.page.btn_print.hide();
+			if (frm.page.set_print_btn_display) frm.page.set_print_btn_display(false);
 		}
 
 		// Hide "+ New" button for Verifiers/Approvers in Form View
@@ -891,8 +919,8 @@ function calculate_gst_and_totals(frm) {
 			const row_gst = is_tax_exempt
 				? 0
 				: row.gst_percentage !== undefined &&
-					  row.gst_percentage !== null &&
-					  row.gst_percentage !== ""
+					row.gst_percentage !== null &&
+					row.gst_percentage !== ""
 					? flt(row.gst_percentage)
 					: parent_gst;
 
@@ -912,6 +940,19 @@ function calculate_gst_and_totals(frm) {
 			tt += row.tax_amount;
 		});
 		frm.refresh_field("items");
+
+		const first = frm.doc.items[0];
+		if (first) {
+			if (first.quantity !== undefined && first.quantity !== null && first.quantity !== "") {
+				frm.set_value("quantity", flt(first.quantity));
+			}
+			if (first.equipment) frm.set_value("equipment", first.equipment);
+			if (first.equipment_name) frm.set_value("equipment_name", first.equipment_name);
+			if (first.rate !== undefined && first.rate !== null && first.rate !== "") {
+				frm.set_value("rate", flt(first.rate));
+			}
+			if (first.unit) frm.set_value("unit", first.unit);
+		}
 	} else {
 		const rate = flt(frm.doc.rate) || 0;
 		const qty = flt(frm.doc.quantity) || 1;
@@ -1391,16 +1432,15 @@ function render_cumulative_breakdown(frm) {
 								<span style="color: #0f172a;">${fmt(cum_after_logistics)}</span>
 							</div>
 
-							${
-								is_internal
-									? `
+							${is_internal
+			? `
 							<div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
 								<span style="color: #64748b;">4. Internal Margin (${margin_pct}%):</span>
 								<span style="color: #1e293b;">+ ${fmt(margin_amt)}</span>
 							</div>
 							`
-									: ""
-							}
+			: ""
+		}
 
 							<div style="display: flex; justify-content: space-between; padding: 8px 10px; font-size: 13px; background: #dbeafe; border: 1px solid #bfdbfe; border-radius: 4px; margin-top: 8px; font-weight: 700;">
 								<span style="color: #1e40af;">Final Cumulative Amount (Grand Total):</span>
