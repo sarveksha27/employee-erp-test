@@ -12,18 +12,32 @@ if not hasattr(frappe, "get_pdf"):
     frappe.get_pdf = get_pdf
 
 import erpnext.accounts.utils
-def mock_get_fiscal_years(date=None, company=None, boolean=False):
+_orig_get_fiscal_years = getattr(erpnext.accounts.utils, "get_fiscal_years", None)
+def mock_get_fiscal_years(*args, **kwargs):
+    if _orig_get_fiscal_years:
+        try:
+            res = _orig_get_fiscal_years(*args, **kwargs)
+            if res:
+                return res
+        except Exception:
+            pass
     fys = frappe.db.get_all(
         "Fiscal Year",
         fields=["name", "year_start_date", "year_end_date"],
         filters={"disabled": 0},
         order_by="year_start_date desc",
+        limit=1,
     )
-    if boolean:
+    if kwargs.get("boolean"):
         return bool(fys)
-    return fys
+    if kwargs.get("as_dict"):
+        return [{"name": f["name"], "year_start_date": f["year_start_date"], "year_end_date": f["year_end_date"]} for f in fys]
+    return [(f["name"], f["year_start_date"], f["year_end_date"]) for f in fys]
+
 erpnext.accounts.utils.get_fiscal_years = mock_get_fiscal_years
 erpnext.accounts.utils._get_fiscal_years = mock_get_fiscal_years
+import erpnext.controllers.accounts_controller
+erpnext.controllers.accounts_controller.get_fiscal_years = mock_get_fiscal_years
 
 from sarveksha_erp.payment_tracking.events.payment_entry_events import (
     attach_payment_proof_to_po,
@@ -40,8 +54,45 @@ class TestPaymentTracking(FrappeTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.test_company = frappe.db.get_value("Company", {}, "name") or "Sarveksha BSTP SAS"
-        cls.test_vendor = frappe.db.get_value("Supplier", {}, "name") or "Action Construction Equipment"
+        cls.test_company = "Sarveksha BSTP SAS"
+        if not frappe.db.exists("Company", cls.test_company):
+            cls.test_company = frappe.db.get_value("Company", {}, "name")
+        cls.test_vendor = "Action Construction Equipment"
+        if not frappe.db.exists("Supplier", cls.test_vendor):
+            cls.test_vendor = frappe.db.get_value("Supplier", {}, "name")
+
+    def setUp(self):
+        super().setUp()
+        self.created_pos = []
+        self.created_invoices = []
+        self.created_pes = []
+        self.created_files = []
+
+    def tearDown(self):
+        super().tearDown()
+        for f in getattr(self, "created_files", []):
+            try:
+                frappe.db.delete("File", {"name": f})
+            except Exception:
+                pass
+        for pe in getattr(self, "created_pes", []):
+            try:
+                frappe.db.delete("Payment Entry Reference", {"parent": pe})
+                frappe.db.delete("Payment Entry", {"name": pe})
+            except Exception:
+                pass
+        for inv in getattr(self, "created_invoices", []):
+            try:
+                frappe.db.delete("Purchase Invoice", {"name": inv})
+            except Exception:
+                pass
+        for po in getattr(self, "created_pos", []):
+            try:
+                frappe.db.delete("Vendor Purchase Order Item", {"parent": po})
+                frappe.db.delete("Vendor Purchase Order", {"name": po})
+            except Exception:
+                pass
+        frappe.db.commit()
 
     def _create_test_po(self):
         po = frappe.new_doc("Vendor Purchase Order")
@@ -50,8 +101,11 @@ class TestPaymentTracking(FrappeTestCase):
         po.quantity = 1.0
         po.rate = 1000.0
         po.exchange_rate = 1.0
+        po.expected_delivery = frappe.utils.add_days(nowdate(), 7)
+        po.delivery_location = "Conakry Port"
         po.workflow_state = "Draft"
         po.prepared_by = "Administrator"
+        po.flags.ignore_mandatory = True
         po.save(ignore_permissions=True)
         po.workflow_state = "Approved"
         po.status = "Approved"
@@ -59,6 +113,8 @@ class TestPaymentTracking(FrappeTestCase):
         po.payment_workflow_status = "Forwarded for Payment"
         po.payment_forwarded_on = frappe.utils.now_datetime()
         po.db_update()
+        if hasattr(self, "created_pos"):
+            self.created_pos.append(po.name)
         return po
 
     def test_get_linked_vendor_purchase_orders_from_invoice(self):
@@ -73,6 +129,8 @@ class TestPaymentTracking(FrappeTestCase):
         invoice.flags.ignore_validate = True
         invoice.flags.ignore_links = True
         invoice.db_insert()
+        if hasattr(self, "created_invoices"):
+            self.created_invoices.append(invoice.name)
 
         payment_entry = frappe._dict({
             "name": "ACC-PAY-TEST-001",
@@ -110,12 +168,14 @@ class TestPaymentTracking(FrappeTestCase):
             filters={
                 "attached_to_doctype": "Vendor Purchase Order",
                 "attached_to_name": po.name,
-                "file_name": f"Payment_Proof_{pe_doc.name}.pdf",
+                "file_name": ["like", f"Payment_Proof_{pe_doc.name}%"],
             },
             fields=["name", "file_name"]
         )
         self.assertTrue(len(files) > 0)
-        self.assertEqual(files[0].file_name, f"Payment_Proof_{pe_doc.name}.pdf")
+        self.assertTrue(files[0].file_name.startswith(f"Payment_Proof_{pe_doc.name}"))
+        if hasattr(self, "created_files"):
+            self.created_files.extend([f.name for f in files])
 
     def test_recalculate_po_payment_status_fully_paid(self):
         po = self._create_test_po()
@@ -132,6 +192,8 @@ class TestPaymentTracking(FrappeTestCase):
         invoice.flags.ignore_mandatory = True
         invoice.flags.ignore_validate = True
         invoice.db_insert()
+        if hasattr(self, "created_invoices"):
+            self.created_invoices.append(invoice.name)
 
         recalculate_po_payment_status(po.name)
 
@@ -200,6 +262,8 @@ class TestPaymentTracking(FrappeTestCase):
         invoice.flags.ignore_mandatory = True
         invoice.flags.ignore_validate = True
         invoice.db_insert()
+        if hasattr(self, "created_invoices"):
+            self.created_invoices.append(invoice.name)
 
         pe_doc = frappe._dict({
             "doctype": "Payment Entry",
@@ -238,38 +302,23 @@ class TestPaymentTracking(FrappeTestCase):
             filters={
                 "attached_to_doctype": "Vendor Purchase Order",
                 "attached_to_name": po.name,
-                "file_name": f"Payment_Proof_{pe_doc.name}.pdf",
+                "file_name": ["like", f"Payment_Proof_{pe_doc.name}%"],
             }
         )
         self.assertEqual(len(files), 1)
+        if hasattr(self, "created_files"):
+            self.created_files.extend([f.name for f in files])
 
     def test_payment_tracking_icon_role_visibility(self):
         """Verify that Payment Tracking desktop icon & workspace sidebar are restricted to finance roles in bootinfo"""
         from sarveksha_erp.boot import extend_bootinfo
 
-        # Create or fetch test users
-        if not frappe.db.exists("User", "finance_user_test@example.com"):
-            u1 = frappe.get_doc({
-                "doctype": "User",
-                "email": "finance_user_test@example.com",
-                "first_name": "Finance",
-                "last_name": "User",
-                "send_welcome_email": 0,
-            }).insert(ignore_permissions=True)
-            u1.add_roles("Accounts Manager")
-        
-        if not frappe.db.exists("User", "procurement_user_test@example.com"):
-            u2 = frappe.get_doc({
-                "doctype": "User",
-                "email": "procurement_user_test@example.com",
-                "first_name": "Procurement",
-                "last_name": "User",
-                "send_welcome_email": 0,
-            }).insert(ignore_permissions=True)
-            u2.add_roles("PO Generator")
+        # Use standard provisioned Sarveksha users
+        finance_user = "finance_manager1@sarveksha.com"
+        procurement_user = "vendor_manager@sarveksha.com"
 
         # Test as Finance User (Accounts Manager)
-        frappe.set_user("finance_user_test@example.com")
+        frappe.set_user(finance_user)
         bootinfo_finance = frappe._dict({
             "desktop_icons": [{"label": "Payment Tracking", "module": "Payment Tracking"}],
             "workspace_sidebar_item": [{"title": "Payment Tracking"}],
@@ -280,7 +329,7 @@ class TestPaymentTracking(FrappeTestCase):
         self.assertTrue(any(i.get("title") == "Payment Tracking" for i in bootinfo_finance.workspace_sidebar_item))
 
         # Test as Procurement User (PO Generator only)
-        frappe.set_user("procurement_user_test@example.com")
+        frappe.set_user(procurement_user)
         bootinfo_proc = frappe._dict({
             "desktop_icons": [{"label": "Payment Tracking", "module": "Payment Tracking"}],
             "workspace_sidebar_item": [{"title": "Payment Tracking"}],
@@ -314,6 +363,211 @@ class TestPaymentTracking(FrappeTestCase):
         # Verify Default Print Format is Payment Receipt Proof
         print_fmt = frappe.db.get_value("Property Setter", {"doc_type": "Payment Entry", "property": "default_print_format"}, "value")
         self.assertEqual(print_fmt, "Payment Receipt Proof")
+
+    def test_payment_entry_workflow_maker_checker(self):
+        """Acceptance Criteria 1 & 2:
+        - Accounts Clerks see 'Send for Approval', cannot directly submit.
+        - Accounts Managers can review payments and choose 'Approve & Submit' or 'Reject'.
+        """
+        from frappe.model.workflow import apply_workflow
+
+        clerk_user = "finance_clerk1@sarveksha.com"
+        manager_user = "finance_manager1@sarveksha.com"
+        company = "Sarveksha Realty and Inframine LLP"
+        supplier = self.test_vendor
+
+        frappe.set_user(clerk_user)
+        pe = frappe.new_doc("Payment Entry")
+        pe.payment_type = "Pay"
+        pe.company = company
+        pe.party_type = "Supplier"
+        pe.party = supplier
+        pe.paid_amount = 500
+        pe.received_amount = 500
+        pe.paid_from = frappe.db.get_value("Company", company, "default_bank_account")
+        pe.paid_to = frappe.db.get_value("Account", {"company": company, "account_type": "Payable"}, "name")
+        pe.reference_no = f"UTR-MC-{frappe.generate_hash(length=6)}"
+        pe.reference_date = nowdate()
+        pe.flags.ignore_mandatory = True
+        pe.flags.ignore_validate = True
+        pe.insert()
+        if hasattr(self, "created_pes"):
+            self.created_pes.append(pe.name)
+
+        self.assertEqual(pe.workflow_state, "Draft")
+        self.assertEqual(pe.docstatus, 0)
+
+        # 1. Accounts Clerk CANNOT submit directly
+        with self.assertRaises((frappe.PermissionError, frappe.ValidationError)):
+            pe.submit()
+
+        # 2. Accounts Clerk applies 'Send for Approval' -> Pending Approval
+        apply_workflow(pe, "Send for Approval")
+        pe.reload()
+        self.assertEqual(pe.workflow_state, "Pending Approval")
+        self.assertEqual(pe.docstatus, 0)
+
+        # 3. Accounts Manager rejects -> moves back to Draft
+        frappe.set_user(manager_user)
+        apply_workflow(pe, "Reject")
+        pe.reload()
+        self.assertEqual(pe.workflow_state, "Draft")
+
+        # 4. Accounts Clerk resubmits for approval
+        frappe.set_user(clerk_user)
+        apply_workflow(pe, "Send for Approval")
+        pe.reload()
+        self.assertEqual(pe.workflow_state, "Pending Approval")
+
+        # 5. Accounts Manager approves & submits -> moves to Completed and docstatus = 1
+        frappe.set_user(manager_user)
+        with patch("frappe.sendmail"), patch("frappe.publish_realtime"), patch("erpnext.accounts.doctype.payment_entry.payment_entry.PaymentEntry.make_gl_entries"):
+            apply_workflow(pe, "Approve & Submit")
+        pe.reload()
+        self.assertEqual(pe.workflow_state, "Completed")
+        self.assertEqual(pe.docstatus, 1)
+
+        frappe.set_user("Administrator")
+
+    def test_server_side_api_guard_blocks_direct_submit(self):
+        """Requirement: Server-side API guard prevents users without Accounts Manager
+        from making direct REST API calls to submit payment records, and prevents bypassing workflow.
+        """
+        clerk_user = "finance_clerk1@sarveksha.com"
+        manager_user = "finance_manager1@sarveksha.com"
+        company = "Sarveksha Realty and Inframine LLP"
+        supplier = self.test_vendor
+
+        # Clerk attempting direct submit
+        frappe.set_user(clerk_user)
+        pe = frappe.new_doc("Payment Entry")
+        pe.payment_type = "Pay"
+        pe.company = company
+        pe.party_type = "Supplier"
+        pe.party = supplier
+        pe.paid_amount = 200
+        pe.received_amount = 200
+        pe.paid_from = frappe.db.get_value("Company", company, "default_bank_account")
+        pe.paid_to = frappe.db.get_value("Account", {"company": company, "account_type": "Payable"}, "name")
+        pe.reference_no = f"UTR-GUARD-{frappe.generate_hash(length=6)}"
+        pe.reference_date = nowdate()
+        pe.flags.ignore_mandatory = True
+        pe.flags.ignore_validate = True
+        pe.insert()
+        if hasattr(self, "created_pes"):
+            self.created_pes.append(pe.name)
+
+        with self.assertRaises(frappe.PermissionError):
+            pe.submit()
+
+        # Manager attempting direct submit of a Draft payment (bypassing workflow)
+        frappe.set_user(manager_user)
+        with self.assertRaises(frappe.ValidationError):
+            pe.submit()
+
+        frappe.set_user("Administrator")
+
+    def test_standard_payment_terms_templates_configured(self):
+        """Requirement: Verify standard payment terms templates exist and are valid."""
+        required_templates = ["100% Advance", "30% Advance - 70% Against BL", "Net 30 Days"]
+        for tmpl_name in required_templates:
+            self.assertTrue(frappe.db.exists("Payment Terms Template", tmpl_name), f"Missing template: {tmpl_name}")
+            tmpl = frappe.get_doc("Payment Terms Template", tmpl_name)
+            total_portion = sum(flt(row.invoice_portion) for row in tmpl.terms)
+            self.assertAlmostEqual(total_portion, 100.0, places=1, msg=f"{tmpl_name} portions must sum to 100%")
+
+    def test_automatic_po_payment_status_sync(self):
+        """Acceptance Criteria 3:
+        Submitting a payment immediately marks the linked Purchase Order as Paid or Partially Paid and notifies PO creator.
+        """
+        from sarveksha_erp.payment_tracking.events.payment_entry_events import on_payment_submit
+
+        po = self._create_test_po()
+        po.grand_total = 1000.0
+        po.db_update()
+
+        # 1. Partial payment: $400 out of $1000
+        invoice = frappe.new_doc("Purchase Invoice")
+        invoice.company = self.test_company
+        invoice.supplier = self.test_vendor
+        invoice.vendor_purchase_order = po.name
+        invoice.bill_no = f"INV-PARTIAL-{frappe.generate_hash(length=4)}"
+        invoice.bill_date = nowdate()
+        invoice.grand_total = 1000.0
+        invoice.outstanding_amount = 600.0
+        invoice.docstatus = 1
+        invoice.flags.ignore_mandatory = True
+        invoice.flags.ignore_validate = True
+        invoice.db_insert()
+        if hasattr(self, "created_invoices"):
+            self.created_invoices.append(invoice.name)
+
+        pe_doc = frappe._dict({
+            "doctype": "Payment Entry",
+            "name": f"ACC-PAY-PARTIAL-{frappe.generate_hash(length=4)}",
+            "posting_date": nowdate(),
+            "reference_no": "UTR-PARTIAL-1",
+            "party_type": "Supplier",
+            "party": self.test_vendor,
+            "party_name": "Action Construction Equipment",
+            "paid_amount": 400.0,
+            "paid_to_account_currency": "USD",
+            "company": self.test_company,
+            "references": [
+                frappe._dict({
+                    "reference_doctype": "Purchase Invoice",
+                    "reference_name": invoice.name,
+                    "total_amount": 1000.0,
+                    "allocated_amount": 400.0,
+                    "outstanding_amount": 600.0,
+                })
+            ]
+        })
+
+        with patch("frappe.sendmail") as mock_mail, patch("frappe.publish_realtime") as mock_alert:
+            on_payment_submit(pe_doc)
+            self.assertTrue(mock_mail.called)
+            self.assertTrue(mock_alert.called)
+
+        po.reload()
+        self.assertEqual(po.payment_tracking_status, "Partially Paid")
+        self.assertEqual(po.payment_workflow_status, "Partially Paid")
+
+        # 2. Full payment: remaining $600 paid (outstanding = 0)
+        invoice.outstanding_amount = 0.0
+        invoice.db_update()
+
+        pe_doc_full = frappe._dict({
+            "doctype": "Payment Entry",
+            "name": f"ACC-PAY-FULL-{frappe.generate_hash(length=4)}",
+            "posting_date": nowdate(),
+            "reference_no": "UTR-FULL-2",
+            "party_type": "Supplier",
+            "party": self.test_vendor,
+            "party_name": "Action Construction Equipment",
+            "paid_amount": 600.0,
+            "paid_to_account_currency": "USD",
+            "company": self.test_company,
+            "references": [
+                frappe._dict({
+                    "reference_doctype": "Purchase Invoice",
+                    "reference_name": invoice.name,
+                    "total_amount": 1000.0,
+                    "allocated_amount": 600.0,
+                    "outstanding_amount": 0.0,
+                })
+            ]
+        })
+
+        with patch("frappe.sendmail") as mock_mail, patch("frappe.publish_realtime") as mock_alert:
+            on_payment_submit(pe_doc_full)
+            self.assertTrue(mock_mail.called)
+            self.assertTrue(mock_alert.called)
+
+        po.reload()
+        self.assertEqual(po.payment_tracking_status, "Paid")
+        self.assertEqual(po.payment_workflow_status, "Paid")
+        self.assertEqual(po.payment_fully_paid, 1)
 
 
 

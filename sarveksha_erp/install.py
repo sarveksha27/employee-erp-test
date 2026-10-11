@@ -15,7 +15,7 @@ def copy_letterhead_assets():
     for fname in os.listdir(app_files_dir):
         src = os.path.join(app_files_dir, fname)
         dst = os.path.join(site_files_dir, fname)
-        if os.path.isfile(src) and not os.path.exists(dst):
+        if os.path.isfile(src):
             try:
                 shutil.copy2(src, dst)
             except Exception:
@@ -197,14 +197,14 @@ def setup_roles_permissions_and_users():
             "username": "po_generator",
             "first_name": "PO Generator",
             "last_name": "Generator",
-            "roles": ["PO Generator", "Desk User", "Purchase User", "Accounts User", "All"],
+            "roles": ["PO Generator", "Desk User", "Purchase User", "All"],
         },
         {
             "email": "po_verifier@sarveksha.com",
             "username": "po_verifier",
             "first_name": "PO Verifier",
             "last_name": "Verifier",
-            "roles": ["PO Verifier", "Desk User", "Purchase User", "Accounts User", "All"],
+            "roles": ["PO Verifier", "Desk User", "Purchase User", "All"],
         },
         {
             "email": "po_approver@sarveksha.com",
@@ -309,43 +309,43 @@ def setup_letterheads():
         {
             "name": "Cameroon (Sarveksha Cameroon PLC)",
             "image": "/files/letterhead_cameroon_plc.png",
-            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>SARVEKSHA CAMEROON PLC</strong><br>Mining, Mining Services, Construction, Public Works, Trading and Commerce | RCCM: RC / YAO/ 2025 / B / 969</div>',
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>SARVEKSHA CAMEROON PLC</strong><br>No: 501, Fifth floor, Immeuble BRIANT, Carrefour Golf, Yaoundé | Ph: +237652280756 | Email: svbstp@gmail.com<br>Mining, Mining Services, Construction, Public Works, Trading and Commerce | RCCM: RC / YAO / 2025 / B / 969</div>',
             "is_default": 0,
         },
         {
             "name": "Cameroon (Sarveksha Mining SARL)",
             "image": "/files/letterhead_cameroon_mining.png",
-            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha Mining SARL</strong><br>BATIMENT ET TRAVAUX PUBLICS; COMMERCE GENERAL (IMPORT-EXPORT); REPRESENTATION COMMERCIALE; AGRO-BUSINESS; PECHE; CONSULTATION; TRANSPORT LOGISTIQUE; PRESTATIONS DE SERVICES; DIVERS. | RCCM: CM-NSI-02-2025-B12-00560</div>',
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha Mining SARL</strong><br>No: 501, Fifth floor, Immeubles BRIANT, Carrefour Golf, Yaoundé | Phone: +237652280756 | Email: svbstp@gmail.com<br>BATIMENT ET TRAVAUX PUBLICS; COMMERCE GENERAL (IMPORT-EXPORT); REPRESENTATION COMMERCIALE; AGRO-BUSINESS; PECHE; CONSULTATION; TRANSPORT LOGISTIQUE; PRESTATIONS DE SERVICES; DIVERS. | RCCM: CM-NSI-02-2025-B12-00560</div>',
             "is_default": 0,
         },
         {
             "name": "Cameroon (Baani Minerals)",
             "image": "/files/letterhead_cameroon_baani.png",
-            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Baani Minerals</strong><br>Mining, Mining Services, Construction, Public Works, Trading and Commerce | RCCM: CM-NSI-02-2025-B12-00784</div>',
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>BAANI RESOURCES SARL</strong><br>No: 501, Fifth floor, Immeuble BRIANT, Carrefour Golf, Yaoundé | Ph: +237652280756 | Email: svbstp@gmail.com, cameroonprojects@sarveksha.com<br>Mining, Mining Services, Construction, Public Works, Trading and Commerce | RCCM: CM-NSI-02-2025-B12-00784</div>',
             "is_default": 0,
         },
         {
             "name": "Botswana (Sarveksha Botswana)",
             "image": "/files/letterhead_botswana.png",
-            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha Botswana Proprietary Limited</strong><br>Equipment and Public Works; General Trading; Construction &amp; Civil &amp; Erection Work | UIN: BW00009608412</div>',
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha Botswana Proprietary Limited</strong><br>Capricorn Camp, Mmamabula, Mookane, Botswana | P O Box 501283, Gaborone, Botswana | Phone: +237652280756 | Email: svbstp@gmail.com, sudheerg@sarveksha.com<br>Equipment and Public Works; General Trading; Construction &amp; Civil &amp; Erection Work | UIN: BW00009608412</div>',
             "is_default": 0,
         },
         {
             "name": "Guinea (Sarveksha BSTP SAS)",
             "image": "/files/letterhead_guinea_bstp.png",
-            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha BSTP SAS</strong><br>BATIMENT ET TRAVAUX PUBLICS; COMMERCE GENERAL (IMPORT-EXPORT); REPRESENTATION COMMERCIALE; AGRO-BUSINESS; PECHE; CONSULTATION; TRANSPORT LOGISTIQUE; PRESTATIONS DE SERVICES; DIVERS.</div>',
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha BSTP SAS</strong><br>Kaloum, Teminetaye, Conakry, Republic of Guinea | Phone: (+224) 626407133 | Email: svbstp@gmail.com<br>BATIMENT ET TRAVAUX PUBLICS; COMMERCE GENERAL (IMPORT-EXPORT); REPRESENTATION COMMERCIALE; AGRO-BUSINESS; PECHE; CONSULTATION; TRANSPORT LOGISTIQUE; PRESTATIONS DE SERVICES; DIVERS. | RCCM / GN / TCC .2024. B. 02459 | Code Neif: 684060320 Dt. 21.02.2024</div>',
             "is_default": 0,
         },
         {
             "name": "Sierra Leone (Sarveksha SL Limited)",
             "image": "/files/letterhead_sierra_leone.png",
-            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha SL Limited</strong><br>Mining, Mineral Processing, Mining Services, Mineral Trading, Public Works; General Trading; Construction &amp; Civil &amp; Erection Work | Reg No: SL120624SARVE22162 | TIN NO: 1001412648</div>',
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha SL Limited</strong><br>House No 2, Kamara Drive, Hill Station, Freetown, Republic of Sierra Leone | Phone: +232 74899999 | Email: svbstp@gmail.com<br>Mining, Mineral Processing, Mining Services, Mineral Trading, Public Works; General Trading; Construction &amp; Civil &amp; Erection Work | Reg No: SL120624SARVE22162 | TIN NO: 1001412648</div>',
             "is_default": 0,
         },
         {
             "name": "India (Sarveksha Realty)",
             "image": "/files/letterhead_sri_india.png",
-            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;">\n        Sarveksha Realty &amp; Inframine LLP | Sparsh 303, Plot 101-102, Sec 44 Seawoods, Navi Mumbai, 400706 |\n        Phone: (+91) 9769008220 | Email: sudheerg@sarveksha.com\n    </div>',
+            "footer": '<div style="text-align:center; font-size:9px; color:#666; border-top:1px solid #ccc; padding-top:4px; margin-top:4px;"><strong>Sarveksha Realty &amp; Inframine LLP</strong><br>Sparsh 303, Plot 101-102, Sec 44 Seawoods, Navi Mumbai, 400706 | Phone: (+91) 9769008220 | Email: sudheerg@sarveksha.com<br>Infrastructure; Building and Public Works; Mining and Terch Services | LLPIN: ACS-0698 | GSTIN: 27AFTFS2557J1Z8</div>',
             "is_default": 1,
         },
     ]
@@ -381,8 +381,12 @@ def after_install():
     sync_desktop_icons()
     setup_roles_permissions_and_users()
     setup_payment_entry_defaults()
+    from sarveksha_erp.patches.setup_payment_terms import execute as setup_terms
+    setup_terms()
     from sarveksha_erp.patches.v1_setup_departments_and_permissions import execute as setup_depts
     setup_depts()
+    from sarveksha_erp.patches.cleanup_test_data import execute as cleanup_tests
+    cleanup_tests()
 
 
 def after_migrate():
@@ -392,5 +396,10 @@ def after_migrate():
     sync_desktop_icons()
     setup_roles_permissions_and_users()
     setup_payment_entry_defaults()
+    from sarveksha_erp.patches.setup_payment_terms import execute as setup_terms
+    setup_terms()
     from sarveksha_erp.patches.v1_setup_departments_and_permissions import execute as setup_depts
     setup_depts()
+    from sarveksha_erp.patches.cleanup_test_data import execute as cleanup_tests
+    cleanup_tests()
+

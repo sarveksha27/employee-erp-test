@@ -82,6 +82,18 @@ fixtures = [
             ["role", "in", ["PO Generator", "PO Verifier", "PO Approver", "Accounts Clerk", "Accounts Manager", "System Manager"]]
         ]
     },
+    {
+        "dt": "Payment Term",
+        "filters": [
+            ["name", "in", ["100% Advance", "30% Advance", "70% Against BL", "Net 30 Days"]]
+        ]
+    },
+    {
+        "dt": "Payment Terms Template",
+        "filters": [
+            ["name", "in", ["100% Advance", "30% Advance - 70% Against BL", "Net 30 Days"]]
+        ]
+    },
 ]
 
 # include js, css files in header of web template
@@ -195,6 +207,7 @@ permission_query_conditions = {
 
 override_whitelisted_methods = {
     "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.get_supplier_payment_details": "sarveksha_erp.patches.v1_setup_departments_and_permissions.get_supplier_payment_details",
+    "frappe.utils.print_format.download_pdf": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.pdf_handler.download_pdf",
 }
 
 # Document Events
@@ -213,7 +226,7 @@ doc_events = {
         "before_submit": "sarveksha_erp.payment_tracking.payment_entry_workflow.validate_payment_entry_workflow",
         "on_submit": [
             "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
-            "sarveksha_erp.payment_tracking.events.payment_entry_events.on_payment_entry_submit"
+            "sarveksha_erp.payment_tracking.events.payment_entry_events.on_payment_submit"
         ],
         "on_cancel": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
         "on_update_after_submit": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
@@ -256,10 +269,7 @@ doc_events = {
 
 # Overriding Methods
 # ------------------------------
-
-override_whitelisted_methods = {
-	"frappe.utils.print_format.download_pdf": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.pdf_handler.download_pdf"
-}
+# (Merged into override_whitelisted_methods above)
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
