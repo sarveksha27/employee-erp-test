@@ -1,7 +1,7 @@
 import frappe
 
 
-def validate_payment_entry_workflow(doc, method):
+def validate_payment_entry_workflow(doc, method=None):
     """
     Member 2 (Manik) - Payment Entry Workflow Validation.
 
@@ -26,9 +26,18 @@ def validate_payment_entry_workflow(doc, method):
             frappe.PermissionError
         )
 
-    # Accounts Manager can only submit if the workflow state is 'Pending Approval'
+    # Accounts Manager can only submit if the document was in 'Pending Approval' workflow state
     workflow_state = doc.get("workflow_state")
-    if workflow_state != "Pending Approval":
+    db_state = frappe.db.get_value("Payment Entry", doc.name, "workflow_state") if doc.name else None
+
+    # When Frappe applies the 'Approve & Submit' transition, workflow_state is set to 'Completed' in memory
+    # while the persisted database state is 'Pending Approval'. Both indicate a legitimate approval transition.
+    is_valid_transition = (
+        (db_state == "Pending Approval" and workflow_state in ("Pending Approval", "Completed"))
+        or (workflow_state == "Pending Approval")
+    )
+
+    if not is_valid_transition:
         frappe.throw(
             f"Cannot submit Payment Entry. "
             f"Current workflow state is '{workflow_state}'. "

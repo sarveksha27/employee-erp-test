@@ -315,12 +315,12 @@ class VendorPurchaseOrder(Document):
 
     def set_default_terms(self):
         """Auto-set default Terms and Conditions if not explicitly selected."""
-        if self.standard_terms:
+        if getattr(self, "standard_terms", None):
             return
 
         terms_to_add = []
 
-        if self.is_lut_applicable and frappe.db.exists("Terms and Conditions", "LUT Certificate Terms"):
+        if getattr(self, "is_lut_applicable", None) and frappe.db.exists("Terms and Conditions", "LUT Certificate Terms"):
             terms_to_add.append("LUT Certificate Terms")
 
         if self.company:

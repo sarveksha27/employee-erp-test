@@ -11,6 +11,11 @@ if not hasattr(frappe, "get_pdf"):
     frappe.get_pdf = get_pdf
 
 
+def on_payment_submit(doc, method=None):
+    """Event listener bound to Payment Entry on_submit in hooks.py."""
+    return on_payment_entry_submit(doc, method)
+
+
 def on_payment_entry_submit(doc, method=None):
     """
     Member 4 - Post-Payment Execution Event Hook.
@@ -160,13 +165,21 @@ def attach_payment_proof_to_po(po, doc, pdf_bytes: bytes):
         filters={
             "attached_to_doctype": "Vendor Purchase Order",
             "attached_to_name": po.name,
-            "file_name": file_name,
+            "file_name": ["like", f"Payment_Proof_{doc.name}%"],
         },
-        pluck="name",
+        fields=["name", "file_url"],
     )
     for ef in existing_files:
         try:
-            frappe.delete_doc("File", ef, ignore_permissions=True, force=True)
+            frappe.delete_doc("File", ef.name, ignore_permissions=True, force=True)
+        except Exception:
+            pass
+
+    # Ensure disk file is removed if it already exists to prevent Frappe hash renaming
+    disk_path = frappe.get_site_path("public", "files", file_name)
+    if os.path.exists(disk_path):
+        try:
+            os.remove(disk_path)
         except Exception:
             pass
 
@@ -213,9 +226,63 @@ def recalculate_po_payment_status(po_name: str):
         else flt(getattr(po, "grand_total", 0)) - flt(getattr(po, "advance_amount", 0))
     )
 
-    # Sync payment_tracking_status if field exists
-    if hasattr(po, "payment_tracking_status") or (hasattr(po, "as_dict") and "payment_tracking_status" in po.as_dict()):
-        rollup["payment_tracking_status"] = rollup.get("payment_workflow_status")
+    # Calculate total payments made against the order
+    total_paid_from_invoices = sum(
+        max(flt(inv.get("grand_total")) - flt(inv.get("outstanding_amount")), 0)
+        for inv in invoices
+        if int(inv.get("docstatus") or 0) == 1
+    )
+
+    direct_pe_amounts = 0.0
+    if frappe.db.has_column("Payment Entry", "vendor_purchase_order"):
+        direct_pe_amounts += flt(frappe.db.sql(
+            "SELECT COALESCE(SUM(paid_amount), 0) FROM `tabPayment Entry` WHERE docstatus = 1 AND vendor_purchase_order = %s",
+            (po_name,),
+        )[0][0])
+    if frappe.db.has_column("Payment Entry", "custom_vendor_purchase_order"):
+        direct_pe_amounts += flt(frappe.db.sql(
+            "SELECT COALESCE(SUM(paid_amount), 0) FROM `tabPayment Entry` WHERE docstatus = 1 AND custom_vendor_purchase_order = %s",
+            (po_name,),
+        )[0][0])
+
+    ref_pe_amounts = frappe.db.sql(
+        """
+        SELECT COALESCE(SUM(per.allocated_amount), 0)
+        FROM `tabPayment Entry Reference` per
+        JOIN `tabPayment Entry` pe ON pe.name = per.parent
+        WHERE pe.docstatus = 1
+        AND per.reference_doctype = 'Vendor Purchase Order'
+        AND per.reference_name = %s
+        """,
+        (po_name,),
+    )[0][0] or 0.0
+
+    total_payments = max(
+        flt(total_paid_from_invoices) + flt(direct_pe_amounts) + flt(ref_pe_amounts),
+        flt(rollup.get("billed_amount", 0)) - flt(rollup.get("outstanding_amount", 0))
+    )
+
+    po_grand_total = flt(getattr(po, "grand_total", 0))
+
+    if po_grand_total > 0 and total_payments >= po_grand_total:
+        tracking_status = "Paid"
+        rollup["payment_status"] = "Fully Paid"
+        rollup["payment_workflow_status"] = "Paid"
+        rollup["payment_fully_paid"] = 1
+        rollup["payment_partially_paid"] = 0
+        rollup["payment_pending"] = 0
+        rollup["balance_due"] = 0.0
+    elif total_payments > 0:
+        tracking_status = "Partially Paid"
+        rollup["payment_status"] = "Partially Paid"
+        rollup["payment_workflow_status"] = "Partially Paid"
+        rollup["payment_fully_paid"] = 0
+        rollup["payment_partially_paid"] = 1
+        rollup["payment_pending"] = 0
+    else:
+        tracking_status = rollup.get("payment_workflow_status") or "Pending"
+
+    rollup["payment_tracking_status"] = tracking_status
 
     frappe.db.set_value(getattr(po, "doctype", "Vendor Purchase Order"), getattr(po, "name", po_name), rollup, update_modified=True)
     if hasattr(po, "notify_update"):

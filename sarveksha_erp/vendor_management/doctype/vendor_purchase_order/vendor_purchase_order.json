@@ -112,6 +112,7 @@
     "billed_amount",
     "outstanding_amount",
     "payment_workflow_status",
+    "payment_tracking_status",
     "payment_forwarded_by",
     "payment_forwarded_on",
     "sec_verification_approval",
@@ -831,6 +832,14 @@
       "hidden": 1,
       "label": "Payment Processing Status",
       "options": "Not Forwarded\nForwarded for Payment\nBill Draft\nBilled\nPartially Paid\nPaid",
+      "read_only": 1
+    },
+    {
+      "default": "Pending",
+      "fieldname": "payment_tracking_status",
+      "fieldtype": "Select",
+      "label": "Payment Tracking Status",
+      "options": "Pending\nPartially Paid\nPaid",
       "read_only": 1
     },
     {

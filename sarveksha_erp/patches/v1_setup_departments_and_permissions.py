@@ -329,7 +329,7 @@ def payment_entry_has_permission(doc, ptype="read", user=None, **kwargs):
 		return True
 	if roles.intersection(PROCUREMENT_ROLES):
 		return False
-	return None
+	return True
 
 
 def payment_entry_permission_query_conditions(user=None):

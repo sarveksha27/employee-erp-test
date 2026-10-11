@@ -4,7 +4,7 @@ Procurement and Vendor Management ERP system for Sarveksha Group, built on Frapp
 
 ---
 
-## Version: `1.1.2`
+## Version: `2.1.1`
 
 ### Versioning Scheme (`X.Y.Z`)
 * **1st digit (`X`)**: Initial deployed release (currently initial deployment `1`).
