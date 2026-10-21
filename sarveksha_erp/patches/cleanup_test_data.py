@@ -301,7 +301,7 @@ def execute():
     cleanup_test_masters()
     cleanup_test_users()
     cleanup_test_companies()
-    sync_sarveksha_companies_registration()
     from sarveksha_erp.install import setup_letterheads
     setup_letterheads()
+    sync_sarveksha_companies_registration()
     frappe.db.commit()
