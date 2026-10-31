@@ -198,20 +198,24 @@ class VendorPurchaseOrder(Document):
             return
 
         comp_doc = frappe.get_doc("Company", self.company)
-        if not self.currency and comp_doc.default_currency:
+        if not self.currency and comp_doc.get("default_currency"):
             self.currency = comp_doc.default_currency
 
-        if not self.default_port and comp_doc.custom_default_port:
-            self.default_port = comp_doc.custom_default_port
+        if not self.default_port and comp_doc.get("custom_default_port"):
+            self.default_port = comp_doc.get("custom_default_port")
             if not self.port:
-                first_port = comp_doc.custom_default_port.split(',')[0].strip()
+                first_port = comp_doc.get("custom_default_port").split(',')[0].strip()
                 if frappe.db.exists("Port", first_port):
                     self.port = first_port
 
-        if comp_doc.tax_id:
-            self.company_gstin = comp_doc.tax_id
-        if comp_doc.custom_pan:
-            self.company_pan = comp_doc.custom_pan
+        if comp_doc.get("tax_id"):
+            self.company_gstin = comp_doc.get("tax_id")
+        if comp_doc.get("custom_pan"):
+            self.company_pan = comp_doc.get("custom_pan")
+        elif comp_doc.get("pan"):
+            self.company_pan = comp_doc.get("pan")
+        elif self.company_gstin and len(self.company_gstin) == 15:
+            self.company_pan = self.company_gstin[2:12]
 
         # Fetch physical address of the Company from linked Address doctype
         address_text = ""
@@ -229,12 +233,12 @@ class VendorPurchaseOrder(Document):
         details_arr = []
         if address_text:
             details_arr.append(address_text)
-        if comp_doc.registration_details:
-            details_arr.append(comp_doc.registration_details)
-        if comp_doc.tax_id:
-            details_arr.append(f"Tax ID / GSTIN: {comp_doc.tax_id}")
-        if comp_doc.custom_pan:
-            details_arr.append(f"PAN: {comp_doc.custom_pan}")
+        if comp_doc.get("registration_details"):
+            details_arr.append(comp_doc.get("registration_details"))
+        if self.company_gstin:
+            details_arr.append(f"Tax ID / GSTIN: {self.company_gstin}")
+        if self.company_pan:
+            details_arr.append(f"PAN: {self.company_pan}")
 
         if details_arr:
             self.company_address = "\n".join([d for d in details_arr if d])
@@ -1465,23 +1469,28 @@ def get_company_details(company):
         if address_text:
             address_text = address_text.replace("<br>", "\n").strip()
 
+    company_pan = comp_doc.get("custom_pan") or comp_doc.get("pan") or ""
+    company_tax_id = comp_doc.get("tax_id") or ""
+    if not company_pan and company_tax_id and len(company_tax_id) == 15:
+        company_pan = company_tax_id[2:12]
+
     details_arr = []
     if address_text:
         details_arr.append(address_text)
-    if comp_doc.registration_details:
-        details_arr.append(comp_doc.registration_details)
-    if comp_doc.tax_id:
-        details_arr.append(f"Tax ID / GSTIN: {comp_doc.tax_id}")
-    if comp_doc.custom_pan:
-        details_arr.append(f"PAN: {comp_doc.custom_pan}")
+    if comp_doc.get("registration_details"):
+        details_arr.append(comp_doc.get("registration_details"))
+    if company_tax_id:
+        details_arr.append(f"Tax ID / GSTIN: {company_tax_id}")
+    if company_pan:
+        details_arr.append(f"PAN: {company_pan}")
 
     company_address = "\n".join([d for d in details_arr if d])
 
     # Auto-detect letter head
-    letter_head = comp_doc.default_letter_head
+    letter_head = comp_doc.get("default_letter_head")
     if not letter_head:
         company_name = company.lower()
-        country = (comp_doc.country or "").lower()
+        country = (comp_doc.get("country") or "").lower()
         letter_head = "India (Sarveksha Realty)"
         if "botswana" in company_name or "botswana" in country:
             letter_head = "Botswana (Sarveksha Botswana)"
@@ -1501,10 +1510,10 @@ def get_company_details(company):
             letter_head = "India (Sarveksha Realty)"
 
     return {
-        "default_port": comp_doc.custom_default_port or "",
-        "currency": comp_doc.default_currency or "",
-        "company_gstin": comp_doc.tax_id or "",
-        "company_pan": comp_doc.custom_pan or "",
+        "default_port": comp_doc.get("custom_default_port") or "",
+        "currency": comp_doc.get("default_currency") or "",
+        "company_gstin": company_tax_id,
+        "company_pan": company_pan,
         "company_address": company_address,
         "letter_head": letter_head
     }
