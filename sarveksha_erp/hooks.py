@@ -216,7 +216,11 @@ override_whitelisted_methods = {
 
 doc_events = {
     "Purchase Invoice": {
-        "validate": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.validate_vendor_purchase_invoice_reference",
+        "validate": [
+            "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.validate_vendor_purchase_invoice_reference",
+            "sarveksha_erp.payment_tracking.bill_schedule_mapper.reallocate_invoice_milestone_schedule"
+        ],
+        "before_submit": "sarveksha_erp.payment_tracking.bill_schedule_mapper.validate_invoice_milestone_schedule_before_submit",
         "after_insert": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
         "on_submit": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
         "on_cancel": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
