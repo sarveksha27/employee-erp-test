@@ -74,6 +74,7 @@ class VendorPurchaseOrder(Document):
         self.validate_non_negative_values()
         self.validate_required_fields()
         self.validate_unique_ref_number()
+        self.validate_payment_terms_schedule()
         self.sync_payment_check_fields()
 
     SRI_ENTITY_NAME = "Sarveksha Realty and Inframine LLP"
@@ -830,6 +831,23 @@ class VendorPurchaseOrder(Document):
                 indicator="orange"
             )
 
+    def validate_payment_terms_schedule(self):
+        """
+        When workflow_state is advancing to 'Approved' or 'Forwarded to Finance',
+        validates that payment_terms_template and payment_schedule are properly set.
+        """
+        advancing_states = {
+            "Approved",
+            "Forwarded for Payment",
+            "Forwarded to Finance",
+        }
+        current_state = self.workflow_state or "Draft"
+        if current_state not in advancing_states:
+            return
+
+        from sarveksha_erp.payment_tracking.vpo_payment_terms import validate_vpo_payment_schedule
+        validate_vpo_payment_schedule(self)
+
     def sync_payment_check_fields(self):
         """Sync boolean Check fields with payment_status Select field value."""
         status = self.payment_status or "Pending"
@@ -1253,6 +1271,10 @@ def forward_vendor_purchase_order_for_payment(po_name, invoice_file, invoice_num
         frappe.throw(_("Supplier invoice date cannot be in the future."), frappe.ValidationError)
     if po.payment_workflow_status not in (None, "", "Not Forwarded"):
         frappe.throw(_("This Purchase Order has already entered payment processing."), frappe.ValidationError)
+
+    # Validate payment schedule is complete and balanced before forwarding
+    from sarveksha_erp.payment_tracking.vpo_payment_terms import validate_vpo_payment_schedule
+    validate_vpo_payment_schedule(po)
 
     file_name = frappe.db.get_value("File", {"file_url": invoice_file}, "name")
     if not file_name:
