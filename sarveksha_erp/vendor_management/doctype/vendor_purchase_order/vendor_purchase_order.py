@@ -14,9 +14,9 @@ class VendorPurchaseOrder(Document):
 
     def autoname(self):
         """
-        Automatically generate PO number including the year.
-        If naming_series is SRI.PO.-.####, the generated name becomes SRIPO-YYYY-#### (e.g. SRIPO-2026-0001).
-        If po_date is set, its year is used; otherwise current year is used.
+        Automatically generate PO number in format:
+        SRI.PO.-.####-DD-MM-YYYY -> e.g. SRIPO-0001-04-11-2026
+        Uses po_date if available, else current date.
         """
         if self.name:
             return
@@ -24,20 +24,25 @@ class VendorPurchaseOrder(Document):
         from frappe.model.naming import make_autoname
         from frappe.utils import getdate, nowdate
 
-        po_date = getattr(self, "po_date", None)
-        po_year = str(getdate(po_date).year) if po_date else str(getdate(nowdate()).year)
+        ref_date = getdate(self.po_date) if getattr(self, "po_date", None) else getdate(nowdate())
+        dd = ref_date.strftime("%d")
+        mm = ref_date.strftime("%m")
+        yyyy = ref_date.strftime("%Y")
 
         series = getattr(self, "naming_series", None) or "SRI.PO.-.####"
-        if "YYYY" in series:
-            pattern = series
-        elif "YY" in series:
+        if "DD" in series and "MM" in series and "YYYY" in series:
             pattern = series
         elif ".-." in series:
-            pattern = series.replace(".-.", f".-.{po_year}.-.")
+            # SRI.PO.-.#### -> SRI.PO.-.####.-.DD.-.MM.-.YYYY
+            pattern = series.replace(".-.", ".-.")
+            if "####" in pattern:
+                pattern = pattern.replace(".####", f".####.-.{dd}.-.{mm}.-.{yyyy}")
+            else:
+                pattern = f"{pattern}.-.{dd}.-.{mm}.-.{yyyy}"
         elif ".####" in series:
-            pattern = series.replace(".####", f".{po_year}.####")
+            pattern = series.replace(".####", f".####.-.{dd}.-.{mm}.-.{yyyy}")
         else:
-            pattern = f"SRI.PO.-.{po_year}.-.####"
+            pattern = f"SRI.PO.-.####.-.{dd}.-.{mm}.-.{yyyy}"
 
         self.name = make_autoname(pattern, doc=self)
 
@@ -683,10 +688,21 @@ class VendorPurchaseOrder(Document):
 
         # Generate a new reference number using the series
         series_prefix = self.naming_series or "SRI.PO.-.####"
+        from frappe.utils import getdate, nowdate
+        ref_date = getdate(self.po_date) if getattr(self, "po_date", None) else getdate(nowdate())
+        dd = ref_date.strftime("%d")
+        mm = ref_date.strftime("%m")
+        yyyy = ref_date.strftime("%Y")
+
         if ".-." in series_prefix:
             ref_series = series_prefix.replace(".-.", ".REF.-.")
         else:
             ref_series = series_prefix.replace(".####", ".REF.####")
+
+        if ".####" in ref_series:
+            ref_series = ref_series.replace(".####", f".####.-.{dd}.-.{mm}.-.{yyyy}")
+        else:
+            ref_series = f"{ref_series}.-.{dd}.-.{mm}.-.{yyyy}"
 
         from frappe.model.naming import make_autoname
         generated_ref = make_autoname(ref_series)

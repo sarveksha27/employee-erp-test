@@ -30,9 +30,10 @@ class TestPONumberAndSummary(unittest.TestCase):
 
         frappe.db.commit()
 
-    def test_po_number_includes_current_year(self):
-        """Verify that newly generated PO number automatically includes current year."""
-        current_year = str(getdate(nowdate()).year)
+    def test_po_number_format_with_date(self):
+        """Verify that newly generated PO number follows SRI.PO.-.####-DD-MM-YYYY format."""
+        today = getdate(nowdate())
+        expected_date_suffix = today.strftime("-%d-%m-%Y")
 
         po = frappe.new_doc("Vendor Purchase Order")
         po.po_type = "Vendor PO"
@@ -49,15 +50,15 @@ class TestPONumberAndSummary(unittest.TestCase):
 
         try:
             self.assertIsNotNone(po.name)
-            self.assertIn(current_year, po.name)
-            self.assertTrue(po.name.startswith(f"SRIPO-{current_year}-"))
+            self.assertTrue(po.name.startswith("SRIPO-"))
+            self.assertTrue(po.name.endswith(expected_date_suffix))
         finally:
             frappe.db.rollback()
 
-    def test_po_number_includes_specific_po_date_year(self):
-        """Verify that PO with specific po_date derives year from po_date."""
+    def test_po_number_format_with_specific_po_date(self):
+        """Verify that PO with specific po_date derives DD-MM-YYYY from po_date."""
         target_date = "2025-06-15"
-        expected_year = "2025"
+        expected_suffix = "-15-06-2025"
 
         po = frappe.new_doc("Vendor Purchase Order")
         po.po_type = "Vendor PO"
@@ -75,8 +76,8 @@ class TestPONumberAndSummary(unittest.TestCase):
 
         try:
             self.assertIsNotNone(po.name)
-            self.assertIn(expected_year, po.name)
-            self.assertTrue(po.name.startswith(f"SRIPO-{expected_year}-"))
+            self.assertTrue(po.name.startswith("SRIPO-"))
+            self.assertTrue(po.name.endswith(expected_suffix))
         finally:
             frappe.db.rollback()
 
