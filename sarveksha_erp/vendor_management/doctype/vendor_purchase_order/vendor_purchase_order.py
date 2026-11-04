@@ -12,6 +12,35 @@ from frappe.utils import flt, getdate, nowdate
 
 class VendorPurchaseOrder(Document):
 
+    def autoname(self):
+        """
+        Automatically generate PO number including the year.
+        If naming_series is SRI.PO.-.####, the generated name becomes SRIPO-YYYY-#### (e.g. SRIPO-2026-0001).
+        If po_date is set, its year is used; otherwise current year is used.
+        """
+        if self.name:
+            return
+
+        from frappe.model.naming import make_autoname
+        from frappe.utils import getdate, nowdate
+
+        po_date = getattr(self, "po_date", None)
+        po_year = str(getdate(po_date).year) if po_date else str(getdate(nowdate()).year)
+
+        series = getattr(self, "naming_series", None) or "SRI.PO.-.####"
+        if "YYYY" in series:
+            pattern = series
+        elif "YY" in series:
+            pattern = series
+        elif ".-." in series:
+            pattern = series.replace(".-.", f".-.{po_year}.-.")
+        elif ".####" in series:
+            pattern = series.replace(".####", f".{po_year}.####")
+        else:
+            pattern = f"SRI.PO.-.{po_year}.-.####"
+
+        self.name = make_autoname(pattern, doc=self)
+
     def validate(self):
         """Called on every Save. Validates data and recalculates totals."""
         if self.is_new() or (self.workflow_state or "Draft") == "Draft":
@@ -1857,3 +1886,155 @@ def get_workflow_activity_history(docname):
         h.pop("timestamp", None)
 
     return history
+
+
+@frappe.whitelist()
+def get_po_generated_amount_summary(from_date=None, to_date=None, company=None, vendor=None, status=None, po_type=None):
+    """
+    Generate summary of PO generated amounts for the selected period.
+    Returns aggregated metrics:
+      - Total PO count
+      - Total generated amount
+      - Currency breakdown with formatted totals
+      - Status breakdown (counts, amounts, percentage)
+      - Vendor breakdown
+      - Company breakdown
+      - Detailed PO records list
+    """
+    from frappe.utils import flt, fmt_money, getdate, nowdate
+
+    if not to_date:
+        to_date = nowdate()
+    if not from_date:
+        # Default to the first day of the current month
+        today = getdate(to_date)
+        from_date = today.replace(day=1).strftime("%Y-%m-%d")
+
+    from_date_str = str(getdate(from_date))
+    to_date_str = str(getdate(to_date))
+
+    if from_date_str > to_date_str:
+        frappe.throw(_("From Date ({0}) cannot be greater than To Date ({1}).").format(from_date_str, to_date_str))
+
+    conditions = ["COALESCE(po_date, DATE(creation)) BETWEEN %(from_date)s AND %(to_date)s"]
+    values = {"from_date": from_date_str, "to_date": to_date_str}
+
+    if company:
+        conditions.append("company = %(company)s")
+        values["company"] = company
+    if vendor:
+        conditions.append("vendor = %(vendor)s")
+        values["vendor"] = vendor
+    if status:
+        conditions.append("status = %(status)s")
+        values["status"] = status
+    if po_type:
+        conditions.append("po_type = %(po_type)s")
+        values["po_type"] = po_type
+
+    where_clause = " AND ".join(conditions)
+
+    po_records = frappe.db.sql(
+        f"""
+        SELECT
+            name,
+            po_date,
+            DATE(creation) as creation_date,
+            company,
+            vendor,
+            po_type,
+            status,
+            workflow_state,
+            currency,
+            COALESCE(grand_total, 0.0) as grand_total,
+            COALESCE(taxable_value, 0.0) as taxable_value,
+            COALESCE(tax_amount, 0.0) as tax_amount,
+            COALESCE(advance_amount, 0.0) as advance_amount,
+            COALESCE(billed_amount, 0.0) as billed_amount,
+            COALESCE(outstanding_amount, 0.0) as outstanding_amount
+        FROM `tabVendor Purchase Order`
+        WHERE {where_clause}
+        ORDER BY COALESCE(po_date, DATE(creation)) DESC, creation DESC
+        """,
+        values,
+        as_dict=True,
+    )
+
+    total_pos = len(po_records)
+    total_amount = sum(flt(r.grand_total) for r in po_records)
+
+    by_currency = {}
+    for r in po_records:
+        curr = r.currency or "INR"
+        if curr not in by_currency:
+            by_currency[curr] = {
+                "currency": curr,
+                "count": 0,
+                "total_amount": 0.0,
+                "taxable_value": 0.0,
+                "tax_amount": 0.0,
+            }
+        by_currency[curr]["count"] += 1
+        by_currency[curr]["total_amount"] += flt(r.grand_total, 2)
+        by_currency[curr]["taxable_value"] += flt(r.taxable_value, 2)
+        by_currency[curr]["tax_amount"] += flt(r.tax_amount, 2)
+
+    for curr, data in by_currency.items():
+        data["total_amount"] = flt(data["total_amount"], 2)
+        data["taxable_value"] = flt(data["taxable_value"], 2)
+        data["tax_amount"] = flt(data["tax_amount"], 2)
+        data["formatted_total"] = fmt_money(data["total_amount"], currency=curr)
+
+    status_map = {}
+    for r in po_records:
+        st = r.status or "Draft"
+        if st not in status_map:
+            status_map[st] = {"status": st, "count": 0, "total_amount": 0.0}
+        status_map[st]["count"] += 1
+        status_map[st]["total_amount"] += flt(r.grand_total, 2)
+
+    by_status = []
+    for st, sdata in status_map.items():
+        sdata["total_amount"] = flt(sdata["total_amount"], 2)
+        sdata["percentage"] = flt((sdata["total_amount"] / total_amount * 100.0), 2) if total_amount > 0 else 0.0
+        by_status.append(sdata)
+    by_status.sort(key=lambda x: x["total_amount"], reverse=True)
+
+    vendor_map = {}
+    for r in po_records:
+        v = r.vendor or "Unspecified"
+        if v not in vendor_map:
+            vendor_map[v] = {"vendor": v, "count": 0, "total_amount": 0.0, "currency": r.currency or "INR"}
+        vendor_map[v]["count"] += 1
+        vendor_map[v]["total_amount"] += flt(r.grand_total, 2)
+
+    by_vendor = list(vendor_map.values())
+    for v in by_vendor:
+        v["total_amount"] = flt(v["total_amount"], 2)
+    by_vendor.sort(key=lambda x: x["total_amount"], reverse=True)
+
+    comp_map = {}
+    for r in po_records:
+        c = r.company or "Unspecified"
+        if c not in comp_map:
+            comp_map[c] = {"company": c, "count": 0, "total_amount": 0.0}
+        comp_map[c]["count"] += 1
+        comp_map[c]["total_amount"] += flt(r.grand_total, 2)
+
+    by_company = list(comp_map.values())
+    for c in by_company:
+        c["total_amount"] = flt(c["total_amount"], 2)
+    by_company.sort(key=lambda x: x["total_amount"], reverse=True)
+
+    return {
+        "period": {"from_date": from_date_str, "to_date": to_date_str},
+        "filters": {"company": company, "vendor": vendor, "status": status, "po_type": po_type},
+        "total_pos": total_pos,
+        "total_amount": flt(total_amount, 2),
+        "by_currency": by_currency,
+        "by_status": by_status,
+        "by_vendor": by_vendor,
+        "by_company": by_company,
+        "pos": po_records,
+    }
+
