@@ -9,6 +9,31 @@ from frappe.utils import flt, getdate, nowdate
 
 class VendorPayment(Document):
 
+    def autoname(self):
+        """
+        Automatically generate Payment number in format:
+        VP-.####-DD-MM-YYYY -> e.g. VP-0001-04-11-2026
+        Uses payment_date if available, else current date.
+        """
+        if self.name:
+            return
+
+        from frappe.model.naming import make_autoname
+        from frappe.utils import getdate, nowdate
+
+        ref_date = getdate(self.payment_date) if getattr(self, "payment_date", None) else getdate(nowdate())
+        dd = ref_date.strftime("%d")
+        mm = ref_date.strftime("%m")
+        yyyy = ref_date.strftime("%Y")
+
+        series = getattr(self, "naming_series", None) or "VP-.YYYY.-"
+        if "DD" in series and "MM" in series and "YYYY" in series:
+            pattern = series
+        else:
+            pattern = f"VP.-.####.-.{dd}.-.{mm}.-.{yyyy}"
+
+        self.name = make_autoname(pattern, doc=self)
+
     def validate(self):
         """Server-side validation on every save."""
         self.validate_amount()

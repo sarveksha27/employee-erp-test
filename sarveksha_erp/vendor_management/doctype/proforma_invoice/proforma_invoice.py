@@ -9,6 +9,32 @@ from frappe.utils import flt, money_in_words
 
 class ProformaInvoice(Document):
 
+	def autoname(self):
+		"""
+		Automatically generate PI number in format:
+		SRI.PI.-.####-DD-MM-YYYY -> e.g. SRIPI-0001-04-11-2026
+		Uses pi_date if available, else current date.
+		"""
+		if self.name:
+			return
+
+		from frappe.model.naming import make_autoname
+		from frappe.utils import getdate, nowdate
+
+		ref_date = getdate(self.pi_date) if getattr(self, "pi_date", None) else getdate(nowdate())
+		dd = ref_date.strftime("%d")
+		mm = ref_date.strftime("%m")
+		yyyy = ref_date.strftime("%Y")
+
+		series = getattr(self, "naming_series", None) or "SRI/PI/.YYYY.-.####"
+		if "DD" in series and "MM" in series and "YYYY" in series:
+			pattern = series
+		else:
+			# Default standard format for Proforma Invoice
+			pattern = f"SRI.PI.-.####.-.{dd}.-.{mm}.-.{yyyy}"
+
+		self.name = make_autoname(pattern, doc=self)
+
 	def validate(self):
 		self.validate_internal_po_reference()
 		self.validate_margin()
