@@ -59,7 +59,7 @@ def sync_desktop_icons():
         doc.label = icon_name
         doc.link_to = icon_name
         doc.link_type = "Workspace Sidebar"
-        doc.parent_icon = "ERPNext"
+        doc.parent_icon = ""
         doc.app = "sarveksha_erp"
         doc.icon = "payment"
         doc.bg_color = "gray"
@@ -74,7 +74,7 @@ def sync_desktop_icons():
         doc.label = icon_name
         doc.link_to = icon_name
         doc.link_type = "Workspace Sidebar"
-        doc.parent_icon = "ERPNext"
+        doc.parent_icon = ""
         doc.app = "sarveksha_erp"
         doc.icon = "payment"
         doc.hidden = 0
@@ -378,8 +378,8 @@ def after_install():
     copy_letterhead_assets()
     setup_letterheads()
     sync_workspace_sidebars()
-    sync_desktop_icons()
     setup_roles_permissions_and_users()
+    sync_desktop_icons()
     setup_payment_entry_defaults()
     from sarveksha_erp.patches.setup_payment_terms import execute as setup_terms
     setup_terms()
@@ -393,8 +393,8 @@ def after_migrate():
     copy_letterhead_assets()
     setup_letterheads()
     sync_workspace_sidebars()
-    sync_desktop_icons()
     setup_roles_permissions_and_users()
+    sync_desktop_icons()
     setup_payment_entry_defaults()
     from sarveksha_erp.patches.setup_payment_terms import execute as setup_terms
     setup_terms()

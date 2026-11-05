@@ -215,6 +215,9 @@ override_whitelisted_methods = {
 # Hook on document methods and events
 
 doc_events = {
+    "Payment Terms Template": {
+        "validate": "sarveksha_erp.payment_tracking.payment_terms_validator.validate_payment_terms_template"
+    },
     "Purchase Invoice": {
         "validate": [
             "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.validate_vendor_purchase_invoice_reference",
@@ -346,4 +349,3 @@ doc_events = {
 
 # Extend bootinfo to control sidebar visibility
 extend_bootinfo = "sarveksha_erp.boot.extend_bootinfo"
-
