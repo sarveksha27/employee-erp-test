@@ -77,9 +77,11 @@ def _ensure_department_fields():
 
 
 def _ensure_cost_center(name, parent):
-	cost_center_name = f"{name} - SRIL"
-	if frappe.db.exists("Cost Center", cost_center_name):
-		return cost_center_name
+	existing_cost_center = frappe.db.get_value(
+		"Cost Center", {"cost_center_name": name, "company": PRIMARY_COMPANY}, "name"
+	)
+	if existing_cost_center:
+		return existing_cost_center
 
 	cost_center = frappe.new_doc("Cost Center")
 	cost_center.cost_center_name = name
@@ -92,9 +94,11 @@ def _ensure_cost_center(name, parent):
 
 
 def _ensure_department(name, cost_center, approval_role):
-	department_name = f"{name} - SRIL"
-	if frappe.db.exists("Department", department_name):
-		department = frappe.get_doc("Department", department_name)
+	existing_department = frappe.db.get_value(
+		"Department", {"department_name": name, "company": PRIMARY_COMPANY}, "name"
+	)
+	if existing_department:
+		department = frappe.get_doc("Department", existing_department)
 	else:
 		department = frappe.new_doc("Department")
 		department.department_name = name

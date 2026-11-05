@@ -1,7 +1,7 @@
 {
  "app": "sarveksha_erp",
  "bg_color": "gray",
- "creation": "2026-07-25 21:36:18.399405",
+ "creation": "2026-11-05 13:57:17.145668",
  "docstatus": 0,
  "doctype": "Desktop Icon",
  "hidden": 0,
@@ -11,11 +11,11 @@
  "label": "Equipment Management",
  "link_to": "Equipment Management",
  "link_type": "Workspace Sidebar",
- "modified": "2026-07-25 21:36:18.399405",
+ "modified": "2026-11-05 14:02:38.627429",
  "modified_by": "Administrator",
  "name": "Equipment Management",
  "owner": "Administrator",
- "parent_icon": "ERPNext",
+ "parent_icon": "",
  "restrict_removal": 0,
  "roles": [],
  "standard": 1
