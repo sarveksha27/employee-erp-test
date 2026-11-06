@@ -1,0 +1,23 @@
+{
+ "add_total_row": 1,
+ "columns": [],
+ "doctype": "Report",
+ "filters": [],
+ "is_standard": "Yes",
+ "module": "Payment Tracking",
+ "name": "Vendor Milestone Aging",
+ "ref_doctype": "Purchase Invoice",
+ "report_name": "Vendor Milestone Aging",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "Accounts Clerk"
+  },
+  {
+   "role": "Accounts Manager"
+  },
+  {
+   "role": "System Manager"
+  }
+ ]
+}

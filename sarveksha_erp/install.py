@@ -52,6 +52,13 @@ def sync_desktop_icons():
 
     icon_name = "Payment Tracking"
     roles = ["Accounts Manager", "Accounts Clerk", "Accounts User", "System Manager"]
+    for r in roles:
+        if not frappe.db.exists("Role", r):
+            role_doc = frappe.new_doc("Role")
+            role_doc.role_name = r
+            role_doc.desk_access = 1
+            role_doc.flags.ignore_permissions = True
+            role_doc.insert()
 
     if not frappe.db.exists("Desktop Icon", icon_name):
         doc = frappe.new_doc("Desktop Icon")
@@ -376,10 +383,10 @@ def setup_letterheads():
 
 def after_install():
     copy_letterhead_assets()
+    setup_roles_permissions_and_users()
     setup_letterheads()
     sync_workspace_sidebars()
     sync_desktop_icons()
-    setup_roles_permissions_and_users()
     setup_payment_entry_defaults()
     from sarveksha_erp.patches.setup_payment_terms import execute as setup_terms
     setup_terms()
@@ -391,10 +398,10 @@ def after_install():
 
 def after_migrate():
     copy_letterhead_assets()
+    setup_roles_permissions_and_users()
     setup_letterheads()
     sync_workspace_sidebars()
     sync_desktop_icons()
-    setup_roles_permissions_and_users()
     setup_payment_entry_defaults()
     from sarveksha_erp.patches.setup_payment_terms import execute as setup_terms
     setup_terms()

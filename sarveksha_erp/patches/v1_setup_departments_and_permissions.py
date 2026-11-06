@@ -77,9 +77,18 @@ def _ensure_department_fields():
 
 
 def _ensure_cost_center(name, parent):
-	cost_center_name = f"{name} - SRIL"
+	company_abbr = frappe.db.get_value("Company", PRIMARY_COMPANY, "abbr") or "SRI"
+	cost_center_name = f"{name} - {company_abbr}"
 	if frappe.db.exists("Cost Center", cost_center_name):
 		return cost_center_name
+
+	existing = frappe.db.get_value(
+		"Cost Center",
+		{"cost_center_name": name, "company": PRIMARY_COMPANY},
+		"name",
+	)
+	if existing:
+		return existing
 
 	cost_center = frappe.new_doc("Cost Center")
 	cost_center.cost_center_name = name
@@ -92,17 +101,26 @@ def _ensure_cost_center(name, parent):
 
 
 def _ensure_department(name, cost_center, approval_role):
-	department_name = f"{name} - SRIL"
+	company_abbr = frappe.db.get_value("Company", PRIMARY_COMPANY, "abbr") or "SRI"
+	department_name = f"{name} - {company_abbr}"
 	if frappe.db.exists("Department", department_name):
 		department = frappe.get_doc("Department", department_name)
 	else:
-		department = frappe.new_doc("Department")
-		department.department_name = name
-		department.company = PRIMARY_COMPANY
-		department.parent_department = "All Departments"
-		department.is_group = 0
-		department.flags.ignore_permissions = True
-		department.insert()
+		existing = frappe.db.get_value(
+			"Department",
+			{"department_name": name, "company": PRIMARY_COMPANY},
+			"name",
+		)
+		if existing:
+			department = frappe.get_doc("Department", existing)
+		else:
+			department = frappe.new_doc("Department")
+			department.department_name = name
+			department.company = PRIMARY_COMPANY
+			department.parent_department = "All Departments"
+			department.is_group = 0
+			department.flags.ignore_permissions = True
+			department.insert()
 
 	department.custom_default_cost_center = cost_center
 	department.custom_default_approval_role = approval_role
