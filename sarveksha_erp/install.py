@@ -66,7 +66,7 @@ def sync_desktop_icons():
         doc.label = icon_name
         doc.link_to = icon_name
         doc.link_type = "Workspace Sidebar"
-        doc.parent_icon = "ERPNext"
+        doc.parent_icon = ""
         doc.app = "sarveksha_erp"
         doc.icon = "payment"
         doc.bg_color = "gray"
@@ -81,7 +81,7 @@ def sync_desktop_icons():
         doc.label = icon_name
         doc.link_to = icon_name
         doc.link_type = "Workspace Sidebar"
-        doc.parent_icon = "ERPNext"
+        doc.parent_icon = ""
         doc.app = "sarveksha_erp"
         doc.icon = "payment"
         doc.hidden = 0
@@ -409,4 +409,3 @@ def after_migrate():
     setup_depts()
     from sarveksha_erp.patches.cleanup_test_data import execute as cleanup_tests
     cleanup_tests()
-

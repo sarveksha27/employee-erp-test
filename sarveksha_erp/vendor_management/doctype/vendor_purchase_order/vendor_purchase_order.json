@@ -93,6 +93,8 @@
     "attachments",
     "amended_from",
     "sec_payment",
+    "payment_terms_template",
+    "payment_schedule",
     "payment_terms",
     "advance_percentage",
     "advance_amount",
@@ -700,6 +702,20 @@
       "fieldname": "sec_payment",
       "fieldtype": "Section Break",
       "label": "Section F: Payment Tracking"
+    },
+    {
+      "fieldname": "payment_terms_template",
+      "fieldtype": "Link",
+      "label": "Payment Terms Template",
+      "options": "Payment Terms Template",
+      "in_list_view": 0
+    },
+    {
+      "fieldname": "payment_schedule",
+      "fieldtype": "Table",
+      "label": "Payment Schedule",
+      "options": "Payment Schedule",
+      "read_only": 0
     },
     {
       "description": "e.g., 30% advance, 70% before dispatch",

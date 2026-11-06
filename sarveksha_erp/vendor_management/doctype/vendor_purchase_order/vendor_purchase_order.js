@@ -691,24 +691,76 @@ frappe.ui.form.on("Vendor Purchase Order", {
 				}
 			},
 		});
+
+		if (!frm.doc.vendor) return;
+
+		// Fetch and populate Payment Terms Template from supplier/supplier group
+		frappe.call({
+			method: "sarveksha_erp.payment_tracking.vpo_payment_terms.get_supplier_default_payment_terms",
+			args: { supplier: frm.doc.vendor },
+			callback: function(r) {
+				if (!r.message || !r.message.payment_terms_template) return;
+
+				const data = r.message;
+				const existing_schedule = frm.doc.payment_schedule || [];
+
+				const do_populate = function() {
+					frm.set_value("payment_terms_template", data.payment_terms_template);
+					populate_payment_schedule(frm, data.terms);
+				};
+
+				if (frm.doc.payment_terms_template && existing_schedule.length > 0) {
+					frappe.confirm(
+						__("Changing the supplier will reset the current Payment Terms and Schedule. Do you want to continue?"),
+						do_populate
+					);
+				} else {
+					do_populate();
+				}
+			}
+		});
 	},
 
 	shipment_type: function (frm) {
 		handle_shipment_type_change(frm);
 	},
 
+	// ─── PAYMENT TERMS TEMPLATE TRIGGER ───────────────────────
+	payment_terms_template: function(frm) {
+		if (!frm.doc.payment_terms_template) return;
+
+		frappe.db.get_doc("Payment Terms Template", frm.doc.payment_terms_template).then(function(tmpl) {
+			if (!tmpl || !tmpl.terms) return;
+			const terms = tmpl.terms.map(function(row) {
+				return {
+					payment_term: row.payment_term,
+					description: row.description || "",
+					invoice_portion: flt(row.invoice_portion),
+					credit_days: row.credit_days || 0,
+					credit_months: row.credit_months || 0,
+					due_date_based_on: row.due_date_based_on || "Day(s) after invoice date",
+				};
+			});
+			populate_payment_schedule(frm, terms);
+		});
+	},
+
 	// ─── PRICING TRIGGERS ─────────────────────────────────────
 	freight: function (frm) {
 		calculate_gst_and_totals(frm);
+		recalculate_payment_schedule_amounts(frm);
 	},
 	insurance: function (frm) {
 		calculate_gst_and_totals(frm);
+		recalculate_payment_schedule_amounts(frm);
 	},
 	packing_charges: function (frm) {
 		calculate_gst_and_totals(frm);
+		recalculate_payment_schedule_amounts(frm);
 	},
 	other_charges: function (frm) {
 		calculate_gst_and_totals(frm);
+		recalculate_payment_schedule_amounts(frm);
 	},
 	advance_percentage: function (frm) {
 		calculate_gst_and_totals(frm);
@@ -731,6 +783,7 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			frm.refresh_field("items");
 		}
 		calculate_gst_and_totals(frm);
+		recalculate_payment_schedule_amounts(frm);
 	},
 
 	po_type: function (frm) {
@@ -1147,6 +1200,7 @@ function calculate_gst_and_totals(frm) {
 	frm.set_value("balance_due", balance_due);
 
 	render_cumulative_breakdown(frm);
+	recalculate_payment_schedule_amounts(frm);
 }
 
 function set_port_filter(frm) {
@@ -1993,4 +2047,77 @@ function send_payment_proof_to_vendor(frm) {
 				});
 			});
 	});
+}
+
+
+// ─── PAYMENT SCHEDULE HELPERS ─────────────────────────────────
+
+function populate_payment_schedule(frm, terms) {
+	frm.set_value("payment_schedule", []);
+	if (!terms || !terms.length) return;
+
+	const grand_total = flt(frm.doc.grand_total || 0);
+	const n = terms.length;
+	let allocated = 0;
+
+	terms.forEach(function(term, idx) {
+		let amount;
+		if (idx < n - 1) {
+			amount = flt(grand_total * (flt(term.invoice_portion) / 100.0), 2);
+			allocated += amount;
+		} else {
+			amount = flt(grand_total - allocated, 2);
+		}
+
+		// Calculate due date
+		const base_date = frm.doc.po_date || frappe.datetime.get_today();
+		let due_date = base_date;
+		const credit_days = term.credit_days || 0;
+		if (credit_days > 0) {
+			due_date = frappe.datetime.add_days(base_date, credit_days);
+		}
+
+		frm.add_child("payment_schedule", {
+			payment_term: term.payment_term,
+			description: term.description || "",
+			invoice_portion: term.invoice_portion,
+			credit_days: credit_days,
+			due_date_based_on: term.due_date_based_on || "Day(s) after invoice date",
+			payment_amount: amount,
+			due_date: due_date,
+			paid_amount: 0,
+			outstanding: amount,
+		});
+	});
+
+	frm.refresh_field("payment_schedule");
+}
+
+function recalculate_payment_schedule_amounts(frm) {
+	const schedule = frm.doc.payment_schedule || [];
+	if (!schedule.length) return;
+
+	const grand_total = flt(frm.doc.grand_total || 0);
+	const n = schedule.length;
+	let allocated = 0;
+
+	schedule.forEach(function(row, idx) {
+		let amount;
+		if (idx < n - 1) {
+			amount = flt(grand_total * (flt(row.invoice_portion) / 100.0), 2);
+			allocated += amount;
+		} else {
+			amount = flt(grand_total - allocated, 2);
+		}
+		const paid = flt(row.paid_amount || 0);
+		const outstanding = flt(amount - paid, 2);
+		row.payment_amount = amount;
+		row.outstanding = outstanding;
+		if (row.doctype && row.name) {
+			frappe.model.set_value(row.doctype, row.name, "payment_amount", amount);
+			frappe.model.set_value(row.doctype, row.name, "outstanding", outstanding);
+		}
+	});
+
+	frm.refresh_field("payment_schedule");
 }

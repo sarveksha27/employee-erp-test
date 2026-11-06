@@ -1,7 +1,7 @@
 {
  "app": "sarveksha_erp",
  "bg_color": "gray",
- "creation": "2026-10-02 12:24:29.732136",
+ "creation": "2026-11-05 00:01:00.567805",
  "docstatus": 0,
  "doctype": "Desktop Icon",
  "hidden": 0,
@@ -11,11 +11,11 @@
  "label": "Payment Tracking",
  "link_to": "Payment Tracking",
  "link_type": "Workspace Sidebar",
- "modified": "2026-11-04 12:53:37.634738",
+ "modified": "2026-11-05 14:18:25.842508",
  "modified_by": "Administrator",
  "name": "Payment Tracking",
  "owner": "Administrator",
- "parent_icon": "ERPNext",
+ "parent_icon": "",
  "restrict_removal": 0,
  "roles": [
   {

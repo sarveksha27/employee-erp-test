@@ -12,6 +12,40 @@ from frappe.utils import flt, getdate, nowdate
 
 class VendorPurchaseOrder(Document):
 
+    def autoname(self):
+        """
+        Automatically generate PO number in format:
+        SRI.PO.-.####-DD-MM-YYYY -> e.g. SRIPO-0001-04-11-2026
+        Uses po_date if available, else current date.
+        """
+        if self.name:
+            return
+
+        from frappe.model.naming import make_autoname
+        from frappe.utils import getdate, nowdate
+
+        ref_date = getdate(self.po_date) if getattr(self, "po_date", None) else getdate(nowdate())
+        dd = ref_date.strftime("%d")
+        mm = ref_date.strftime("%m")
+        yyyy = ref_date.strftime("%Y")
+
+        series = getattr(self, "naming_series", None) or "SRI.PO.-.####"
+        if "DD" in series and "MM" in series and "YYYY" in series:
+            pattern = series
+        elif ".-." in series:
+            # SRI.PO.-.#### -> SRI.PO.-.####.-.DD.-.MM.-.YYYY
+            pattern = series.replace(".-.", ".-.")
+            if "####" in pattern:
+                pattern = pattern.replace(".####", f".####.-.{dd}.-.{mm}.-.{yyyy}")
+            else:
+                pattern = f"{pattern}.-.{dd}.-.{mm}.-.{yyyy}"
+        elif ".####" in series:
+            pattern = series.replace(".####", f".####.-.{dd}.-.{mm}.-.{yyyy}")
+        else:
+            pattern = f"SRI.PO.-.####.-.{dd}.-.{mm}.-.{yyyy}"
+
+        self.name = make_autoname(pattern, doc=self)
+
     def validate(self):
         """Called on every Save. Validates data and recalculates totals."""
         if self.is_new() or (self.workflow_state or "Draft") == "Draft":
@@ -40,6 +74,7 @@ class VendorPurchaseOrder(Document):
         self.validate_non_negative_values()
         self.validate_required_fields()
         self.validate_unique_ref_number()
+        self.validate_payment_terms_schedule()
         self.sync_payment_check_fields()
 
     SRI_ENTITY_NAME = "Sarveksha Realty and Inframine LLP"
@@ -198,20 +233,24 @@ class VendorPurchaseOrder(Document):
             return
 
         comp_doc = frappe.get_doc("Company", self.company)
-        if not self.currency and comp_doc.default_currency:
+        if not self.currency and comp_doc.get("default_currency"):
             self.currency = comp_doc.default_currency
 
-        if not self.default_port and comp_doc.custom_default_port:
-            self.default_port = comp_doc.custom_default_port
+        if not self.default_port and comp_doc.get("custom_default_port"):
+            self.default_port = comp_doc.get("custom_default_port")
             if not self.port:
-                first_port = comp_doc.custom_default_port.split(',')[0].strip()
+                first_port = comp_doc.get("custom_default_port").split(',')[0].strip()
                 if frappe.db.exists("Port", first_port):
                     self.port = first_port
 
-        if comp_doc.tax_id:
-            self.company_gstin = comp_doc.tax_id
-        if comp_doc.custom_pan:
-            self.company_pan = comp_doc.custom_pan
+        if comp_doc.get("tax_id"):
+            self.company_gstin = comp_doc.get("tax_id")
+        if comp_doc.get("custom_pan"):
+            self.company_pan = comp_doc.get("custom_pan")
+        elif comp_doc.get("pan"):
+            self.company_pan = comp_doc.get("pan")
+        elif self.company_gstin and len(self.company_gstin) == 15:
+            self.company_pan = self.company_gstin[2:12]
 
         # Fetch physical address of the Company from linked Address doctype
         address_text = ""
@@ -229,12 +268,12 @@ class VendorPurchaseOrder(Document):
         details_arr = []
         if address_text:
             details_arr.append(address_text)
-        if comp_doc.registration_details:
-            details_arr.append(comp_doc.registration_details)
-        if comp_doc.tax_id:
-            details_arr.append(f"Tax ID / GSTIN: {comp_doc.tax_id}")
-        if comp_doc.custom_pan:
-            details_arr.append(f"PAN: {comp_doc.custom_pan}")
+        if comp_doc.get("registration_details"):
+            details_arr.append(comp_doc.get("registration_details"))
+        if self.company_gstin:
+            details_arr.append(f"Tax ID / GSTIN: {self.company_gstin}")
+        if self.company_pan:
+            details_arr.append(f"PAN: {self.company_pan}")
 
         if details_arr:
             self.company_address = "\n".join([d for d in details_arr if d])
@@ -650,10 +689,21 @@ class VendorPurchaseOrder(Document):
 
         # Generate a new reference number using the series
         series_prefix = self.naming_series or "SRI.PO.-.####"
+        from frappe.utils import getdate, nowdate
+        ref_date = getdate(self.po_date) if getattr(self, "po_date", None) else getdate(nowdate())
+        dd = ref_date.strftime("%d")
+        mm = ref_date.strftime("%m")
+        yyyy = ref_date.strftime("%Y")
+
         if ".-." in series_prefix:
             ref_series = series_prefix.replace(".-.", ".REF.-.")
         else:
             ref_series = series_prefix.replace(".####", ".REF.####")
+
+        if ".####" in ref_series:
+            ref_series = ref_series.replace(".####", f".####.-.{dd}.-.{mm}.-.{yyyy}")
+        else:
+            ref_series = f"{ref_series}.-.{dd}.-.{mm}.-.{yyyy}"
 
         from frappe.model.naming import make_autoname
         generated_ref = make_autoname(ref_series)
@@ -780,6 +830,23 @@ class VendorPurchaseOrder(Document):
                 title=_("High Quantity Warning"),
                 indicator="orange"
             )
+
+    def validate_payment_terms_schedule(self):
+        """
+        When workflow_state is advancing to 'Approved' or 'Forwarded to Finance',
+        validates that payment_terms_template and payment_schedule are properly set.
+        """
+        advancing_states = {
+            "Approved",
+            "Forwarded for Payment",
+            "Forwarded to Finance",
+        }
+        current_state = self.workflow_state or "Draft"
+        if current_state not in advancing_states:
+            return
+
+        from sarveksha_erp.payment_tracking.vpo_payment_terms import validate_vpo_payment_schedule
+        validate_vpo_payment_schedule(self)
 
     def sync_payment_check_fields(self):
         """Sync boolean Check fields with payment_status Select field value."""
@@ -1205,6 +1272,10 @@ def forward_vendor_purchase_order_for_payment(po_name, invoice_file, invoice_num
     if po.payment_workflow_status not in (None, "", "Not Forwarded"):
         frappe.throw(_("This Purchase Order has already entered payment processing."), frappe.ValidationError)
 
+    # Validate payment schedule is complete and balanced before forwarding
+    from sarveksha_erp.payment_tracking.vpo_payment_terms import validate_vpo_payment_schedule
+    validate_vpo_payment_schedule(po)
+
     file_name = frappe.db.get_value("File", {"file_url": invoice_file}, "name")
     if not file_name:
         frappe.throw(_("The attached invoice file was not found. Upload it again and retry."), frappe.ValidationError)
@@ -1465,23 +1536,28 @@ def get_company_details(company):
         if address_text:
             address_text = address_text.replace("<br>", "\n").strip()
 
+    company_pan = comp_doc.get("custom_pan") or comp_doc.get("pan") or ""
+    company_tax_id = comp_doc.get("tax_id") or ""
+    if not company_pan and company_tax_id and len(company_tax_id) == 15:
+        company_pan = company_tax_id[2:12]
+
     details_arr = []
     if address_text:
         details_arr.append(address_text)
-    if comp_doc.registration_details:
-        details_arr.append(comp_doc.registration_details)
-    if comp_doc.tax_id:
-        details_arr.append(f"Tax ID / GSTIN: {comp_doc.tax_id}")
-    if comp_doc.custom_pan:
-        details_arr.append(f"PAN: {comp_doc.custom_pan}")
+    if comp_doc.get("registration_details"):
+        details_arr.append(comp_doc.get("registration_details"))
+    if company_tax_id:
+        details_arr.append(f"Tax ID / GSTIN: {company_tax_id}")
+    if company_pan:
+        details_arr.append(f"PAN: {company_pan}")
 
     company_address = "\n".join([d for d in details_arr if d])
 
     # Auto-detect letter head
-    letter_head = comp_doc.default_letter_head
+    letter_head = comp_doc.get("default_letter_head")
     if not letter_head:
         company_name = company.lower()
-        country = (comp_doc.country or "").lower()
+        country = (comp_doc.get("country") or "").lower()
         letter_head = "India (Sarveksha Realty)"
         if "botswana" in company_name or "botswana" in country:
             letter_head = "Botswana (Sarveksha Botswana)"
@@ -1501,10 +1577,10 @@ def get_company_details(company):
             letter_head = "India (Sarveksha Realty)"
 
     return {
-        "default_port": comp_doc.custom_default_port or "",
-        "currency": comp_doc.default_currency or "",
-        "company_gstin": comp_doc.tax_id or "",
-        "company_pan": comp_doc.custom_pan or "",
+        "default_port": comp_doc.get("custom_default_port") or "",
+        "currency": comp_doc.get("default_currency") or "",
+        "company_gstin": company_tax_id,
+        "company_pan": company_pan,
         "company_address": company_address,
         "letter_head": letter_head
     }
@@ -1848,3 +1924,155 @@ def get_workflow_activity_history(docname):
         h.pop("timestamp", None)
 
     return history
+
+
+@frappe.whitelist()
+def get_po_generated_amount_summary(from_date=None, to_date=None, company=None, vendor=None, status=None, po_type=None):
+    """
+    Generate summary of PO generated amounts for the selected period.
+    Returns aggregated metrics:
+      - Total PO count
+      - Total generated amount
+      - Currency breakdown with formatted totals
+      - Status breakdown (counts, amounts, percentage)
+      - Vendor breakdown
+      - Company breakdown
+      - Detailed PO records list
+    """
+    from frappe.utils import flt, fmt_money, getdate, nowdate
+
+    if not to_date:
+        to_date = nowdate()
+    if not from_date:
+        # Default to the first day of the current month
+        today = getdate(to_date)
+        from_date = today.replace(day=1).strftime("%Y-%m-%d")
+
+    from_date_str = str(getdate(from_date))
+    to_date_str = str(getdate(to_date))
+
+    if from_date_str > to_date_str:
+        frappe.throw(_("From Date ({0}) cannot be greater than To Date ({1}).").format(from_date_str, to_date_str))
+
+    conditions = ["COALESCE(po_date, DATE(creation)) BETWEEN %(from_date)s AND %(to_date)s"]
+    values = {"from_date": from_date_str, "to_date": to_date_str}
+
+    if company:
+        conditions.append("company = %(company)s")
+        values["company"] = company
+    if vendor:
+        conditions.append("vendor = %(vendor)s")
+        values["vendor"] = vendor
+    if status:
+        conditions.append("status = %(status)s")
+        values["status"] = status
+    if po_type:
+        conditions.append("po_type = %(po_type)s")
+        values["po_type"] = po_type
+
+    where_clause = " AND ".join(conditions)
+
+    po_records = frappe.db.sql(
+        f"""
+        SELECT
+            name,
+            po_date,
+            DATE(creation) as creation_date,
+            company,
+            vendor,
+            po_type,
+            status,
+            workflow_state,
+            currency,
+            COALESCE(grand_total, 0.0) as grand_total,
+            COALESCE(taxable_value, 0.0) as taxable_value,
+            COALESCE(tax_amount, 0.0) as tax_amount,
+            COALESCE(advance_amount, 0.0) as advance_amount,
+            COALESCE(billed_amount, 0.0) as billed_amount,
+            COALESCE(outstanding_amount, 0.0) as outstanding_amount
+        FROM `tabVendor Purchase Order`
+        WHERE {where_clause}
+        ORDER BY COALESCE(po_date, DATE(creation)) DESC, creation DESC
+        """,
+        values,
+        as_dict=True,
+    )
+
+    total_pos = len(po_records)
+    total_amount = sum(flt(r.grand_total) for r in po_records)
+
+    by_currency = {}
+    for r in po_records:
+        curr = r.currency or "INR"
+        if curr not in by_currency:
+            by_currency[curr] = {
+                "currency": curr,
+                "count": 0,
+                "total_amount": 0.0,
+                "taxable_value": 0.0,
+                "tax_amount": 0.0,
+            }
+        by_currency[curr]["count"] += 1
+        by_currency[curr]["total_amount"] += flt(r.grand_total, 2)
+        by_currency[curr]["taxable_value"] += flt(r.taxable_value, 2)
+        by_currency[curr]["tax_amount"] += flt(r.tax_amount, 2)
+
+    for curr, data in by_currency.items():
+        data["total_amount"] = flt(data["total_amount"], 2)
+        data["taxable_value"] = flt(data["taxable_value"], 2)
+        data["tax_amount"] = flt(data["tax_amount"], 2)
+        data["formatted_total"] = fmt_money(data["total_amount"], currency=curr)
+
+    status_map = {}
+    for r in po_records:
+        st = r.status or "Draft"
+        if st not in status_map:
+            status_map[st] = {"status": st, "count": 0, "total_amount": 0.0}
+        status_map[st]["count"] += 1
+        status_map[st]["total_amount"] += flt(r.grand_total, 2)
+
+    by_status = []
+    for st, sdata in status_map.items():
+        sdata["total_amount"] = flt(sdata["total_amount"], 2)
+        sdata["percentage"] = flt((sdata["total_amount"] / total_amount * 100.0), 2) if total_amount > 0 else 0.0
+        by_status.append(sdata)
+    by_status.sort(key=lambda x: x["total_amount"], reverse=True)
+
+    vendor_map = {}
+    for r in po_records:
+        v = r.vendor or "Unspecified"
+        if v not in vendor_map:
+            vendor_map[v] = {"vendor": v, "count": 0, "total_amount": 0.0, "currency": r.currency or "INR"}
+        vendor_map[v]["count"] += 1
+        vendor_map[v]["total_amount"] += flt(r.grand_total, 2)
+
+    by_vendor = list(vendor_map.values())
+    for v in by_vendor:
+        v["total_amount"] = flt(v["total_amount"], 2)
+    by_vendor.sort(key=lambda x: x["total_amount"], reverse=True)
+
+    comp_map = {}
+    for r in po_records:
+        c = r.company or "Unspecified"
+        if c not in comp_map:
+            comp_map[c] = {"company": c, "count": 0, "total_amount": 0.0}
+        comp_map[c]["count"] += 1
+        comp_map[c]["total_amount"] += flt(r.grand_total, 2)
+
+    by_company = list(comp_map.values())
+    for c in by_company:
+        c["total_amount"] = flt(c["total_amount"], 2)
+    by_company.sort(key=lambda x: x["total_amount"], reverse=True)
+
+    return {
+        "period": {"from_date": from_date_str, "to_date": to_date_str},
+        "filters": {"company": company, "vendor": vendor, "status": status, "po_type": po_type},
+        "total_pos": total_pos,
+        "total_amount": flt(total_amount, 2),
+        "by_currency": by_currency,
+        "by_status": by_status,
+        "by_vendor": by_vendor,
+        "by_company": by_company,
+        "pos": po_records,
+    }
+
