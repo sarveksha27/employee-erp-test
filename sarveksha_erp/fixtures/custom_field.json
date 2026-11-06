@@ -1,0 +1,36 @@
+[
+ {
+  "doctype": "Custom Field",
+  "dt": "Payment Entry",
+  "fieldname": "custom_payment_term_milestone",
+  "fieldtype": "Link",
+  "insert_after": "references",
+  "label": "Payment Term Milestone",
+  "name": "Payment Entry-custom_payment_term_milestone",
+  "options": "Payment Term",
+  "read_only": 1
+ },
+ {
+  "doctype": "Custom Field",
+  "dt": "Payment Entry",
+  "fieldname": "custom_milestone_row_id",
+  "fieldtype": "Data",
+  "hidden": 1,
+  "insert_after": "custom_payment_term_milestone",
+  "label": "Milestone Row ID",
+  "name": "Payment Entry-custom_milestone_row_id",
+  "read_only": 1
+ },
+ {
+  "doctype": "Custom Field",
+  "dt": "Payment Schedule",
+  "fieldname": "custom_milestone_status",
+  "fieldtype": "Select",
+  "hidden": 1,
+  "insert_after": "outstanding",
+  "label": "Milestone Status",
+  "name": "Payment Schedule-custom_milestone_status",
+  "options": "Pending\nPartially Paid\nPaid",
+  "read_only": 1
+ }
+]

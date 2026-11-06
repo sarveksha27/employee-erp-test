@@ -94,6 +94,16 @@ fixtures = [
             ["name", "in", ["100% Advance", "30% Advance - 70% Against BL", "Net 30 Days"]]
         ]
     },
+    {
+        "dt": "Custom Field",
+        "filters": [
+            ["name", "in", [
+                "Payment Entry-custom_payment_term_milestone",
+                "Payment Entry-custom_milestone_row_id",
+                "Payment Schedule-custom_milestone_status"
+            ]]
+        ]
+    },
 ]
 
 # include js, css files in header of web template
@@ -230,12 +240,19 @@ doc_events = {
         "on_update_after_submit": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
     },
     "Payment Entry": {
-        "before_submit": "sarveksha_erp.payment_tracking.payment_entry_workflow.validate_payment_entry_workflow",
+        "before_submit": [
+            "sarveksha_erp.payment_tracking.payment_entry_workflow.validate_payment_entry_workflow",
+            "sarveksha_erp.payment_tracking.milestone_payment_entry.validate_milestone_payment_entry",
+        ],
         "on_submit": [
+            "sarveksha_erp.payment_tracking.milestone_payment_entry.sync_milestone_payment_status",
             "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
             "sarveksha_erp.payment_tracking.events.payment_entry_events.on_payment_submit"
         ],
-        "on_cancel": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
+        "on_cancel": [
+            "sarveksha_erp.payment_tracking.milestone_payment_entry.sync_milestone_payment_status",
+            "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
+        ],
         "on_update_after_submit": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
     }
 }
