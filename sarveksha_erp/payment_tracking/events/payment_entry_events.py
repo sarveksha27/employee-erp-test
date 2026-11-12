@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import os
+import re
 import frappe
 from frappe import _
 from frappe.utils import flt, fmt_money
@@ -9,6 +10,25 @@ from frappe.utils.pdf import get_pdf
 
 if not hasattr(frappe, "get_pdf"):
     frappe.get_pdf = get_pdf
+
+
+def on_payment_change(doc, method=None):
+    """
+    Triggered on Payment Entry after_insert, on_update, on_cancel to constantly
+    update linked Vendor Purchase Orders' balances, advances, and payment statuses.
+    """
+    linked_pos = get_linked_vendor_purchase_orders(doc)
+    for po_name in linked_pos:
+        recalculate_po_payment_status(po_name)
+
+
+def on_payment_trash(doc, method=None):
+    """
+    Triggered when a Payment Entry is deleted to release balance on linked POs.
+    """
+    linked_pos = get_linked_vendor_purchase_orders(doc)
+    for po_name in linked_pos:
+        recalculate_po_payment_status(po_name)
 
 
 def on_payment_submit(doc, method=None):
@@ -104,6 +124,16 @@ def get_linked_vendor_purchase_orders(doc) -> set:
     for p in direct_pos:
         if p:
             po_names.add(p)
+
+    # From remarks or custom_remarks referencing PO
+    remarks_text = f"{doc.get('remarks') or ''} {doc.get('custom_remarks') or ''}"
+    for match in re.findall(r"SRIPO-\d+|SRIPOREF-\d+", remarks_text):
+        if match.startswith("SRIPOREF"):
+            actual_po = frappe.db.get_value("Vendor Purchase Order", {"ref_number": match}, "name")
+            if actual_po:
+                po_names.add(actual_po)
+        elif frappe.db.exists("Vendor Purchase Order", match):
+            po_names.add(match)
 
     return po_names
 
@@ -234,9 +264,14 @@ def recalculate_po_payment_status(po_name: str):
     )
 
     direct_pe_amounts = 0.0
+    direct_draft_amounts = 0.0
     if frappe.db.has_column("Payment Entry", "vendor_purchase_order"):
         direct_pe_amounts += flt(frappe.db.sql(
             "SELECT COALESCE(SUM(paid_amount), 0) FROM `tabPayment Entry` WHERE docstatus = 1 AND vendor_purchase_order = %s",
+            (po_name,),
+        )[0][0])
+        direct_draft_amounts += flt(frappe.db.sql(
+            "SELECT COALESCE(SUM(paid_amount), 0) FROM `tabPayment Entry` WHERE docstatus = 0 AND vendor_purchase_order = %s",
             (po_name,),
         )[0][0])
     if frappe.db.has_column("Payment Entry", "custom_vendor_purchase_order"):
@@ -244,8 +279,12 @@ def recalculate_po_payment_status(po_name: str):
             "SELECT COALESCE(SUM(paid_amount), 0) FROM `tabPayment Entry` WHERE docstatus = 1 AND custom_vendor_purchase_order = %s",
             (po_name,),
         )[0][0])
+        direct_draft_amounts += flt(frappe.db.sql(
+            "SELECT COALESCE(SUM(paid_amount), 0) FROM `tabPayment Entry` WHERE docstatus = 0 AND custom_vendor_purchase_order = %s",
+            (po_name,),
+        )[0][0])
 
-    ref_pe_amounts = frappe.db.sql(
+    ref_pe_amounts = flt(frappe.db.sql(
         """
         SELECT COALESCE(SUM(per.allocated_amount), 0)
         FROM `tabPayment Entry Reference` per
@@ -255,14 +294,75 @@ def recalculate_po_payment_status(po_name: str):
         AND per.reference_name = %s
         """,
         (po_name,),
-    )[0][0] or 0.0
+    )[0][0] or 0.0)
 
-    total_payments = max(
-        flt(total_paid_from_invoices) + flt(direct_pe_amounts) + flt(ref_pe_amounts),
+    ref_draft_amounts = flt(frappe.db.sql(
+        """
+        SELECT COALESCE(SUM(per.allocated_amount), 0)
+        FROM `tabPayment Entry Reference` per
+        JOIN `tabPayment Entry` pe ON pe.name = per.parent
+        WHERE pe.docstatus = 0
+        AND per.reference_doctype = 'Vendor Purchase Order'
+        AND per.reference_name = %s
+        """,
+        (po_name,),
+    )[0][0] or 0.0)
+
+    remarks_conditions = ["remarks LIKE %(po_name_pat)s"]
+    sql_params = {
+        "po_name": po_name,
+        "po_name_pat": f"%{po_name}%",
+    }
+    if getattr(po, "ref_number", None) and po.ref_number != po_name:
+        remarks_conditions.append("remarks LIKE %(po_ref_pat)s")
+        sql_params["po_ref_pat"] = f"%{po.ref_number}%"
+
+    remarks_submitted_amounts = flt(frappe.db.sql(
+        f"""
+        SELECT COALESCE(SUM(paid_amount), 0)
+        FROM `tabPayment Entry`
+        WHERE docstatus = 1
+        AND ({' OR '.join(remarks_conditions)})
+        AND name NOT IN (
+            SELECT parent FROM `tabPayment Entry Reference` WHERE reference_name = %(po_name)s
+        )
+        """,
+        sql_params,
+    )[0][0])
+
+    remarks_draft_amounts = flt(frappe.db.sql(
+        f"""
+        SELECT COALESCE(SUM(paid_amount), 0)
+        FROM `tabPayment Entry`
+        WHERE docstatus = 0
+        AND ({' OR '.join(remarks_conditions)})
+        AND name NOT IN (
+            SELECT parent FROM `tabPayment Entry Reference` WHERE reference_name = %(po_name)s
+        )
+        """,
+        sql_params,
+    )[0][0])
+
+    submitted_pe_total = direct_pe_amounts + ref_pe_amounts + remarks_submitted_amounts
+    draft_pe_total = direct_draft_amounts + ref_draft_amounts + remarks_draft_amounts
+
+    stored_advance = flt(getattr(po, "advance_amount", 0.0))
+    cleared_payments = max(
+        flt(total_paid_from_invoices) + submitted_pe_total,
+        stored_advance,
+        submitted_pe_total,
         flt(rollup.get("billed_amount", 0)) - flt(rollup.get("outstanding_amount", 0))
     )
 
+    # Total payments recorded (cleared + in-progress draft entries waiting for cheque/UTR execution)
     po_grand_total = flt(getattr(po, "grand_total", 0))
+    total_payments = min(cleared_payments + draft_pe_total, po_grand_total)
+    balance_due = max(flt(po_grand_total - total_payments, 2), 0.0)
+
+    rollup["balance_due"] = balance_due
+    # Synchronize advance amount on the PO only from confirmed submitted payments
+    if cleared_payments > stored_advance and not has_submitted_invoice:
+        rollup["advance_amount"] = cleared_payments
 
     if po_grand_total > 0 and total_payments >= po_grand_total:
         tracking_status = "Paid"
@@ -274,11 +374,13 @@ def recalculate_po_payment_status(po_name: str):
         rollup["balance_due"] = 0.0
     elif total_payments > 0:
         tracking_status = "Partially Paid"
-        rollup["payment_status"] = "Partially Paid"
+        is_pure_advance = flt(getattr(po, "advance_amount", 0)) >= total_payments and not has_submitted_invoice
+        rollup["payment_status"] = "Advance Paid" if is_pure_advance else "Partially Paid"
         rollup["payment_workflow_status"] = "Partially Paid"
         rollup["payment_fully_paid"] = 0
         rollup["payment_partially_paid"] = 1
         rollup["payment_pending"] = 0
+        rollup["balance_due"] = max(po_grand_total - total_payments, 0.0)
     else:
         tracking_status = rollup.get("payment_workflow_status") or "Pending"
 

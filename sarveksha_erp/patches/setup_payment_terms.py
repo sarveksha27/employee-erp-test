@@ -5,9 +5,10 @@ import frappe
 
 
 def execute():
-    """Create standard Payment Terms and Templates for procurement contracts."""
+    """Create standard Payment Terms, Templates and Terms & Conditions for procurement contracts."""
     setup_standard_payment_terms()
     setup_standard_payment_terms_templates()
+    setup_standard_terms_and_conditions()
 
 
 def setup_standard_payment_terms():
@@ -125,6 +126,56 @@ def setup_standard_payment_terms_templates():
             doc.set("terms", [])
             for row in tmpl["terms"]:
                 doc.append("terms", row)
+            doc.flags.ignore_permissions = True
+            doc.save()
+
+    frappe.db.commit()
+
+
+def setup_standard_terms_and_conditions():
+    """Create standard procurement Terms and Conditions."""
+    terms_data = [
+        {
+            "title": "Standard Export PO Terms",
+            "terms": """<ol>
+<li><strong>Payment Terms:</strong> Payment shall be made as per agreed milestones mentioned in the Purchase Order against submission of commercial invoice, packing list, and bill of lading.</li>
+<li><strong>Inspection & Quality:</strong> Material subject to pre-shipment inspection by Authorized Inspector / Third Party (SGS / Intertek / Bureau Veritas). Seller must provide inspection test certificates prior to dispatch.</li>
+<li><strong>Liquidated Damages (LD):</strong> In case of delayed delivery beyond the agreed schedule, Liquidated Damages shall be levied @ 0.5% of total PO value per week of delay, subject to a maximum cap of 10%.</li>
+<li><strong>Warranty:</strong> Equipment carries a comprehensive warranty of 12 months from commissioning or 18 months from shipment date, whichever is earlier. Defective parts shall be replaced free of cost.</li>
+<li><strong>Packaging & ISPM-15 Compliance:</strong> All wooden packaging, pallets, and crates must be heat treated and stamped in full compliance with ISPM-15 international phytosanitary standards.</li>
+<li><strong>Force Majeure:</strong> Neither party shall be liable for failure to perform obligations due to acts of God, war, civil commotion, pandemic restrictions, or severe maritime shipping blockades.</li>
+<li><strong>Governing Law & Jurisdiction:</strong> This contract shall be governed by Indian Laws, and any disputes shall be subject to the exclusive jurisdiction of courts in Mumbai, Maharashtra, India.</li>
+</ol>""",
+        },
+        {
+            "title": "Standard Domestic PO Terms",
+            "terms": """<ol>
+<li><strong>Prices:</strong> The prices are Nett & Ex-Godown / Ex-Works unless otherwise specified.</li>
+<li><strong>Discount:</strong> As mentioned in this Purchase Order.</li>
+<li><strong>Packing Charges:</strong> As per actuals. Supplier must pack goods in a manner compliant with transit safety.</li>
+<li><strong>Inspection:</strong> Pre-dispatch inspection at supplier premises if requested.</li>
+<li><strong>Warranty:</strong> Standard manufacturer warranty applies from date of delivery and commissioning.</li>
+<li><strong>Delivery Schedule:</strong> Goods must be dispatched on or before the committed delivery date.</li>
+<li><strong>Jurisdiction:</strong> Subject to registered office jurisdiction in Mumbai, Maharashtra, India.</li>
+</ol>""",
+        },
+        {
+            "title": "LUT Certificate Terms",
+            "terms": "<p>Supply made under Letter of Undertaking (LUT) without payment of IGST under Rule 96A of CGST Rules, 2017.</p>",
+        },
+    ]
+
+    for t in terms_data:
+        name = t["title"]
+        if not frappe.db.exists("Terms and Conditions", name):
+            doc = frappe.new_doc("Terms and Conditions")
+            doc.title = name
+            doc.terms = t["terms"]
+            doc.flags.ignore_permissions = True
+            doc.insert()
+        else:
+            doc = frappe.get_doc("Terms and Conditions", name)
+            doc.terms = t["terms"]
             doc.flags.ignore_permissions = True
             doc.save()
 

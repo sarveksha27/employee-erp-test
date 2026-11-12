@@ -370,6 +370,20 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			}
 		}
 
+		// Make Payment / Payment Entry Generator Button for Approved Purchase Orders
+		if (
+			is_approved &&
+			!frm.doc.__islocal &&
+			frm.doc.name &&
+			frm.doc.workflow_state !== "Cancelled" &&
+			frm.doc.payment_status !== "Fully Paid"
+		) {
+			frm.add_custom_button(__("Make Payment"), function () {
+				show_payment_entry_generator_dialog(frm);
+			});
+			frm.change_custom_button_type(__("Make Payment"), null, "primary");
+		}
+
 		// Send Payment Proof to Vendor when payment is completed
 		const is_payment_completed =
 			frm.doc.payment_tracking_status === "Paid" ||
@@ -2120,4 +2134,255 @@ function recalculate_payment_schedule_amounts(frm) {
 	});
 
 	frm.refresh_field("payment_schedule");
+}
+
+function show_payment_entry_generator_dialog(frm) {
+	frappe.call({
+		method: "sarveksha_erp.payment_tracking.payment_generator.get_po_payment_summary_for_generator",
+		args: { po_name: frm.doc.name },
+		freeze: true,
+		freeze_message: __("Loading Payment Details for PO..."),
+		callback: function (r) {
+			if (!r.message) return;
+			const s = r.message;
+
+			// Format milestone options
+			const milestone_select_options = ["\n"];
+			const milestone_map = {};
+			(s.schedule || []).forEach(function (m) {
+				const label = `${m.payment_term} — ${m.portion}% (${m.formatted_amount})${m.due_date ? " [Due: " + m.due_date + "]" : ""}`;
+				milestone_select_options.push(label);
+				milestone_map[label] = m;
+			});
+
+			const bank_account_options = (s.bank_accounts || []).map(function (b) {
+				return b.name;
+			});
+
+			// Financial Status Badge color
+			let status_badge_color = "#f59e0b";
+			if (s.payment_status === "Fully Paid") status_badge_color = "#10b981";
+			else if (s.payment_status === "Advance Paid" || s.payment_status === "Partially Paid") status_badge_color = "#3b82f6";
+
+			const header_html = `
+				<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; margin-bottom:12px;">
+					<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+						<div>
+							<span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">Vendor / Supplier</span>
+							<div style="font-size:15px; font-weight:bold; color:#0f172a;">${s.vendor}</div>
+						</div>
+						<div style="text-align:right;">
+							<span style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:bold;">Purchase Order</span>
+							<div style="font-size:14px; font-weight:bold; color:#0f172a;">${s.ref_number}</div>
+						</div>
+					</div>
+					<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-top:8px; border-top:1px dashed #cbd5e1; padding-top:8px;">
+						<div>
+							<span style="font-size:10px; color:#64748b;">Grand Total:</span>
+							<div style="font-size:13px; font-weight:bold; color:#0f172a;">${s.formatted_grand_total}</div>
+						</div>
+						<div>
+							<span style="font-size:10px; color:#64748b;">Paid So Far:</span>
+							<div style="font-size:13px; font-weight:bold; color:#059669;">${s.formatted_total_paid}</div>
+							${s.draft_paid > 0 ? `<div style="font-size:9px; color:#d97706; font-weight:600;">(incl. ${s.formatted_draft_paid} pending)</div>` : ""}
+						</div>
+						<div>
+							<span style="font-size:10px; color:#64748b;">Remaining Balance:</span>
+							<div style="font-size:13px; font-weight:bold; color:#dc2626;">${s.formatted_balance_due}</div>
+						</div>
+						<div>
+							<span style="font-size:10px; color:#64748b;">Payment Status:</span>
+							<div><span style="background:${status_badge_color}; color:#fff; font-size:10px; font-weight:bold; padding:2px 8px; border-radius:12px;">${s.payment_status}</span></div>
+						</div>
+					</div>
+				</div>
+			`;
+
+			const target_options = ["Advance Payment", "Milestone / Scheduled Term", "Full Outstanding Balance", "Custom Partial Amount"];
+
+			const d = new frappe.ui.Dialog({
+				title: __("Payment Entry Generator — ") + s.ref_number,
+				size: "large",
+				fields: [
+					{
+						fieldname: "sec_overview",
+						fieldtype: "HTML",
+						options: header_html,
+					},
+					{
+						fieldname: "sec_terms_amount",
+						fieldtype: "Section Break",
+						label: __("Which amount is getting paid & against which terms?"),
+					},
+					{
+						fieldname: "payment_target",
+						label: __("Payment Target / Terms"),
+						fieldtype: "Select",
+						options: target_options.join("\n"),
+						default: s.total_paid <= 0 && s.advance_amount > 0 ? "Advance Payment" : (s.schedule.length > 0 ? "Milestone / Scheduled Term" : "Full Outstanding Balance"),
+						reqd: 1,
+					},
+					{
+						fieldname: "selected_milestone",
+						label: __("Select Milestone / Term"),
+						fieldtype: "Select",
+						options: milestone_select_options.join("\n"),
+						depends_on: 'eval:doc.payment_target == "Milestone / Scheduled Term"',
+					},
+					{
+						fieldname: "col_break_amount",
+						fieldtype: "Column Break",
+					},
+					{
+						fieldname: "payment_amount",
+						label: __("Amount to Pay ({0})", [s.currency]),
+						fieldtype: "Currency",
+						options: "currency",
+						reqd: 1,
+					},
+					{
+						fieldname: "sec_execution",
+						fieldtype: "Section Break",
+						label: __("How is it paid? (Execution Details)"),
+					},
+					{
+						fieldname: "mode_of_payment",
+						label: __("Mode of Payment"),
+						fieldtype: "Select",
+						options: s.modes_of_payment.join("\n"),
+						default: s.modes_of_payment.includes("Bank Transfer") ? "Bank Transfer" : s.modes_of_payment[0],
+						reqd: 1,
+					},
+					{
+						fieldname: "paid_from",
+						label: __("Paid From Account (Company Bank/Cash)"),
+						fieldtype: "Select",
+						options: bank_account_options.join("\n"),
+						default: s.default_bank_account,
+						reqd: 1,
+					},
+					{
+						fieldname: "col_break_ref",
+						fieldtype: "Column Break",
+					},
+					{
+						fieldname: "reference_no",
+						label: __("Cheque / Transaction / UTR Ref No"),
+						fieldtype: "Data",
+						default: `TXN-${s.po_name}-${frappe.datetime.nowdate().replace(/-/g, "")}`,
+						reqd: 1,
+					},
+					{
+						fieldname: "reference_date",
+						label: __("Payment / Reference Date"),
+						fieldtype: "Date",
+						default: frappe.datetime.get_today(),
+						reqd: 1,
+					},
+					{
+						fieldname: "sec_notes",
+						fieldtype: "Section Break",
+						label: __("Payment Advice / Notes"),
+					},
+					{
+						fieldname: "user_remarks",
+						label: __("Remarks / Notes for Voucher"),
+						fieldtype: "Small Text",
+						default: `Payment against Vendor Purchase Order ${s.ref_number} to ${s.vendor}`,
+					},
+				],
+				primary_action_label: __("Generate Payment Entry"),
+				primary_action: function (values) {
+					const amount = flt(values.payment_amount, 2);
+					if (amount <= 0) {
+						frappe.msgprint(__("Please enter a valid payment amount greater than zero."));
+						return;
+					}
+					if (amount > flt(s.balance_due + 0.01, 2)) {
+						frappe.msgprint(__("Payment amount ({0}) cannot exceed the remaining balance ({1}).", [amount, s.formatted_balance_due]));
+						return;
+					}
+
+					let term_name = values.payment_target;
+					let milestone_row_id = "";
+					if (values.payment_target === "Milestone / Scheduled Term" && values.selected_milestone) {
+						const selected_m = milestone_map[values.selected_milestone];
+						if (selected_m) {
+							term_name = selected_m.payment_term;
+							milestone_row_id = selected_m.row_name;
+						}
+					}
+
+					frappe.call({
+						method: "sarveksha_erp.payment_tracking.payment_generator.generate_payment_entry_against_po",
+						args: {
+							po_name: s.po_name,
+							payment_target_type: values.payment_target,
+							amount: amount,
+							mode_of_payment: values.mode_of_payment,
+							paid_from: values.paid_from,
+							paid_to: s.vendor_payable_account,
+							reference_no: values.reference_no,
+							reference_date: values.reference_date,
+							payment_term: term_name,
+							milestone_row_id: milestone_row_id,
+							user_remarks: values.user_remarks,
+						},
+						freeze: true,
+						freeze_message: __("Creating official Payment Entry..."),
+						callback: function (res) {
+							if (res.message && res.message.success) {
+								d.hide();
+								frappe.show_alert({
+									message: __("Payment Entry {0} generated successfully! Opening voucher...", [res.message.payment_entry]),
+									indicator: "green",
+								});
+								frappe.set_route("Form", "Payment Entry", res.message.payment_entry);
+							}
+						},
+					});
+				},
+			});
+
+			function update_amount_for_target(target) {
+				if (target === "Advance Payment") {
+					const adv = s.advance_amount || flt(s.grand_total * 0.3, 2);
+					d.set_value("payment_amount", s.balance_due > 0 ? Math.min(adv, s.balance_due) : 0);
+					d.set_value("user_remarks", `Advance Payment against PO ${s.ref_number} to ${s.vendor}`);
+				} else if (target === "Full Outstanding Balance") {
+					d.set_value("payment_amount", s.balance_due);
+					d.set_value("user_remarks", `Full Balance Settlement against PO ${s.ref_number} to ${s.vendor}`);
+				} else if (target === "Milestone / Scheduled Term") {
+					const first_m_key = milestone_select_options[1];
+					if (first_m_key) {
+						d.set_value("selected_milestone", first_m_key);
+						const m = milestone_map[first_m_key];
+						if (m) {
+							d.set_value("payment_amount", s.balance_due > 0 ? Math.min(m.amount, s.balance_due) : 0);
+							d.set_value("user_remarks", `Milestone Payment (${m.payment_term}) against PO ${s.ref_number}`);
+						}
+					} else {
+						d.set_value("payment_amount", s.balance_due);
+					}
+				}
+			}
+
+			d.fields_dict.payment_target.$input.on("change", function () {
+				update_amount_for_target(d.get_value("payment_target"));
+			});
+
+			d.fields_dict.selected_milestone.$input.on("change", function () {
+				const selected_str = d.get_value("selected_milestone");
+				const m = milestone_map[selected_str];
+				if (m) {
+					d.set_value("payment_amount", m.amount);
+					d.set_value("user_remarks", `Milestone Payment (${m.payment_term}) against PO ${s.ref_number}`);
+				}
+			});
+
+			d.show();
+			// Initialize amount
+			update_amount_for_target(d.get_value("payment_target"));
+		},
+	});
 }

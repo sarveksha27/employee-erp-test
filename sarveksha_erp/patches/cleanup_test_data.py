@@ -229,6 +229,8 @@ def sync_sarveksha_companies_registration():
             "default_currency": "USD",
             "custom_registration_no": "RC / YAO / 2025 / B / 969",
             "registration_details": "Mining, Mining Services, Construction, Public Works, Trading and Commerce | RCCM: RC / YAO / 2025 / B / 969",
+            "tax_id": "27AFTFS2557J1Z8",
+            "custom_pan": "AFTFS2557J",
             "default_letter_head": "Cameroon (Sarveksha Cameroon PLC)",
         },
         "Sarveksha Botswana Proprietary Limited": {

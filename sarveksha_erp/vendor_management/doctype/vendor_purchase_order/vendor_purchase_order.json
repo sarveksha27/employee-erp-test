@@ -371,7 +371,7 @@
       "fieldname": "delivery_location",
       "fieldtype": "Data",
       "label": "3. Delivery Location",
-      "reqd": 1
+      "reqd": 0
     },
     {
       "fieldname": "warehouse",

@@ -4,22 +4,20 @@ app_publisher = "Sarveksha"
 app_description = "Vendor Management and ERP for Sarveksha"
 app_email = "info@sarveksha.com"
 app_license = "mit"
+app_logo_url = "/assets/sarveksha_erp/images/sarveksha-logo.svg"
+app_home = "/desk/vendor-management/vendor-purchase-order"
 
 # Apps
 # ------------------
 
-# required_apps = []
-
-# Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "sarveksha_erp",
-# 		"logo": "/assets/sarveksha_erp/logo.png",
-# 		"title": "Sarveksha ERP",
-# 		"route": "/sarveksha_erp",
-# 		"has_permission": "sarveksha_erp.api.permission.has_app_permission"
-# 	}
-# ]
+add_to_apps_screen = [
+	{
+		"name": app_name,
+		"logo": app_logo_url,
+		"title": app_title,
+		"route": app_home,
+	}
+]
 
 # Includes in <head>
 # ------------------
@@ -240,6 +238,9 @@ doc_events = {
         "on_update_after_submit": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
     },
     "Payment Entry": {
+        "after_insert": "sarveksha_erp.payment_tracking.events.payment_entry_events.on_payment_change",
+        "on_update": "sarveksha_erp.payment_tracking.events.payment_entry_events.on_payment_change",
+        "on_trash": "sarveksha_erp.payment_tracking.events.payment_entry_events.on_payment_trash",
         "before_submit": [
             "sarveksha_erp.payment_tracking.payment_entry_workflow.validate_payment_entry_workflow",
             "sarveksha_erp.payment_tracking.milestone_payment_entry.validate_milestone_payment_entry",
@@ -252,6 +253,7 @@ doc_events = {
         "on_cancel": [
             "sarveksha_erp.payment_tracking.milestone_payment_entry.sync_milestone_payment_status",
             "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
+            "sarveksha_erp.payment_tracking.events.payment_entry_events.on_payment_change",
         ],
         "on_update_after_submit": "sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.sync_vendor_purchase_order_payment_status",
     }

@@ -1,0 +1,34 @@
+{
+ "app": "sarveksha_erp",
+ "creation": "2026-10-31 23:00:00",
+ "docstatus": 0,
+ "doctype": "Sidebar",
+ "header_icon": "sliders-duotone",
+ "idx": 0,
+ "items": [
+  {
+   "added": 0,
+   "child": 0,
+   "collapsible": 1,
+   "hidden": 0,
+   "icon": "settings",
+   "indent": 0,
+   "is_default_module": 0,
+   "keep_closed": 0,
+   "label": "Equipment",
+   "link_to": "Equipment",
+   "link_type": "DocType",
+   "open_in_new_tab": 0,
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-10-31 23:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Equipment Management",
+ "name": "Equipment Management",
+ "owner": "Administrator",
+ "standard": 1,
+ "title": "Equipment Management"
+}
+

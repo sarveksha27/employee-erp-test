@@ -38,3 +38,9 @@ build/
 .vscode/
 .idea/
 *.sublime-*
+
+# ─── Local Documentation & Scratch Files ─────────────────
+README_LOCAL_TIMELINE.md
+sarveksha_erp/generate_test_scenarios.py
+sarveksha_erp/generate_pending_advance_pos.py
+

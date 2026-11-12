@@ -105,6 +105,8 @@ def _ensure_department(name, cost_center, approval_role):
 	department_name = f"{name} - {company_abbr}"
 	if frappe.db.exists("Department", department_name):
 		department = frappe.get_doc("Department", department_name)
+	elif frappe.db.exists("Department", name):
+		department = frappe.get_doc("Department", name)
 	else:
 		existing = frappe.db.get_value(
 			"Department",

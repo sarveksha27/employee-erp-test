@@ -12,40 +12,6 @@ from frappe.utils import flt, getdate, nowdate
 
 class VendorPurchaseOrder(Document):
 
-    def autoname(self):
-        """
-        Automatically generate PO number in format:
-        SRI.PO.-.####-DD-MM-YYYY -> e.g. SRIPO-0001-04-11-2026
-        Uses po_date if available, else current date.
-        """
-        if self.name:
-            return
-
-        from frappe.model.naming import make_autoname
-        from frappe.utils import getdate, nowdate
-
-        ref_date = getdate(self.po_date) if getattr(self, "po_date", None) else getdate(nowdate())
-        dd = ref_date.strftime("%d")
-        mm = ref_date.strftime("%m")
-        yyyy = ref_date.strftime("%Y")
-
-        series = getattr(self, "naming_series", None) or "SRI.PO.-.####"
-        if "DD" in series and "MM" in series and "YYYY" in series:
-            pattern = series
-        elif ".-." in series:
-            # SRI.PO.-.#### -> SRI.PO.-.####.-.DD.-.MM.-.YYYY
-            pattern = series.replace(".-.", ".-.")
-            if "####" in pattern:
-                pattern = pattern.replace(".####", f".####.-.{dd}.-.{mm}.-.{yyyy}")
-            else:
-                pattern = f"{pattern}.-.{dd}.-.{mm}.-.{yyyy}"
-        elif ".####" in series:
-            pattern = series.replace(".####", f".####.-.{dd}.-.{mm}.-.{yyyy}")
-        else:
-            pattern = f"SRI.PO.-.####.-.{dd}.-.{mm}.-.{yyyy}"
-
-        self.name = make_autoname(pattern, doc=self)
-
     def validate(self):
         """Called on every Save. Validates data and recalculates totals."""
         if self.is_new() or (self.workflow_state or "Draft") == "Draft":
@@ -689,21 +655,10 @@ class VendorPurchaseOrder(Document):
 
         # Generate a new reference number using the series
         series_prefix = self.naming_series or "SRI.PO.-.####"
-        from frappe.utils import getdate, nowdate
-        ref_date = getdate(self.po_date) if getattr(self, "po_date", None) else getdate(nowdate())
-        dd = ref_date.strftime("%d")
-        mm = ref_date.strftime("%m")
-        yyyy = ref_date.strftime("%Y")
-
         if ".-." in series_prefix:
             ref_series = series_prefix.replace(".-.", ".REF.-.")
         else:
             ref_series = series_prefix.replace(".####", ".REF.####")
-
-        if ".####" in ref_series:
-            ref_series = ref_series.replace(".####", f".####.-.{dd}.-.{mm}.-.{yyyy}")
-        else:
-            ref_series = f"{ref_series}.-.{dd}.-.{mm}.-.{yyyy}"
 
         from frappe.model.naming import make_autoname
         generated_ref = make_autoname(ref_series)
@@ -833,20 +788,24 @@ class VendorPurchaseOrder(Document):
 
     def validate_payment_terms_schedule(self):
         """
-        When workflow_state is advancing to 'Approved' or 'Forwarded to Finance',
-        validates that payment_terms_template and payment_schedule are properly set.
+        Validates payment_schedule if configured on the PO.
+        PO creation and approval do NOT require payment schedule up front, as payment terms and
+        milestone execution are managed separately.
         """
-        advancing_states = {
-            "Approved",
-            "Forwarded for Payment",
-            "Forwarded to Finance",
-        }
-        current_state = self.workflow_state or "Draft"
-        if current_state not in advancing_states:
+        schedule = self.get("payment_schedule", [])
+        if not schedule:
             return
 
-        from sarveksha_erp.payment_tracking.vpo_payment_terms import validate_vpo_payment_schedule
-        validate_vpo_payment_schedule(self)
+        grand_total = flt(getattr(self, "grand_total", 0.0), 2)
+        schedule_total = flt(sum(flt(row.payment_amount, 2) for row in schedule), 2)
+
+        if round(abs(grand_total - schedule_total), 2) > 0.01:
+            frappe.throw(
+                _("Payment Schedule total ({0}) does not match Grand Total ({1}). Please balance the milestones.").format(
+                    schedule_total, grand_total
+                ),
+                frappe.ValidationError,
+            )
 
     def sync_payment_check_fields(self):
         """Sync boolean Check fields with payment_status Select field value."""
@@ -1272,9 +1231,10 @@ def forward_vendor_purchase_order_for_payment(po_name, invoice_file, invoice_num
     if po.payment_workflow_status not in (None, "", "Not Forwarded"):
         frappe.throw(_("This Purchase Order has already entered payment processing."), frappe.ValidationError)
 
-    # Validate payment schedule is complete and balanced before forwarding
-    from sarveksha_erp.payment_tracking.vpo_payment_terms import validate_vpo_payment_schedule
-    validate_vpo_payment_schedule(po)
+    # Validate payment schedule is complete and balanced before forwarding (if configured)
+    if po.get("payment_schedule"):
+        from sarveksha_erp.payment_tracking.vpo_payment_terms import validate_vpo_payment_schedule
+        validate_vpo_payment_schedule(po)
 
     file_name = frappe.db.get_value("File", {"file_url": invoice_file}, "name")
     if not file_name:
@@ -1446,22 +1406,8 @@ def sync_vendor_purchase_order_payment_status(doc, method=None):
     if doc.doctype == "Purchase Invoice" and doc.get("vendor_purchase_order"):
         po_names.add(doc.vendor_purchase_order)
     elif doc.doctype == "Payment Entry":
-        invoice_names = {
-            row.reference_name
-            for row in (doc.get("references") or [])
-            if row.reference_doctype == "Purchase Invoice" and row.reference_name
-        }
-        if invoice_names:
-            po_names.update(
-                filter(
-                    None,
-                    frappe.get_all(
-                        "Purchase Invoice",
-                        filters={"name": ["in", list(invoice_names)]},
-                        pluck="vendor_purchase_order",
-                    ),
-                )
-            )
+        from sarveksha_erp.payment_tracking.events.payment_entry_events import get_linked_vendor_purchase_orders
+        po_names.update(get_linked_vendor_purchase_orders(doc))
 
     for po_name in po_names:
         recalculate_po_payment_status(po_name)
@@ -1927,26 +1873,59 @@ def get_workflow_activity_history(docname):
 
 
 @frappe.whitelist()
-def get_po_generated_amount_summary(from_date=None, to_date=None, company=None, vendor=None, status=None, po_type=None):
+def get_po_generated_amount_summary(from_date=None, to_date=None, company=None, vendor=None, status=None, po_type=None, year=None, month=None):
     """
-    Generate summary of PO generated amounts for the selected period.
+    Generate summary of PO generated amounts for the selected period, year, or month.
+    Supports:
+      - Yearwise filtering (e.g. year=2026)
+      - Monthwise filtering (e.g. year=2026, month=11 or month='November')
+      - Custom date range (from_date, to_date)
     Returns aggregated metrics:
-      - Total PO count
-      - Total generated amount
+      - Total PO count, total generated amount
       - Currency breakdown with formatted totals
+      - Monthly breakdown (by_month) with counts and totals
       - Status breakdown (counts, amounts, percentage)
       - Vendor breakdown
       - Company breakdown
+      - Available years list
       - Detailed PO records list
     """
+    import calendar
     from frappe.utils import flt, fmt_money, getdate, nowdate
 
-    if not to_date:
-        to_date = nowdate()
-    if not from_date:
-        # Default to the first day of the current month
-        today = getdate(to_date)
-        from_date = today.replace(day=1).strftime("%Y-%m-%d")
+    if year:
+        try:
+            year = int(year)
+        except (ValueError, TypeError):
+            year = getdate(nowdate()).year
+
+        if month:
+            month_num = None
+            if isinstance(month, int) or (isinstance(month, str) and month.isdigit()):
+                month_num = int(month)
+            elif isinstance(month, str) and month.strip():
+                m_str = month.strip().lower()
+                for m_idx in range(1, 13):
+                    if calendar.month_name[m_idx].lower().startswith(m_str) or calendar.month_abbr[m_idx].lower().startswith(m_str):
+                        month_num = m_idx
+                        break
+
+            if month_num and 1 <= month_num <= 12:
+                last_day = calendar.monthrange(year, month_num)[1]
+                from_date = f"{year:04d}-{month_num:02d}-01"
+                to_date = f"{year:04d}-{month_num:02d}-{last_day:02d}"
+            else:
+                from_date = f"{year:04d}-01-01"
+                to_date = f"{year:04d}-12-31"
+        else:
+            from_date = f"{year:04d}-01-01"
+            to_date = f"{year:04d}-12-31"
+    else:
+        if not to_date:
+            to_date = nowdate()
+        if not from_date:
+            today = getdate(to_date)
+            from_date = today.replace(day=1).strftime("%Y-%m-%d")
 
     from_date_str = str(getdate(from_date))
     to_date_str = str(getdate(to_date))
@@ -1954,7 +1933,7 @@ def get_po_generated_amount_summary(from_date=None, to_date=None, company=None, 
     if from_date_str > to_date_str:
         frappe.throw(_("From Date ({0}) cannot be greater than To Date ({1}).").format(from_date_str, to_date_str))
 
-    conditions = ["COALESCE(po_date, DATE(creation)) BETWEEN %(from_date)s AND %(to_date)s"]
+    conditions = ["COALESCE(po_date, DATE(creation)) BETWEEN %(from_date)s AND %(to_date)s", "docstatus != 2"]
     values = {"from_date": from_date_str, "to_date": to_date_str}
 
     if company:
@@ -2023,6 +2002,34 @@ def get_po_generated_amount_summary(from_date=None, to_date=None, company=None, 
         data["tax_amount"] = flt(data["tax_amount"], 2)
         data["formatted_total"] = fmt_money(data["total_amount"], currency=curr)
 
+    # Monthly breakdown (Jan - Dec)
+    month_abbrs = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    month_map = {}
+    for r in po_records:
+        dt = getdate(r.po_date) if r.po_date else getdate(r.creation_date)
+        if dt:
+            m_key = f"{dt.year:04d}-{dt.month:02d}"
+            if m_key not in month_map:
+                month_map[m_key] = {
+                    "key": m_key,
+                    "year": dt.year,
+                    "month": dt.month,
+                    "month_name": month_abbrs[dt.month],
+                    "label": f"{month_abbrs[dt.month]} {dt.year}",
+                    "count": 0,
+                    "total_amount": 0.0,
+                    "taxable_value": 0.0,
+                }
+            month_map[m_key]["count"] += 1
+            month_map[m_key]["total_amount"] += flt(r.grand_total, 2)
+            month_map[m_key]["taxable_value"] += flt(r.taxable_value, 2)
+
+    by_month = sorted(month_map.values(), key=lambda x: x["key"])
+    for m in by_month:
+        m["total_amount"] = flt(m["total_amount"], 2)
+        m["taxable_value"] = flt(m["taxable_value"], 2)
+        m["percentage"] = flt((m["total_amount"] / total_amount * 100.0), 2) if total_amount > 0 else 0.0
+
     status_map = {}
     for r in po_records:
         st = r.status or "Draft"
@@ -2064,12 +2071,25 @@ def get_po_generated_amount_summary(from_date=None, to_date=None, company=None, 
         c["total_amount"] = flt(c["total_amount"], 2)
     by_company.sort(key=lambda x: x["total_amount"], reverse=True)
 
+    # Dynamic available years from database
+    years_data = frappe.db.sql(
+        "SELECT DISTINCT YEAR(COALESCE(po_date, creation)) as yr FROM `tabVendor Purchase Order` WHERE docstatus != 2 ORDER BY yr DESC",
+        as_dict=True
+    )
+    available_years = [int(y.yr) for y in years_data if y.yr]
+    current_year = getdate(nowdate()).year
+    if current_year not in available_years:
+        available_years.insert(0, current_year)
+
     return {
         "period": {"from_date": from_date_str, "to_date": to_date_str},
+        "query_params": {"year": year, "month": month},
+        "available_years": available_years,
         "filters": {"company": company, "vendor": vendor, "status": status, "po_type": po_type},
         "total_pos": total_pos,
         "total_amount": flt(total_amount, 2),
         "by_currency": by_currency,
+        "by_month": by_month,
         "by_status": by_status,
         "by_vendor": by_vendor,
         "by_company": by_company,

@@ -47,7 +47,11 @@ def download_pdf(
 			letterhead=letterhead,
 			no_letterhead=no_letterhead,
 			pdf_generator=pdf_generator,
-			pdf_options={"print-media-type": ""},
+			pdf_options={
+				"print-media-type": "",
+				"load-error-handling": "ignore",
+				"load-media-error-handling": "ignore",
+			},
 		)
 
 	# 1. Apply full-page stationery image as background with data overlaid (and watermark for unapproved POs)

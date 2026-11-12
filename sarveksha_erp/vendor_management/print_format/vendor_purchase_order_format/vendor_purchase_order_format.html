@@ -3,6 +3,7 @@
 {% set vendor_address_name = frappe.db.get_value("Dynamic Link", {"link_doctype": "Supplier", "link_name": doc.vendor,
 "parenttype": "Address"}, "parent") %}
 {% set addr = frappe.get_doc("Address", vendor_address_name) if vendor_address_name else None %}
+{% set curr_sym = "Rs." if doc.currency == "INR" else (doc.currency or "") %}
 
 {# ── AUTO-SELECT LETTERHEAD ── #}
 {% if doc.letter_head and frappe.db.exists("Letter Head", doc.letter_head) %}
@@ -282,23 +283,14 @@
       </tr>
       <tr>
         <td class="lbl" style="border-top:1px solid #000 !important;">Currency :-</td>
-        <td style="border-top:1px solid #000 !important; border-left:1px solid #000 !important;">{{ doc.currency }}
-          (Rate: {{ doc.exchange_rate or 1 }})</td>
+        <td style="border-top:1px solid #000 !important; border-left:1px solid #000 !important;">{{ doc.currency or "INR" }}</td>
       </tr>
     </tbody>
   </table>
 
   <!-- ── SALUTATION ── -->
   <p>Dear Sir/Ma'am,</p>
-  {% set item_names = [] %}
-  {% for row in doc.items or [] %}
-  {% set item_name = (row.equipment_name or row.equipment or "")|trim %}
-  {% if item_name and item_name not in item_names %}
-  {% set _ = item_names.append(item_name) %}
-  {% endif %}
-  {% endfor %}
-  <p>We are pleased to release this Purchase Order for the supply of
-    <strong>{{ item_names|join(", ") if item_names else "the specified items" }}</strong>. Details and specifications
+  <p>We are pleased to release this Purchase Order for the supply of following items. Details and specifications
     are as per below. Please send your acceptance confirmation via return email for further processing.</p>
 
   <!-- ── PRE-CONDITIONS ── -->
@@ -307,14 +299,26 @@
       <tr>
         <td>
           The bill should be raised in the name of <strong>{{ company.company_name }}</strong>.
-          {% if doc.company_address %}
-          <br><span style="color:#333; font-size:8.5px;">{{ doc.company_address | replace("\n", "<br>") }}</span>
-          {% else %}
-          {% if doc.company_gstin %}<br><strong>GSTIN:</strong> {{ doc.company_gstin }}{% endif %}
-          {% if doc.company_pan %}<br><strong>PAN:</strong> {{ doc.company_pan }}{% endif %}
-          {% if company.registration_details %}<br><span style="font-size:8.5px;">{{ company.registration_details
-            }}</span>{% endif %}
+          {% set comp_desc = company.registration_details or company.company_description or "" %}
+          {% set raw_address = doc.company_address or comp_desc or "" %}
+          {% set addr_lines = raw_address.split("\n") %}
+          {% set clean_lines = [] %}
+          {% for line in addr_lines %}
+            {% set stripped = line.strip() %}
+            {% if stripped and not stripped.startswith("Tax ID") and not stripped.startswith("GSTIN") and not stripped.startswith("PAN:") and not stripped.startswith("PAN :") %}
+              {% set _ = clean_lines.append(stripped) %}
+            {% endif %}
+          {% endfor %}
+          {% if clean_lines %}
+          <br><span style="color:#333; font-size:8.5px;">{{ clean_lines | join("<br>") }}</span>
           {% endif %}
+          {% set tax_val = doc.company_gstin or company.tax_id %}
+          {% set pan_val = doc.company_pan or company.get("custom_pan") or company.get("pan") %}
+          {% if not pan_val and tax_val and tax_val|length == 15 %}
+            {% set pan_val = tax_val[2:12] %}
+          {% endif %}
+          <br><span style="color:#333; font-size:8.5px;">Tax ID / GSTIN: {{ tax_val or "—" }}</span>
+          <br><span style="color:#333; font-size:8.5px;">PAN: {{ pan_val or "—" }}</span>
         </td>
       </tr>
       <tr>
@@ -360,8 +364,8 @@
         <th class="center">Brand / Make</th>
         <th class="center">UOM</th>
         <th class="center">Qty</th>
-        <th class="right">Rate ({{ doc.currency }})</th>
-        <th class="right">Amount ({{ doc.currency }})</th>
+        <th class="right">Rate ({{ curr_sym }})</th>
+        <th class="right">Amount ({{ curr_sym }})</th>
       </tr>
     </thead>
     <tbody>
@@ -379,10 +383,8 @@
         <td class="center" style="border-top:none !important;">{{ item.brand or "—" }}</td>
         <td class="center" style="border-top:none !important;">{{ item.unit or "Nos" }}</td>
         <td class="center" style="border-top:none !important;">{{ item.quantity }}</td>
-        <td class="right" style="border-top:none !important;">{{ doc.currency }} {{ frappe.utils.fmt_money(item.rate,
-          currency=doc.currency) }}</td>
-        <td class="right" style="border-top:none !important;">{{ doc.currency }} {{
-          frappe.utils.fmt_money(item.taxable_amount, currency=doc.currency) }}</td>
+        <td class="right" style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(item.rate, currency=None) }}</td>
+        <td class="right" style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(item.taxable_amount, currency=None) }}</td>
       </tr>
       {% endfor %}
       {% else %}
@@ -398,64 +400,64 @@
         <td class="center" style="border-top:none !important;">{{ doc.brand or "—" }}</td>
         <td class="center" style="border-top:none !important;">{{ doc.unit or "Nos" }}</td>
         <td class="center" style="border-top:none !important;">{{ doc.quantity }}</td>
-        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("rate") }}</td>
-        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("taxable_value") }}</td>
+        <td class="right" style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(doc.rate, currency=None) }}</td>
+        <td class="right" style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(doc.taxable_value, currency=None) }}</td>
       </tr>
       {% endif %}
 
-      <!-- Tax rows (Only if GST is applicable) -->
-      {% if doc.gst_type and doc.gst_type != "None" and doc.tax_amount and doc.tax_amount > 0 %}
-      {% if doc.gst_type == "CGST + SGST" %}
+      <!-- Taxable Amount Row (Reflecting before GST) -->
       <tr>
-        <td colspan="7" class="right lbl" style="border-top:none !important;">CGST @ {{ (doc.gst_percentage / 2) | round(2) }}%</td>
-        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("cgst_amount") }}</td>
+        <td colspan="7" class="right lbl" style="border-top:none !important;">Taxable Amount</td>
+        <td class="right lbl" style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(doc.taxable_value or doc.cumulative_items_total or 0, currency=None) }}</td>
       </tr>
+
+      <!-- Tax rows: GST Amount -->
+      {% if doc.tax_amount and doc.tax_amount > 0 %}
       <tr>
-        <td colspan="7" class="right lbl" style="border-top:none !important;">SGST @ {{ (doc.gst_percentage / 2) | round(2) }}%</td>
-        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("sgst_amount") }}</td>
+        <td colspan="7" class="right lbl" style="border-top:none !important;">GST Amount{% if doc.gst_percentage %} @ {{ doc.gst_percentage }}%{% endif %}</td>
+        <td class="right" style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(doc.tax_amount, currency=None) }}</td>
       </tr>
-      {% else %}
+      {% elif doc.igst_amount and doc.igst_amount > 0 %}
       <tr>
-        <td colspan="7" class="right lbl" style="border-top:none !important;">IGST @ {{ doc.gst_percentage }}%</td>
-        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("igst_amount") }}</td>
+        <td colspan="7" class="right lbl" style="border-top:none !important;">GST Amount{% if doc.gst_percentage %} @ {{ doc.gst_percentage }}%{% endif %}</td>
+        <td class="right" style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(doc.igst_amount, currency=None) }}</td>
       </tr>
-      {% endif %}
       {% endif %}
 
       {% if doc.freight and doc.freight > 0 %}
       <tr>
         <td colspan="7" class="right" style="border-top:none !important;">Freight Charges</td>
-        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("freight") }}</td>
+        <td class="right" style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(doc.freight, currency=None) }}</td>
       </tr>
       {% endif %}
       {% if doc.insurance and doc.insurance > 0 %}
       <tr>
         <td colspan="7" class="right" style="border-top:none !important;">Insurance Charges</td>
-        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("insurance") }}</td>
+        <td class="right" style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(doc.insurance, currency=None) }}</td>
       </tr>
       {% endif %}
       {% if doc.custom_charges and doc.custom_charges > 0 %}
       <tr>
         <td colspan="7" class="right" style="border-top:none !important;">Custom Clearance Charges</td>
-        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("custom_charges") }}</td>
+        <td class="right" style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(doc.custom_charges, currency=None) }}</td>
       </tr>
       {% endif %}
       {% if doc.other_charges and doc.other_charges > 0 %}
       <tr>
         <td colspan="7" class="right" style="border-top:none !important;">Other Charges</td>
-        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("other_charges") }}</td>
+        <td class="right" style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(doc.other_charges, currency=None) }}</td>
       </tr>
       {% endif %}
 
       <tr>
         <td colspan="7" class="right lbl" style="border-top:none !important;">TOTAL</td>
-        <td class="right lbl" style="border-top:none !important;">{{ doc.currency }} {{
-          frappe.utils.fmt_money(doc.grand_total, currency=doc.currency) }}</td>
+        <td class="right lbl" style="border-top:none !important;">{{ curr_sym }} {{
+          frappe.utils.fmt_money(doc.grand_total, currency=None) }}</td>
       </tr>
       <tr>
         <td colspan="7" class="right lbl" style="border-top:none !important; font-size:10px;">Total Payable Amount</td>
-        <td class="right lbl" style="border-top:none !important; font-size:10px;">{{ doc.currency }} {{
-          frappe.utils.fmt_money(doc.grand_total, currency=doc.currency) }}</td>
+        <td class="right lbl" style="border-top:none !important; font-size:10px;">{{ curr_sym }} {{
+          frappe.utils.fmt_money(doc.grand_total, currency=None) }}</td>
       </tr>
     </tbody>
   </table>
@@ -488,11 +490,11 @@
             </tr>
             <tr>
               <td class="lbl" style="border-top:none !important;">Advance Amount</td>
-              <td style="border-top:none !important;">{{ doc.get_formatted("advance_amount") }}</td>
+              <td style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(doc.advance_amount or 0, currency=None) }}</td>
             </tr>
             <tr>
               <td class="lbl" style="border-top:none !important;">Balance Due</td>
-              <td class="lbl" style="border-top:none !important;">{{ doc.get_formatted("balance_due") }}</td>
+              <td class="lbl" style="border-top:none !important;">{{ curr_sym }} {{ frappe.utils.fmt_money(doc.balance_due or doc.grand_total or 0, currency=None) }}</td>
             </tr>
             <tr>
               <td class="lbl" style="border-top:none !important;">Vendor Bank</td>
@@ -513,12 +515,15 @@
       <!-- Logistics -->
       <td style="vertical-align:top; padding-left:4px; border:none !important; background:transparent !important;">
         <div class="section-head">LOGISTICS &amp; SHIPPING</div>
+        {% set dest_check = ((doc.warehouse or "") + " " + (doc.delivery_location or "")) | lower %}
+        {% set is_dest_india = "india" in dest_check or "maharashtra" in dest_check or "gujarat" in dest_check or "karnataka" in dest_check or "tamil nadu" in dest_check or "telangana" in dest_check or "andhra" in dest_check or "delhi" in dest_check or "rajasthan" in dest_check or "haryana" in dest_check or "uttar pradesh" in dest_check or "madhya pradesh" in dest_check or "kerala" in dest_check or "punjab" in dest_check or "west bengal" in dest_check or "nashik" in dest_check or "mumbai" in dest_check or "pune" in dest_check or "ahmedabad" in dest_check or "bangalore" in dest_check or "chennai" in dest_check or "hyderabad" in dest_check or "kolkata" in dest_check or (not doc.warehouse and not doc.delivery_location) or (doc.currency == "INR" and not ("uae" in dest_check or "dubai" in dest_check or "usa" in dest_check or "uk" in dest_check or "china" in dest_check or "africa" in dest_check or "singapore" in dest_check)) %}
         <table class="fixed" style="margin-bottom:0;">
           <colgroup>
             <col style="width:45%">
             <col style="width:55%">
           </colgroup>
           <tbody>
+            {% if not is_dest_india %}
             <tr>
               <td class="lbl">Port of Shipment</td>
               <td>{{ doc.port or company.custom_default_port or "—" }}</td>
@@ -527,24 +532,118 @@
               <td class="lbl" style="border-top:none !important;">Shipment Type</td>
               <td style="border-top:none !important;">{{ doc.shipment_type or "—" }}</td>
             </tr>
+            {% endif %}
             <tr>
-              <td class="lbl" style="border-top:none !important;">Expected Delivery</td>
-              <td style="border-top:none !important;">{{ doc.get_formatted("expected_delivery") or "—" }}</td>
+              <td class="lbl"{% if not is_dest_india %} style="border-top:none !important;"{% endif %}>Expected Delivery</td>
+              <td{% if not is_dest_india %} style="border-top:none !important;"{% endif %}>{{ doc.get_formatted("expected_delivery") or "—" }}</td>
             </tr>
+            {% if doc.delivery_location %}
             <tr>
               <td class="lbl" style="border-top:none !important;">Delivery Location</td>
-              <td style="border-top:none !important;">{{ doc.delivery_location or "—" }}</td>
+              <td style="border-top:none !important;">{{ doc.delivery_location }}</td>
             </tr>
+            {% else %}
+            <tr>
+              <td class="lbl" style="border-top:none !important;">Mode of Transport</td>
+              <td style="border-top:none !important;">{{ doc.transport_mode or "Road" }}</td>
+            </tr>
+            {% set mode = (doc.transport_mode or "Road")|lower %}
+            {% if "road" in mode or (not doc.transport_mode and (doc.transporter_name or doc.vehicle_number or doc.lr_number or doc.eway_bill_number)) %}
+              {% if doc.transporter_name %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">Transporter</td>
+                <td style="border-top:none !important;">{{ doc.transporter_name }}</td>
+              </tr>
+              {% endif %}
+              {% if doc.vehicle_number %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">Vehicle Number</td>
+                <td style="border-top:none !important;">{{ doc.vehicle_number }}</td>
+              </tr>
+              {% endif %}
+              {% if doc.lr_number %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">LR / Consignment No.</td>
+                <td style="border-top:none !important;">{{ doc.lr_number }}</td>
+              </tr>
+              {% endif %}
+              {% if doc.eway_bill_number %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">E-Way Bill No.</td>
+                <td style="border-top:none !important;">{{ doc.eway_bill_number }}</td>
+              </tr>
+              {% endif %}
+            {% elif "air" in mode %}
+              {% if doc.airport %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">Airport</td>
+                <td style="border-top:none !important;">{{ doc.airport }}</td>
+              </tr>
+              {% endif %}
+              {% if doc.air_carrier %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">Air Carrier</td>
+                <td style="border-top:none !important;">{{ doc.air_carrier }}</td>
+              </tr>
+              {% endif %}
+              {% if doc.flight_number %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">Flight Number</td>
+                <td style="border-top:none !important;">{{ doc.flight_number }}</td>
+              </tr>
+              {% endif %}
+              {% if doc.awb_number %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">AWB Number</td>
+                <td style="border-top:none !important;">{{ doc.awb_number }}</td>
+              </tr>
+              {% endif %}
+            {% elif "sea" in mode %}
+              {% if doc.port %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">Port of Shipment</td>
+                <td style="border-top:none !important;">{{ doc.port }}</td>
+              </tr>
+              {% endif %}
+              {% if doc.shipment_type %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">Shipment Type</td>
+                <td style="border-top:none !important;">{{ doc.shipment_type }}{% if doc.shipment_subtype %} ({{ doc.shipment_subtype }}){% endif %}</td>
+              </tr>
+              {% endif %}
+              {% if doc.cha %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">CHA Agent</td>
+                <td style="border-top:none !important;">{{ doc.cha }}</td>
+              </tr>
+              {% endif %}
+            {% elif "courier" in mode %}
+              {% if doc.courier_service %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">Courier Service</td>
+                <td style="border-top:none !important;">{{ doc.courier_service }}</td>
+              </tr>
+              {% endif %}
+              {% if doc.tracking_number %}
+              <tr>
+                <td class="lbl" style="border-top:none !important;">Tracking / Docket No.</td>
+                <td style="border-top:none !important;">{{ doc.tracking_number }}</td>
+              </tr>
+              {% endif %}
+            {% endif %}
+            {% endif %}
             {% if doc.warehouse %}
             <tr>
               <td class="lbl" style="border-top:none !important;">Destination Warehouse</td>
               <td style="border-top:none !important;">{{ doc.warehouse|replace('\n', '<br>') }}</td>
             </tr>
             {% endif %}
+            {% if doc.container_number %}
             <tr>
               <td class="lbl" style="border-top:none !important;">Container No.</td>
-              <td style="border-top:none !important;">{{ doc.container_number or "—" }}</td>
+              <td style="border-top:none !important;">{{ doc.container_number }}</td>
             </tr>
+            {% endif %}
             <tr>
               <td class="lbl" style="border-top:none !important;">SRI GSTIN</td>
               <td style="border-top:none !important;">{{ company.tax_id or "—" }}</td>
@@ -561,24 +660,50 @@
 
   <!-- ── TERMS & CONDITIONS ── -->
   <div style="margin-top: 6px;"></div>
-  {% if doc.standard_terms or doc.custom_terms %}
+  {% set rendered_custom_terms = doc.custom_terms or frappe.db.get_value("Vendor Purchase Order", doc.name, "custom_terms") %}
+  {% set st_terms_list = [] %}
+  {% if doc.standard_terms %}
+    {% for row in doc.standard_terms|sort(attribute="idx") %}
+      {% if row.standard_term and frappe.db.exists("Terms and Conditions", row.standard_term) %}
+        {% set st_doc = frappe.get_doc("Terms and Conditions", row.standard_term) %}
+        {% set _ = st_terms_list.append({"title": row.standard_term, "terms": st_doc.terms}) %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  {# Fetch default Terms and Conditions from the database if neither custom nor standard terms are explicitly set on doc #}
+  {% if not rendered_custom_terms and not st_terms_list %}
+    {% set default_term_name = "Standard Domestic PO Terms" if is_dest_india else "Standard Export PO Terms" %}
+    {% if not frappe.db.exists("Terms and Conditions", default_term_name) %}
+      {% set default_term_name = "Standard Export PO Terms" if frappe.db.exists("Terms and Conditions", "Standard Export PO Terms") else None %}
+    {% endif %}
+    {% if not default_term_name %}
+      {% set any_term = frappe.db.get_value("Terms and Conditions", {}, "name") %}
+      {% if any_term %}{% set default_term_name = any_term %}{% endif %}
+    {% endif %}
+    {% if default_term_name and frappe.db.exists("Terms and Conditions", default_term_name) %}
+      {% set st_doc = frappe.get_doc("Terms and Conditions", default_term_name) %}
+      {% set _ = st_terms_list.append({"title": default_term_name, "terms": st_doc.terms}) %}
+    {% endif %}
+  {% endif %}
+
   <p style="margin:0 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
   <table class="fixed" style="margin-bottom:8px;">
     <tbody>
       <tr>
         <td style="line-height:1.4;">
-          {% if doc.standard_terms %}
-          <ol>
-          {% for row in doc.standard_terms|sort(attribute="idx") %}
-          {% if row.standard_term and frappe.db.exists("Terms and Conditions", row.standard_term) %}
-          {% set st_doc = frappe.get_doc("Terms and Conditions", row.standard_term) %}
-          <li class="standard-terms-print" style="margin-bottom: 6px;">
-            <strong>{{ row.standard_term }}</strong>
-            <div>{{ st_doc.terms }}</div>
-          </li>
+          {% if st_terms_list %}
+            {% for item in st_terms_list %}
+              <div class="standard-terms-print" style="margin-bottom: 6px;">
+                {% if st_terms_list|length > 1 %}<strong>{{ item.title }}</strong>{% endif %}
+                <div>{{ item.terms|safe }}</div>
+              </div>
+            {% endfor %}
           {% endif %}
-          {% endfor %}
-          </ol>
+          {% if rendered_custom_terms %}
+            <div class="custom-terms-print" style="{% if st_terms_list %}margin-top: 6px;{% endif %}">
+              {{ rendered_custom_terms|safe }}
+            </div>
           {% endif %}
           {% if doc.custom_terms %}
           <div class="custom-terms-print" style="margin-top: 6px;">
@@ -589,25 +714,6 @@
       </tr>
     </tbody>
   </table>
-  {% else %}
-  <p style="margin:0 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
-  <table class="fixed" style="margin-bottom:8px;">
-    <tbody>
-      <tr>
-        <td style="line-height:1.4;">
-          1) The prices are Nett &amp; Ex-Godown / Ex-Works unless otherwise specified.<br>
-          2) Discount: As mentioned in this Purchase Order.<br>
-          3) Packing Charges: As per actuals. Supplier must pack goods in a manner compliant with export norms and
-          handling safety.<br>
-          4) Inspection: Pre-dispatch inspection at supplier premises or at port if requested.<br>
-          5) Warranty: Standard manufacturer warranty applies from date of delivery and commissioning.<br>
-          6) Delivery Schedule: Goods must be dispatched on or before the committed delivery date.<br>
-          7) Jurisdiction: Subject to local registered office jurisdiction.
-        </td>
-      </tr>
-    </tbody>
-  </table>
-  {% endif %}
 
   <!-- ── ATTACHED DOCUMENTS INDEX (IF ANY) ── -->
   {% set attached_docs = [] %}

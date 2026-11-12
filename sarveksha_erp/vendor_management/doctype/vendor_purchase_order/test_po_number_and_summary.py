@@ -30,10 +30,9 @@ class TestPONumberAndSummary(unittest.TestCase):
 
         frappe.db.commit()
 
-    def test_po_number_format_with_date(self):
-        """Verify that newly generated PO number follows SRI.PO.-.####-DD-MM-YYYY format."""
-        today = getdate(nowdate())
-        expected_date_suffix = today.strftime("-%d-%m-%Y")
+    def test_po_number_format_standard(self):
+        """Verify that newly generated PO number follows standard simple numbering: SRIPO-#### without year/date suffix."""
+        import re
 
         po = frappe.new_doc("Vendor Purchase Order")
         po.po_type = "Vendor PO"
@@ -50,36 +49,28 @@ class TestPONumberAndSummary(unittest.TestCase):
 
         try:
             self.assertIsNotNone(po.name)
-            self.assertTrue(po.name.startswith("SRIPO-"))
-            self.assertTrue(po.name.endswith(expected_date_suffix))
+            self.assertTrue(bool(re.match(r"^SRIPO-\d{4,}$", po.name)), f"PO name {po.name} does not match simple SRIPO-#### pattern")
         finally:
             frappe.db.rollback()
 
-    def test_po_number_format_with_specific_po_date(self):
-        """Verify that PO with specific po_date derives DD-MM-YYYY from po_date."""
-        target_date = "2025-06-15"
-        expected_suffix = "-15-06-2025"
+    def test_get_po_generated_amount_summary_yearwise(self):
+        """Verify get_po_generated_amount_summary filters yearwise cleanly."""
+        res = get_po_generated_amount_summary(year=2026)
+        self.assertEqual(res["period"]["from_date"], "2026-01-01")
+        self.assertEqual(res["period"]["to_date"], "2026-12-31")
+        self.assertIn("by_month", res)
+        self.assertIn("available_years", res)
+        self.assertIn(2026, res["available_years"])
 
-        po = frappe.new_doc("Vendor Purchase Order")
-        po.po_type = "Vendor PO"
-        po.company = "_Test Company PO Year"
-        po.vendor = "_Test Supplier PO Year"
-        po.po_date = target_date
-        po.quantity = 2.0
-        po.rate = 500.0
-        po.exchange_rate = 1.0
-        po.currency = "INR"
-        po.workflow_state = "Draft"
-        po.flags.ignore_mandatory = True
-        po.flags.ignore_validate = True
-        po.insert(ignore_permissions=True)
+    def test_get_po_generated_amount_summary_monthwise(self):
+        """Verify get_po_generated_amount_summary filters monthwise with integer and string."""
+        res_int = get_po_generated_amount_summary(year=2026, month=11)
+        self.assertEqual(res_int["period"]["from_date"], "2026-11-01")
+        self.assertEqual(res_int["period"]["to_date"], "2026-11-30")
 
-        try:
-            self.assertIsNotNone(po.name)
-            self.assertTrue(po.name.startswith("SRIPO-"))
-            self.assertTrue(po.name.endswith(expected_suffix))
-        finally:
-            frappe.db.rollback()
+        res_str = get_po_generated_amount_summary(year=2026, month="November")
+        self.assertEqual(res_str["period"]["from_date"], "2026-11-01")
+        self.assertEqual(res_str["period"]["to_date"], "2026-11-30")
 
     def test_get_po_generated_amount_summary_aggregated_metrics(self):
         """Verify get_po_generated_amount_summary aggregates totals, currency, and status accurately."""
