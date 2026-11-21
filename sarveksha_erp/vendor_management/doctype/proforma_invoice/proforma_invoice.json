@@ -68,9 +68,8 @@
   {
    "default": "SRI/PI/.YYYY.-.####",
    "fieldname": "naming_series",
-   "fieldtype": "Select",
+   "fieldtype": "Data",
    "label": "Series",
-   "options": "SRI/PI/.YYYY.-.####\nSRI/BOT/26-27/.###",
    "read_only": 1
   },
   {
