@@ -60,7 +60,6 @@ class VendorPurchaseOrder(Document):
         self.set_default_notify_party()
         self.set_default_terms()
         self.validate_uom()
-        self.validate_creation_roles()
         self.validate_generator_edit_rights()
         self.validate_reviewer_edit_rights()
         self.validate_payment_permissions()
@@ -445,31 +444,6 @@ class VendorPurchaseOrder(Document):
                     item.unit = validated_uoms[item.unit]
                 else:
                     item.unit = "Nos"
-
-    def validate_creation_roles(self):
-        """Ensure PO Verifier and PO Approver cannot create new POs."""
-        if self.is_new():
-            if frappe.session.user == "Administrator":
-                return
-
-            user_roles = set(frappe.get_roles(frappe.session.user))
-            
-            # If the user has PO Verifier role and is not a PO Generator
-            if "PO Verifier" in user_roles and "PO Generator" not in user_roles:
-                frappe.throw(
-                    _("PO Verifiers cannot create new Purchase Orders."),
-                    frappe.PermissionError
-                )
-
-            # If the user has PO Approver role and is not a PO Generator
-            if "PO Approver" in user_roles and "PO Generator" not in user_roles:
-                frappe.throw(
-                    _("PO Approvers cannot create new Purchase Orders. "
-                      "As an Approver, your role is strictly to review, verify, "
-                      "and approve or reject/return purchase orders forwarded by PO Generators and Verifiers. "
-                      "If you need to generate a purchase order, please request a user with the PO Generator role to initiate the draft."),
-                    frappe.PermissionError
-                )
 
     def validate_generator_edit_rights(self):
         """Prevent PO Generator from modifying PO once generated / submitted for verification."""

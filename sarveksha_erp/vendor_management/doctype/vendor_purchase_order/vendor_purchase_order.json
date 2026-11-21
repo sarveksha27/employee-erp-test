@@ -1114,6 +1114,11 @@
   "owner": "Administrator",
   "permissions": [
     {
+      "create": 1,
+      "read": 1,
+      "role": "All"
+    },
+    {
       "amend": 1,
       "cancel": 1,
       "create": 1,

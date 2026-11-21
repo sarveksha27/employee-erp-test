@@ -37,7 +37,7 @@ Sarveksha operates a global group of companies:
 To prevent mistakes, fraud, or unverified spending, the system divides responsibilities between four distinct roles:
 
 1. **PO Generator (`po_generator@sarveksha.com`)**:
-   - Creates new draft Purchase Orders.
+   - Generates and manages draft Purchase Orders as part of the procurement workflow.
    - Selects equipment, specifies quantities, enters negotiated rates, and uploads vendor quotations.
    - Submits the PO for verification.
    - *Cannot verify or approve their own PO.*
@@ -56,6 +56,8 @@ To prevent mistakes, fraud, or unverified spending, the system divides responsib
 
 4. **Administrator (`Administrator`)**:
    - IT/management oversight for master data setup and system maintenance.
+
+> Any logged-in user can create and view Purchase Orders. Verification, approval, and other workflow actions remain controlled by the assigned roles.
 
 > [!NOTE]
 > The previous "Procurement Manager" approval bottleneck has been removed. Authorized users (Generators, Verifiers, and Approvers) can now manage payment terms and advance payment percentages directly within their workflow.

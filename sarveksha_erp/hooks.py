@@ -79,7 +79,19 @@ fixtures = [
         "dt": "Custom DocPerm",
         "filters": [
             ["parent", "in", ["Payment Entry", "Journal Entry", "Purchase Invoice", "Supplier", "Bank Account", "Vendor Purchase Order"]],
-            ["role", "in", ["PO Generator", "PO Verifier", "PO Approver", "Accounts Clerk", "Accounts Manager", "System Manager"]]
+            [
+                "role",
+                "in",
+                [
+                    "All",
+                    "PO Generator",
+                    "PO Verifier",
+                    "PO Approver",
+                    "Accounts Clerk",
+                    "Accounts Manager",
+                    "System Manager",
+                ],
+            ],
         ]
     },
     {
