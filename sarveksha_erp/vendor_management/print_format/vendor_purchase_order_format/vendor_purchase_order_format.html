@@ -237,7 +237,7 @@
     </colgroup>
     <tbody>
       <tr>
-        <td rowspan="6" style="vertical-align:top; border-right:2px solid #000 !important;">
+        <td rowspan="{{ 7 if doc.po_type == 'Internal PO' else 6 }}" style="vertical-align:top; border-right:2px solid #000 !important;">
           <span class="lbl">{{ vendor.supplier_name }}</span><br>
           {% if addr %}
           {% if addr.address_line1 %}{{ addr.address_line1 }},<br>{% endif %}
@@ -285,6 +285,13 @@
         <td style="border-top:1px solid #000 !important; border-left:1px solid #000 !important;">{{ doc.currency }}
           (Rate: {{ doc.exchange_rate or 1 }})</td>
       </tr>
+      {% if doc.po_type == "Internal PO" %}
+      <tr>
+        <td class="lbl" style="border-top:1px solid #000 !important;">Notify Party :-</td>
+        <td style="border-top:1px solid #000 !important; border-left:1px solid #000 !important;">
+          {{ (doc.notify_party or "Globe Multitrade & Service LLC") | replace("\n", "<br>") }}</td>
+      </tr>
+      {% endif %}
     </tbody>
   </table>
 
@@ -333,24 +340,31 @@
         <td style="border-top:none !important;">If nothing contrary is heard within 24 hours from receipt of this PO, it
           will be understood that the Purchase Order is accepted by you.</td>
       </tr>
+      {% if doc.po_type != "Internal PO" %}
       <tr>
         <td style="border-top:none !important;">This Purchase Order shall be subject to the jurisdiction of the
           Company's registered office.</td>
       </tr>
+      {% endif %}
     </tbody>
   </table>
 
   <!-- ── ITEM TABLE ── -->
+  {% set is_internal_po = doc.po_type == "Internal PO" %}
+  {% set item_summary_colspan = 6 if is_internal_po else 7 %}
+  {% set internal_amounts = namespace(distributed=0) %}
   <table class="fixed" style="margin-bottom:6px;">
     <colgroup>
       <col style="width:5%">
-      <col style="width:30%">
+      <col style="width:{{ '39%' if is_internal_po else '30%' }}">
       <col style="width:9%">
       <col style="width:9%">
       <col style="width:6%">
       <col style="width:6%">
+      {% if not is_internal_po %}
       <col style="width:17%">
-      <col style="width:18%">
+      {% endif %}
+      <col style="width:{{ '26%' if is_internal_po else '18%' }}">
     </colgroup>
     <thead>
       <tr>
@@ -360,8 +374,10 @@
         <th class="center">Brand / Make</th>
         <th class="center">UOM</th>
         <th class="center">Qty</th>
-        <th class="right">Rate ({{ doc.currency }})</th>
-        <th class="right">Amount ({{ doc.currency }})</th>
+        {% if not is_internal_po %}<th class="right">Rate ({{ doc.currency }})</th>{% endif %}
+        <th class="right">
+          {% if is_internal_po %}Amount (incl. internal margin){% else %}Amount ({{ doc.currency }}){% endif %}
+        </th>
       </tr>
     </thead>
     <tbody>
@@ -379,10 +395,21 @@
         <td class="center" style="border-top:none !important;">{{ item.brand or "—" }}</td>
         <td class="center" style="border-top:none !important;">{{ item.unit or "Nos" }}</td>
         <td class="center" style="border-top:none !important;">{{ item.quantity }}</td>
+        {% if not is_internal_po %}
         <td class="right" style="border-top:none !important;">{{ doc.currency }} {{ frappe.utils.fmt_money(item.rate,
           currency=doc.currency) }}</td>
-        <td class="right" style="border-top:none !important;">{{ doc.currency }} {{
-          frappe.utils.fmt_money(item.taxable_amount, currency=doc.currency) }}</td>
+        {% endif %}
+        {% if is_internal_po %}
+          {% if loop.last %}
+            {% set display_amount = doc.grand_total - internal_amounts.distributed %}
+          {% else %}
+            {% set display_amount = ((doc.grand_total * (item.taxable_amount or 0)) / doc.taxable_value) | round(2) if doc.taxable_value else 0 %}
+            {% set internal_amounts.distributed = internal_amounts.distributed + display_amount %}
+          {% endif %}
+          <td class="right" style="border-top:none !important;">{{ frappe.utils.fmt_money(display_amount, currency=doc.currency) }}</td>
+        {% else %}
+          <td class="right" style="border-top:none !important;">{{ doc.currency }} {{ frappe.utils.fmt_money(item.taxable_amount, currency=doc.currency) }}</td>
+        {% endif %}
       </tr>
       {% endfor %}
       {% else %}
@@ -398,11 +425,16 @@
         <td class="center" style="border-top:none !important;">{{ doc.brand or "—" }}</td>
         <td class="center" style="border-top:none !important;">{{ doc.unit or "Nos" }}</td>
         <td class="center" style="border-top:none !important;">{{ doc.quantity }}</td>
+        {% if not is_internal_po %}
         <td class="right" style="border-top:none !important;">{{ doc.get_formatted("rate") }}</td>
-        <td class="right" style="border-top:none !important;">{{ doc.get_formatted("taxable_value") }}</td>
+        {% endif %}
+        <td class="right" style="border-top:none !important;">
+          {% if is_internal_po %}{{ doc.get_formatted("grand_total") }}{% else %}{{ doc.get_formatted("taxable_value") }}{% endif %}
+        </td>
       </tr>
       {% endif %}
 
+      {% if not is_internal_po %}
       <!-- Tax rows (Only if GST is applicable) -->
       {% if doc.gst_type and doc.gst_type != "None" and doc.tax_amount and doc.tax_amount > 0 %}
       {% if doc.gst_type == "CGST + SGST" %}
@@ -457,10 +489,17 @@
         <td class="right lbl" style="border-top:none !important; font-size:10px;">{{ doc.currency }} {{
           frappe.utils.fmt_money(doc.grand_total, currency=doc.currency) }}</td>
       </tr>
+      {% else %}
+      <tr>
+        <td colspan="{{ item_summary_colspan }}" class="right lbl" style="border-top:none !important; font-size:10px;">TOTAL AMOUNT (INCL. INTERNAL MARGIN)</td>
+        <td class="right lbl" style="border-top:none !important; font-size:10px;">{{ doc.get_formatted("grand_total") }}</td>
+      </tr>
+      {% endif %}
     </tbody>
   </table>
 
   <!-- ── PAYMENT + LOGISTICS (SIDE BY SIDE) ── -->
+  {% if not is_internal_po %}
   <table width="100%" cellspacing="0" cellpadding="0"
     style="border-collapse:collapse; margin-bottom:6px; table-layout:fixed; background:transparent !important;">
     <colgroup>
@@ -558,8 +597,10 @@
       </td>
     </tr>
   </table>
+  {% endif %}
 
   <!-- ── TERMS & CONDITIONS ── -->
+  {% if not is_internal_po %}
   <div style="margin-top: 6px;"></div>
   {% if doc.standard_terms or doc.custom_terms %}
   <p style="margin:0 0 4px 0;"><strong><u>Terms &amp; Conditions :-</u></strong></p>
@@ -607,6 +648,7 @@
       </tr>
     </tbody>
   </table>
+  {% endif %}
   {% endif %}
 
   <!-- ── ATTACHED DOCUMENTS INDEX (IF ANY) ── -->

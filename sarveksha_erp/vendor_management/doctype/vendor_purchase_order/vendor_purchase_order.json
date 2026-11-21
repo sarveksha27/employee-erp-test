@@ -19,12 +19,14 @@
     "quotation_date",
     "company_address",
     "vendor_address",
+    "notify_party",
     "letter_head",
     "exchange_rate",
     "default_port",
     "col_break_order_overview",
     "po_date",
     "status",
+    "cancellation_reason",
     "naming_series",
     "ref_number",
     "revision",
@@ -215,6 +217,13 @@
       "read_only": 1
     },
     {
+      "default": "Globe Multitrade & Service LLC\nOffice No. 112, AL Jabri Building,\nIndustrial Area, Sharjah (UAE)",
+      "depends_on": "eval:doc.po_type==='Internal PO'",
+      "fieldname": "notify_party",
+      "fieldtype": "Small Text",
+      "label": "Notify Party"
+    },
+    {
       "fieldname": "letter_head",
       "fieldtype": "Link",
       "hidden": 1,
@@ -258,6 +267,14 @@
       "label": "10. Status",
       "options": "Draft\nPending Verification\nVerification Returned\nPending Approval\nApproved\nPrinted\nSubmitted\nVendor Confirmed\nPartially Paid\nFully Paid\nShipped\nDelivered\nCancelled",
       "reqd": 1
+    },
+    {
+      "allow_on_submit": 1,
+      "depends_on": "eval:doc.status==='Cancelled' || doc.workflow_state==='Cancelled'",
+      "fieldname": "cancellation_reason",
+      "fieldtype": "Small Text",
+      "label": "Cancellation Reason",
+      "read_only": 1
     },
     {
       "default": "SRI.PO.-.####",
@@ -634,17 +651,20 @@
       "label": "Section E: Terms and Sign-off"
     },
     {
+      "depends_on": "eval:doc.po_type==='Vendor PO'",
       "fieldname": "standard_terms",
       "fieldtype": "Table MultiSelect",
       "label": "1. Standard Terms",
       "options": "VPO Standard Term"
     },
     {
+      "depends_on": "eval:doc.po_type==='Vendor PO'",
       "fieldname": "terms_preview",
       "fieldtype": "HTML",
       "label": "2. Standard Terms Preview"
     },
     {
+      "depends_on": "eval:doc.po_type==='Vendor PO'",
       "fieldname": "custom_terms",
       "fieldtype": "Text Editor",
       "label": "3. Custom Terms"
@@ -704,6 +724,7 @@
       "label": "Section F: Payment Tracking"
     },
     {
+      "depends_on": "eval:doc.po_type==='Vendor PO'",
       "fieldname": "payment_terms_template",
       "fieldtype": "Link",
       "label": "Payment Terms Template",
@@ -711,6 +732,7 @@
       "in_list_view": 0
     },
     {
+      "depends_on": "eval:doc.po_type==='Vendor PO'",
       "fieldname": "payment_schedule",
       "fieldtype": "Table",
       "label": "Payment Schedule",
@@ -719,6 +741,7 @@
     },
     {
       "description": "e.g., 30% advance, 70% before dispatch",
+      "depends_on": "eval:doc.po_type==='Vendor PO'",
       "fieldname": "payment_terms",
       "fieldtype": "Small Text",
       "label": "1. Payment Terms"
@@ -1146,6 +1169,11 @@
       "read": 1,
       "report": 1,
       "role": "Accounts Manager"
+    },
+    {
+      "cancel": 1,
+      "read": 1,
+      "role": "Vendor & Equipment Manager"
     },
     {
       "create": 1,

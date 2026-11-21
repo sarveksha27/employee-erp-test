@@ -78,6 +78,9 @@ Navigate to **Buying** -> **Vendor Purchase Order** -> Click **+ Add Vendor Purc
 - **Vendor / Supplier**:
   - For a `Vendor PO`, select the third-party supplier (e.g., *Action Construction Equipment*).
   - For an `Internal PO`, the system requires you to select **Sarveksha Realty and Inframine LLP**.
+- **Notify Party**: Internal POs default this to **Globe Multitrade & Service LLC**; update it if the shipment requires a different notify party.
+- **Company Letterhead**: The Internal PO print uses the letterhead mapped to the selected company.
+- **Internal PO print**: Line amounts include the internal margin in one amount. Payment/export terms, logistics and shipping details, and the registered-office jurisdiction clause are omitted from this print.
 - **Currency**: Currency of the transaction (e.g., `USD`, `INR`, `EUR`).
 
 ### Section B: Quotation Governance & Vendor Quotes (Optional)
@@ -122,6 +125,7 @@ Click **Add Row** in the **Equipment Line Items** table:
 ### Section E: Payment Terms & Advance Tracking
 
 - **Payment Terms Template**: Standard credit arrangements (e.g., *100% Advance*, *30% Advance + 70% against BL*, or *30 Days Credit*).
+- Payment-term templates and schedules are not required for Internal POs.
 - **Payment Status**:
   - Options: `Pending`, `Advance Paid`, `Partially Paid`, `Fully Paid`.
 - **Advance Percentage (%)**: Percentage required prior to shipment (e.g., `25%`).
@@ -144,6 +148,8 @@ When an overseas child company issues an Internal PO to SRI, SRI must issue an o
 ### Step 3: Understand the Proforma Invoice Fields
 
 - **Reference Constraint**: A Proforma Invoice can **only** be created from an Internal PO. The system strictly blocks creating a PI for regular external vendor POs.
+- The source Internal PO must be submitted and in the **Approved** state.
+- The PI print follows the supplied reference: a single total-amount column includes the margin, and the document shows the notify party, shipping destinations, beneficiary banking details, amount in words, and authorized-signatory area.
 - **Seller**: Automatically set to **Sarveksha Realty and Inframine LLP** with our full registered office address, GSTIN, PAN, and IEC (Import Export Code).
 - **Buyer**: Automatically set to the Child Company (e.g., *Odhav Holdings*) with their foreign destination address.
 - **SRI Margin (%)**:
@@ -182,6 +188,9 @@ When you click **Print PO** or **Print Proforma Invoice**:
 
 **Q: Why can't I edit the vendor or equipment on an Approved PO?**
 A: Once a PO is approved, it is a legally binding contract. If changes are needed, you must click **Cancel** or use **Amend** to create an amendment revision (which will receive a `-1` suffix).
+
+**Q: How do I cancel an approved PO?**
+A: A user with the **Vendor & Equipment Manager** role can use **Cancel PO** and must enter a reason. The reason is saved on the PO and in its audit timeline. Cancel any active PI linked to the PO first.
 
 **Q: Why is GST zero when I select Odhav Holdings or Baani Minerals?**
 A: Foreign entities outside India do not possess Indian GST registrations. The system automatically zeros out GST components to comply with international cross-border accounting standards.
