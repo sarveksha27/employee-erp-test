@@ -48,7 +48,7 @@
     box-shadow: none !important;
     border-radius: 0 !important;
     padding: 0 !important;
-    margin-top: 48mm !important;
+    margin-top: 0 !important;
     margin-bottom: 20mm !important;
     margin-left: 14mm !important;
     margin-right: 14mm !important;
@@ -69,7 +69,7 @@
       box-shadow: none !important;
       border-radius: 0 !important;
       padding: 0 !important;
-      margin-top: 48mm !important;
+      margin-top: 0 !important;
       margin-bottom: 20mm !important;
       margin-left: 14mm !important;
       margin-right: 14mm !important;
@@ -85,11 +85,29 @@
   }
 
   .pi-wrapper {
+    position: relative;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     background: transparent !important;
     background-color: transparent !important;
+  }
+
+  .pi-letterhead {
+    position: absolute;
+    top: -46mm;
+    left: 0;
+    width: 100%;
+    height: 44mm;
+    overflow: hidden;
+  }
+
+  .pi-letterhead img {
+    display: block;
+    width: 100%;
+    max-height: 44mm;
+    object-fit: contain;
+    object-position: top center;
   }
 
   table.fixed {
@@ -150,10 +168,15 @@
 </style>
 
 <div class="pi-wrapper">
+  {% if letterhead_img %}
+  <div class="pi-letterhead">
+    <img src="{{ frappe.utils.get_url() + letterhead_img }}" alt="Sarveksha Realty and Inframine LLP letterhead">
+  </div>
+  {% endif %}
 
   <!-- ── TITLE ── -->
   <p style="text-align:center; font-size:13px; font-weight:bold; text-decoration:underline; margin:0 0 6px 0; letter-spacing:1px;">
-    PAYMENT INVOICE
+    PROFORMA INVOICE
   </p>
 
   <!-- ── SHIPPER (LEFT) & CONSIGNEE / META (RIGHT) ── -->
@@ -187,7 +210,7 @@
             {{ doc.buyer_address | replace("\n", "<br>") }}<br>
           {% endif %}
           <hr style="border:0; border-top:1px solid #ccc; margin:3px 0;">
-          <span class="lbl">Payment Invoice No.:-</span> {{ doc.pi_number or doc.name }}<br>
+          <span class="lbl">Proforma Invoice No.:-</span> {{ doc.pi_number or doc.name }}<br>
           <span class="lbl">Date:-</span> {{ doc.get_formatted("pi_date") }}<br>
           <span class="lbl">Purchase Order number {{ doc.po_reference_no or doc.internal_po }} for Reference</span><br>
           <span class="lbl">Currency:</span> {{ doc.currency or "USD" }}
@@ -201,7 +224,7 @@
         <td style="vertical-align:top;">
           <span class="lbl">Port of Loading:</span> {{ doc.port_of_loading or "Mundra" }}<br>
           <span class="lbl">Port of Discharge:</span> {{ doc.port_of_discharge or "Durban" }}<br>
-          <span class="lbl">Final Destination:</span> {{ doc.final_destination or "Sierra Leone" }}
+          <span class="lbl">Final Destination:</span> {{ doc.final_destination or (buyer_company.country if buyer_company else "") }}
         </td>
       </tr>
     </tbody>
@@ -210,102 +233,49 @@
   <!-- ── LINE ITEMS TABLE ── -->
   <table class="fixed" style="margin-bottom:6px;">
     <colgroup>
-      <col style="width:5%">
-      <col style="width:36%">
-      <col style="width:12%">
-      <col style="width:12%">
-      <col style="width:7%">
       <col style="width:6%">
-      <col style="width:11%">
-      <col style="width:11%">
+      <col style="width:56%">
+      <col style="width:10%">
+      <col style="width:10%">
+      <col style="width:18%">
     </colgroup>
     <thead>
       <tr>
         <th class="center">S.No</th>
-        <th>Item Description / Particulars</th>
-        <th class="center">Make / Model</th>
-        <th class="center">HSN Code</th>
+        <th>Item Description</th>
         <th class="center">UOM</th>
         <th class="center">Qty</th>
-        <th class="right">Rate ({{ doc.currency }})</th>
-        <th class="right">Amount ({{ doc.currency }})</th>
+        <th class="right">Total Amount ({{ doc.currency }})</th>
       </tr>
     </thead>
     <tbody>
+      {% set printed_amounts = namespace(distributed=0) %}
       {% if doc.items and doc.items|length > 0 %}
         {% for item in doc.items %}
+        {% if loop.last %}
+          {% set line_total = doc.grand_total - printed_amounts.distributed %}
+        {% else %}
+          {% set line_total = ((doc.grand_total * (item.amount or 0)) / doc.total_item_amount) | round(2) if doc.total_item_amount else 0 %}
+          {% set printed_amounts.distributed = printed_amounts.distributed + line_total %}
+        {% endif %}
         <tr>
           <td class="center" style="border-top:none !important;">{{ loop.index }}</td>
           <td style="border-top:none !important;">
             <strong>{{ item.item_description or item.equipment or "—" }}</strong>
           </td>
-          <td class="center" style="border-top:none !important;">{{ item.make_model or "—" }}</td>
-          <td class="center" style="border-top:none !important;">{{ item.hsn_code or "—" }}</td>
           <td class="center" style="border-top:none !important;">{{ item.unit or "Nos" }}</td>
           <td class="center" style="border-top:none !important;">{{ item.quantity }}</td>
-          <td class="right" style="border-top:none !important;">{{ frappe.utils.fmt_money(item.base_rate, currency=doc.currency) }}</td>
-          <td class="right" style="border-top:none !important;">{{ frappe.utils.fmt_money(item.amount, currency=doc.currency) }}</td>
+          <td class="right" style="border-top:none !important;">{{ frappe.utils.fmt_money(line_total, currency=doc.currency) }}</td>
         </tr>
         {% endfor %}
       {% else %}
         <tr>
-          <td colspan="8" class="center">No items listed.</td>
+          <td colspan="5" class="center">No items listed.</td>
         </tr>
       {% endif %}
 
-      <!-- Subtotal Items Base -->
       <tr>
-        <td colspan="7" class="right lbl" style="border-top:none !important; background:transparent !important;">Base Goods Total</td>
-        <td class="right lbl" style="border-top:none !important; background:transparent !important;">{{ doc.get_formatted("total_item_amount") }}</td>
-      </tr>
-
-      <!-- Logistics Breakdown -->
-      {% if doc.total_logistics and doc.total_logistics > 0 %}
-        {% if doc.freight and doc.freight > 0 %}
-        <tr>
-          <td colspan="7" class="right" style="border-top:none !important;">Freight Charges</td>
-          <td class="right" style="border-top:none !important;">{{ doc.get_formatted("freight") }}</td>
-        </tr>
-        {% endif %}
-        {% if doc.insurance and doc.insurance > 0 %}
-        <tr>
-          <td colspan="7" class="right" style="border-top:none !important;">Insurance Charges</td>
-          <td class="right" style="border-top:none !important;">{{ doc.get_formatted("insurance") }}</td>
-        </tr>
-        {% endif %}
-        {% if doc.packing_charges and doc.packing_charges > 0 %}
-        <tr>
-          <td colspan="7" class="right" style="border-top:none !important;">Packing &amp; Forwarding</td>
-          <td class="right" style="border-top:none !important;">{{ doc.get_formatted("packing_charges") }}</td>
-        </tr>
-        {% endif %}
-        {% if doc.other_charges and doc.other_charges > 0 %}
-        <tr>
-          <td colspan="7" class="right" style="border-top:none !important;">Other Logistics Charges</td>
-          <td class="right" style="border-top:none !important;">{{ doc.get_formatted("other_charges") }}</td>
-        </tr>
-        {% endif %}
-        <tr>
-          <td colspan="7" class="right lbl" style="border-top:none !important; background:transparent !important;">Total Logistics &amp; Transport</td>
-          <td class="right lbl" style="border-top:none !important; background:transparent !important;">{{ doc.get_formatted("total_logistics") }}</td>
-        </tr>
-      {% endif %}
-
-      <!-- SRI Margin Row (5% - 30%) -->
-      {% if doc.margin_amount and doc.margin_amount > 0 %}
-      <tr>
-        <td colspan="7" class="right lbl" style="border-top:none !important; background:transparent !important;">
-          SRI Mark-up / Margin @ {{ doc.margin_percentage or 5 }}%
-        </td>
-        <td class="right lbl" style="border-top:none !important; background:transparent !important;">
-          {{ doc.get_formatted("margin_amount") }}
-        </td>
-      </tr>
-      {% endif %}
-
-      <!-- Grand Total -->
-      <tr>
-        <td colspan="7" class="right lbl" style="border-top:none !important; background:transparent !important; font-size:10.5px;">TOTAL AMOUNT PAYABLE</td>
+        <td colspan="4" class="right lbl" style="border-top:none !important; background:transparent !important; font-size:10.5px;">TOTAL AMOUNT</td>
         <td class="right lbl" style="border-top:none !important; background:transparent !important; font-size:10.5px;">{{ doc.get_formatted("grand_total") }}</td>
       </tr>
     </tbody>

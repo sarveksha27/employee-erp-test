@@ -23,9 +23,9 @@ class VendorPurchaseOrder(Document):
         self.validate_entity_policy()
         self.set_company_details()
         self.set_default_letter_head()
+        self.set_default_notify_party()
         self.set_default_terms()
         self.validate_uom()
-        self.validate_creation_roles()
         self.validate_generator_edit_rights()
         self.validate_reviewer_edit_rights()
         self.validate_payment_permissions()
@@ -320,6 +320,9 @@ class VendorPurchaseOrder(Document):
 
     def set_default_terms(self):
         """Auto-set default Terms and Conditions if not explicitly selected."""
+        if self.po_type == "Internal PO":
+            return
+
         if getattr(self, "standard_terms", None):
             return
 
@@ -346,6 +349,15 @@ class VendorPurchaseOrder(Document):
 
         for term in terms_to_add:
             self.append("standard_terms", {"standard_term": term})
+
+    def set_default_notify_party(self):
+        """Set the standard notify party for Internal POs when one is not specified."""
+        if self.po_type == "Internal PO" and not self.notify_party:
+            self.notify_party = (
+                "Globe Multitrade & Service LLC\n"
+                "Office No. 112, AL Jabri Building,\n"
+                "Industrial Area, Sharjah (UAE)"
+            )
 
     def validate_uom(self):
         """Ensure all UOMs in parent and child items exist in the database to prevent Link Validation errors."""
@@ -398,31 +410,6 @@ class VendorPurchaseOrder(Document):
                     item.unit = validated_uoms[item.unit]
                 else:
                     item.unit = "Nos"
-
-    def validate_creation_roles(self):
-        """Ensure PO Verifier and PO Approver cannot create new POs."""
-        if self.is_new():
-            if frappe.session.user == "Administrator":
-                return
-
-            user_roles = set(frappe.get_roles(frappe.session.user))
-            
-            # If the user has PO Verifier role and is not a PO Generator
-            if "PO Verifier" in user_roles and "PO Generator" not in user_roles:
-                frappe.throw(
-                    _("PO Verifiers cannot create new Purchase Orders."),
-                    frappe.PermissionError
-                )
-
-            # If the user has PO Approver role and is not a PO Generator
-            if "PO Approver" in user_roles and "PO Generator" not in user_roles:
-                frappe.throw(
-                    _("PO Approvers cannot create new Purchase Orders. "
-                      "As an Approver, your role is strictly to review, verify, "
-                      "and approve or reject/return purchase orders forwarded by PO Generators and Verifiers. "
-                      "If you need to generate a purchase order, please request a user with the PO Generator role to initiate the draft."),
-                    frappe.PermissionError
-                )
 
     def validate_generator_edit_rights(self):
         """Prevent PO Generator from modifying PO once generated / submitted for verification."""
@@ -697,10 +684,37 @@ class VendorPurchaseOrder(Document):
     def on_cancel(self):
         """Called when a submitted document is cancelled."""
         self.db_set("status", "Cancelled")
+        self.db_set("workflow_state", "Cancelled")
         self.db_set("payment_status", "Pending")
         self.db_set("payment_pending", 1)
         self.db_set("payment_partially_paid", 0)
         self.db_set("payment_fully_paid", 0)
+
+    def before_cancel(self):
+        """Require a reason and protect any active Proforma Invoice from orphaning."""
+        if (self.workflow_state or "").strip() != "Approved":
+            frappe.throw(
+                _("Only approved Purchase Orders can be cancelled."),
+                frappe.ValidationError,
+            )
+
+        if not (self.cancellation_reason or "").strip():
+            frappe.throw(
+                _("A cancellation reason is required."),
+                frappe.ValidationError,
+            )
+
+        active_pi = frappe.db.exists(
+            "Proforma Invoice",
+            {"internal_po": self.name, "docstatus": ["!=", 2]},
+        )
+        if active_pi:
+            frappe.throw(
+                _("Cancel Proforma Invoice {0} before cancelling this Purchase Order.").format(
+                    active_pi
+                ),
+                frappe.ValidationError,
+            )
 
     def on_update_after_submit(self):
         """Validate that critical fields are not tampered with after submission."""
@@ -792,6 +806,9 @@ class VendorPurchaseOrder(Document):
         PO creation and approval do NOT require payment schedule up front, as payment terms and
         milestone execution are managed separately.
         """
+        if self.po_type == "Internal PO":
+            return
+
         schedule = self.get("payment_schedule", [])
         if not schedule:
             return
@@ -1098,6 +1115,48 @@ class VendorPurchaseOrder(Document):
                 _("You do not have permission to modify payment status."),
                 frappe.PermissionError
             )
+
+
+@frappe.whitelist()
+def cancel_vendor_purchase_order(po_name, reason):
+    """Cancel an approved PO with an auditable reason."""
+    reason = (reason or "").strip()
+    if not reason:
+        frappe.throw(_("A cancellation reason is required."), frappe.ValidationError)
+
+    po = frappe.get_doc("Vendor Purchase Order", po_name)
+    if not frappe.has_permission("Vendor Purchase Order", "cancel", doc=po):
+        frappe.throw(
+            _("You do not have permission to cancel a Purchase Order."),
+            frappe.PermissionError,
+        )
+    po.check_permission("cancel")
+
+    if po.docstatus != 1 or (po.workflow_state or "").strip() != "Approved":
+        frappe.throw(
+            _("Only approved Purchase Orders can be cancelled."),
+            frappe.ValidationError,
+        )
+
+    po.cancellation_reason = reason
+    po.flags.ignore_permissions = True
+    po.flags.ignore_immutable_validation = True
+    po.save(ignore_permissions=True)
+    po.cancel()
+
+    frappe.get_doc(
+        {
+            "doctype": "Comment",
+            "comment_type": "Info",
+            "reference_doctype": "Vendor Purchase Order",
+            "reference_name": po_name,
+            "content": _("Purchase Order cancelled by {0}. Reason: {1}").format(
+                frappe.session.user, reason
+            ),
+        }
+    ).insert(ignore_permissions=True)
+
+    return {"status": "cancelled", "po_name": po_name}
 
 
 def _require_finance_user():
@@ -2095,4 +2154,3 @@ def get_po_generated_amount_summary(from_date=None, to_date=None, company=None, 
         "by_company": by_company,
         "pos": po_records,
     }
-

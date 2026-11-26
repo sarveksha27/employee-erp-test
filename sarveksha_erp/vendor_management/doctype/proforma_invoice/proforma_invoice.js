@@ -3,11 +3,13 @@
 
 frappe.ui.form.on('Proforma Invoice', {
     setup: function(frm) {
-        // Allow referencing both Internal and External Purchase Orders (excluding Cancelled)
+        // Only approved, submitted Internal POs can be invoiced.
         frm.set_query('internal_po', function() {
             return {
                 filters: {
-                    'workflow_state': ['!=', 'Cancelled']
+                    'po_type': 'Internal PO',
+                    'workflow_state': 'Approved',
+                    'docstatus': 1
                 }
             };
         });
@@ -29,8 +31,8 @@ frappe.ui.form.on('Proforma Invoice', {
                 );
                 window.open(url, '_blank');
             };
-            frm.add_custom_button(__('Print Payment Invoice'), open_pi_pdf);
-            frm.change_custom_button_type(__('Print Payment Invoice'), null, 'primary');
+            frm.add_custom_button(__('Print Proforma Invoice'), open_pi_pdf);
+            frm.change_custom_button_type(__('Print Proforma Invoice'), null, 'primary');
             frm.print_doc = open_pi_pdf;
         }
 
@@ -137,6 +139,7 @@ frappe.ui.form.on('Proforma Invoice', {
                 callback: function(res) {
                     if (res.message) {
                         const data = res.message;
+                        frm.set_value('naming_series', data.naming_series);
                         frm.set_value('po_reference_no', data.po_reference_no);
                         frm.set_value('po_date', data.po_date);
                         frm.set_value('buyer', data.buyer);

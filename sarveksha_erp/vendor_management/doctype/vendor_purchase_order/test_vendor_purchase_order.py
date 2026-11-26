@@ -410,36 +410,18 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 		finally:
 			frappe.get_roles = original_get_roles
 
-	def test_creation_restrictions_for_verifiers_and_approvers(self):
-		"""Verify that PO Verifiers and PO Approvers cannot create a new Purchase Order."""
-		original_user = frappe.session.user
-		try:
-			# Test as PO Verifier
-			frappe.set_user("po_verifier@sarveksha.com")
-			po = frappe.new_doc("Vendor Purchase Order")
-			po.company = self.test_company
-			po.vendor = self.test_vendor
-			po.quantity = 1.0
-			po.exchange_rate = 1.0
-			po.workflow_state = "Draft"
-			self.assertRaises(frappe.PermissionError, po.insert)
+	def test_all_users_can_create_and_read_purchase_orders(self):
+		"""PO creation and read permissions are granted to the All role."""
+		all_users_permission = next(
+			(permission for permission in frappe.get_meta("Vendor Purchase Order").permissions
+			 if permission.role == "All"),
+			None,
+		)
 
-			# Test as PO Approver
-			frappe.set_user("po_approver@sarveksha.com")
-			po_app = frappe.new_doc("Vendor Purchase Order")
-			po_app.company = self.test_company
-			po_app.vendor = self.test_vendor
-			po_app.quantity = 1.0
-			po_app.exchange_rate = 1.0
-			po_app.workflow_state = "Draft"
-			
-			with self.assertRaises(frappe.PermissionError) as context:
-				po_app.validate_creation_roles()
-
-			# Check that additional guidelines are present in the error message
-			self.assertIn("As an Approver, your role is strictly to review, verify", str(context.exception))
-		finally:
-			frappe.set_user(original_user)
+		self.assertIsNotNone(all_users_permission)
+		self.assertTrue(all_users_permission.create)
+		self.assertTrue(all_users_permission.read)
+		self.assertFalse(all_users_permission.write)
 
 	def test_dynamic_uom_creation(self):
 		"""Verify that UOMs used in child items or parent are dynamically created or handled gracefully."""
@@ -1132,6 +1114,5 @@ class TestVendorPurchaseOrder(FrappeTestCase):
 				frappe.get_roles = original_get_roles
 		finally:
 			frappe.delete_doc("Vendor Purchase Order", po.name, ignore_permissions=True)
-
 
 

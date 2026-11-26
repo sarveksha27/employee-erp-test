@@ -4,10 +4,21 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt, money_in_words
+from frappe.utils import flt, getdate, money_in_words, nowdate
 
 
 class ProformaInvoice(Document):
+
+	def autoname(self):
+		"""Generate the PI number using the buyer company's series."""
+		if self.name:
+			return
+
+		from frappe.model.naming import make_autoname
+
+		po = _get_approved_internal_po(self.internal_po)
+		self.naming_series = _get_pi_naming_series(po.company, self.pi_date)
+		self.name = make_autoname(self.naming_series, doc=self)
 
 	def validate(self):
 		self.validate_internal_po_reference()
@@ -17,11 +28,12 @@ class ProformaInvoice(Document):
 		self.calculate_totals()
 
 	def validate_internal_po_reference(self):
-		"""Enforce: PI must reference a valid Purchase Order (Internal or External)."""
+		"""Require a submitted, approved Internal PO as the PI source."""
 		if not self.internal_po:
-			frappe.throw(_("A referenced Purchase Order is required to generate a Proforma Invoice."))
+			frappe.throw(_("A referenced Internal PO is required to generate a Proforma Invoice."))
 
-		po = frappe.get_doc("Vendor Purchase Order", self.internal_po)
+		po = _get_approved_internal_po(self.internal_po)
+		self.naming_series = _get_pi_naming_series(po.company, self.pi_date)
 
 		# Enforce: Only 1 active Proforma Invoice can be generated per PO
 		filters = {
@@ -167,6 +179,35 @@ class ProformaInvoice(Document):
 		self.db_set("status", "Cancelled")
 
 
+def _get_pi_naming_series(company, pi_date=None):
+	country = (frappe.db.get_value("Company", company, "country") or "").strip().casefold()
+	if country == "botswana":
+		date = getdate(pi_date or nowdate())
+		fiscal_start_year = date.year if date.month >= 4 else date.year - 1
+		fiscal_end_year = fiscal_start_year + 1
+		return f"SRI/BOT/{fiscal_start_year % 100:02d}-{fiscal_end_year % 100:02d}/.###"
+	return "SRI/PI/.YYYY.-.####"
+
+
+def _get_approved_internal_po(internal_po):
+	if not internal_po:
+		frappe.throw(_("A referenced Internal PO is required to generate a Proforma Invoice."))
+
+	po = frappe.get_doc("Vendor Purchase Order", internal_po)
+	po.check_permission("read")
+	if po.po_type != "Internal PO":
+		frappe.throw(
+			_("Proforma Invoices can only be generated from an Internal PO."),
+			frappe.ValidationError,
+		)
+	if po.docstatus != 1 or po.workflow_state != "Approved":
+		frappe.throw(
+			_("The referenced Internal PO must be approved and submitted before a Proforma Invoice can be generated."),
+			frappe.ValidationError,
+		)
+	return po
+
+
 @frappe.whitelist()
 def get_internal_po_details(internal_po):
 	"""
@@ -174,10 +215,7 @@ def get_internal_po_details(internal_po):
 	Note: Logistics charges are intentionally NOT fetched automatically from the PO
 	as per business requirement; they must be entered manually.
 	"""
-	if not internal_po:
-		return {}
-
-	po = frappe.get_doc("Vendor Purchase Order", internal_po)
+	po = _get_approved_internal_po(internal_po)
 
 	# Fetch company destination/ports
 	company_doc = frappe.get_doc("Company", po.company) if po.company else None
@@ -198,6 +236,7 @@ def get_internal_po_details(internal_po):
 			})
 
 	return {
+		"naming_series": _get_pi_naming_series(po.company),
 		"po_reference_no": po.ref_number or po.name,
 		"po_date": po.po_date,
 		"buyer": po.company,
@@ -225,15 +264,17 @@ def create_proforma_invoice_from_internal_po(internal_po_name):
 	Used by Python workflows, API endpoints, and form action buttons.
 	If an active PI already exists for this Internal PO, returns the existing document.
 	"""
+	details = get_internal_po_details(internal_po_name)
 	existing = frappe.db.get_value(
 		"Proforma Invoice",
 		{"internal_po": internal_po_name, "docstatus": ["!=", 2]},
 		"name",
 	)
 	if existing:
-		return frappe.get_doc("Proforma Invoice", existing)
+		pi = frappe.get_doc("Proforma Invoice", existing)
+		pi.check_permission("read")
+		return pi
 
-	details = get_internal_po_details(internal_po_name)
 	pi = frappe.new_doc("Proforma Invoice")
 	pi.internal_po = internal_po_name
 	for k, v in details.items():

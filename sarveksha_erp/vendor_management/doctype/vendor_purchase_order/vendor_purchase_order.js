@@ -239,6 +239,58 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			}
 		}
 
+		if (
+			frm.doc.docstatus === 1 &&
+			state === "Approved" &&
+			frappe.model.can_cancel("Vendor Purchase Order")
+		) {
+			frm.add_custom_button(__("Cancel PO"), function () {
+				const dialog = new frappe.ui.Dialog({
+					title: __("Cancel Purchase Order"),
+					fields: [
+						{
+							fieldname: "reason",
+							fieldtype: "Small Text",
+							label: __("Cancellation Reason"),
+							reqd: 1,
+						},
+					],
+					primary_action_label: __("Confirm Cancellation"),
+					primary_action: async function (values) {
+						const reason = (values.reason || "").trim();
+						if (!reason) {
+							frappe.msgprint(__("A cancellation reason is required."));
+							return;
+						}
+
+						frappe.dom.freeze(__("Cancelling Purchase Order..."));
+						try {
+							await frappe.xcall(
+								"sarveksha_erp.vendor_management.doctype.vendor_purchase_order.vendor_purchase_order.cancel_vendor_purchase_order",
+								{ po_name: frm.doc.name, reason },
+							);
+							dialog.hide();
+							await frm.reload_doc();
+							frappe.show_alert({
+								message: __("Purchase Order cancelled successfully."),
+								indicator: "orange",
+							});
+						} catch (error) {
+							frappe.msgprint({
+								title: __("Unable to Cancel Purchase Order"),
+								message: error.message || __("The Purchase Order could not be cancelled."),
+								indicator: "red",
+							});
+						} finally {
+							frappe.dom.unfreeze();
+						}
+					},
+				});
+				dialog.show();
+			});
+			frm.change_custom_button_type(__("Cancel PO"), null, "danger");
+		}
+
 		// Allow Administrator/System Manager to permanently delete the PO from Menu
 		if (is_admin && frm.doc.name && !frm.doc.__islocal) {
 			frm.page.add_menu_item(__("Delete PO"), function () {
@@ -285,6 +337,9 @@ frappe.ui.form.on("Vendor Purchase Order", {
 		// Forward for Payment is strictly for Approved POs
 		if (
 			is_approved &&
+			frm.doc.po_type === "Internal PO" &&
+			frm.doc.workflow_state === "Approved" &&
+			frm.doc.docstatus === 1 &&
 			!frm.doc.__islocal &&
 			frm.doc.name &&
 			frm.doc.workflow_state !== "Cancelled" &&
