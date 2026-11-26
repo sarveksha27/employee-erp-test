@@ -450,6 +450,8 @@ def dispatch_procurement_notification(po, doc, currency: str, formatted_amount: 
             })
 
         vendor_name = frappe.db.get_value("Supplier", po.vendor, "supplier_name") or po.vendor
+        if not frappe.db.exists("Email Account", {"enable_outgoing": 1, "default_outgoing": 1}):
+            return
         try:
             frappe.sendmail(
                 recipients=[creator_email],
@@ -510,7 +512,7 @@ def dispatch_finance_audit_notification(po, doc, currency: str, formatted_amount
         if frappe.db.exists("User", default_email):
             finance_emails.add(default_email)
 
-    if not finance_emails:
+    if not finance_emails or not frappe.db.exists("Email Account", {"enable_outgoing": 1, "default_outgoing": 1}):
         return
 
     po_identifier = po.ref_number or po.name

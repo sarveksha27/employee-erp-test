@@ -394,7 +394,7 @@ def generate_payment_entry_against_po(
         pe.custom_vendor_purchase_order = po.name
     if pe_meta.has_field("vendor_purchase_order"):
         pe.vendor_purchase_order = po.name
-    if pe_meta.has_field("custom_payment_term_milestone") and payment_term:
+    if pe_meta.has_field("custom_payment_term_milestone") and payment_term and frappe.db.exists("Payment Term", payment_term):
         pe.custom_payment_term_milestone = payment_term
     if pe_meta.has_field("custom_milestone_row_id") and milestone_row_id:
         pe.custom_milestone_row_id = milestone_row_id

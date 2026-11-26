@@ -191,18 +191,13 @@ def _get_pi_naming_series(company, pi_date=None):
 
 def _get_approved_internal_po(internal_po):
 	if not internal_po:
-		frappe.throw(_("A referenced Internal PO is required to generate a Proforma Invoice."))
+		frappe.throw(_("A referenced Purchase Order is required to generate a Proforma Invoice."))
 
 	po = frappe.get_doc("Vendor Purchase Order", internal_po)
 	po.check_permission("read")
-	if po.po_type != "Internal PO":
+	if po.docstatus != 1 or (po.workflow_state or "").strip() != "Approved":
 		frappe.throw(
-			_("Proforma Invoices can only be generated from an Internal PO."),
-			frappe.ValidationError,
-		)
-	if po.docstatus != 1 or po.workflow_state != "Approved":
-		frappe.throw(
-			_("The referenced Internal PO must be approved and submitted before a Proforma Invoice can be generated."),
+			_("The referenced Purchase Order must be approved and submitted before a Proforma Invoice can be generated."),
 			frappe.ValidationError,
 		)
 	return po

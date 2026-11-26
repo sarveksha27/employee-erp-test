@@ -279,6 +279,11 @@ function show_po_summary_dialog(listview) {
         }
     });
 
+    d.show();
+    d.set_value('filter_mode', 'Monthwise');
+    d.set_value('filter_year', String(current_year));
+    d.set_value('filter_month', month_options[current_month_num - 1]);
+
     // Auto trigger on mode or year or month change
     d.fields_dict.filter_mode.$input.on('change', function() {
         setTimeout(() => d.get_primary_btn().trigger('click'), 100);
@@ -290,9 +295,8 @@ function show_po_summary_dialog(listview) {
         setTimeout(() => d.get_primary_btn().trigger('click'), 100);
     });
 
-    d.show();
-    // Automatically generate initial summary
-    d.get_primary_btn().trigger('click');
+    // Automatically generate initial summary after dialog values initialize
+    setTimeout(() => d.get_primary_btn().trigger('click'), 150);
 }
 
 function render_po_summary_html(dialog, data, listview) {

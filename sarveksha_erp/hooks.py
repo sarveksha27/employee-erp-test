@@ -31,6 +31,11 @@ doctype_js = {
     "Payment Entry": "public/js/payment_entry.js",
 }
 
+doctype_list_js = {
+    "Purchase Invoice": "public/js/purchase_invoice_list.js",
+    "Payment Entry": "public/js/payment_entry_list.js",
+}
+
 
 fixtures = [
     {

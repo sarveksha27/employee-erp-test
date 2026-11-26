@@ -135,22 +135,21 @@ Click **Add Row** in the **Equipment Line Items** table:
 
 ---
 
-## 4. Generating a Proforma Invoice (PI) from an Internal PO
+## 4. Generating a Proforma Invoice (PI) from an Approved PO
 
-When an overseas child company issues an Internal PO to SRI, SRI must issue an official **Proforma Invoice (PI)** back to the child company so that the child company's local bank can open a Letter of Credit (LC) or wire foreign currency.
+A **Proforma Invoice (PI)** can be generated directly from any **Approved** Purchase Order (`Vendor PO` or `Internal PO`).
 
-### Step 1: Open the Approved Internal PO
-- Open the Internal PO in the system.
-- Ensure the PO Type is set to **Internal PO**.
+### Step 1: Open the Approved PO
+- Open any submitted **Approved** Vendor Purchase Order (`Vendor PO` or `Internal PO`).
 
 ### Step 2: Click "Generate PI"
-- At the top of the form, click the **Generate PI** action button.
-- The system automatically creates a new **Proforma Invoice** document linked directly to this Internal PO.
+- At the top of the form, click the **Generate PI** action button (or **View PI** if one already exists).
+- The system creates a new **Proforma Invoice** document linked directly to this PO.
 
 ### Step 3: Understand the Proforma Invoice Fields
 
-- **Reference Constraint**: A Proforma Invoice can **only** be created from an Internal PO. The system strictly blocks creating a PI for regular external vendor POs.
-- The source Internal PO must be submitted and in the **Approved** state.
+- **Reference Constraint**: Every Proforma Invoice must reference a submitted, **Approved** Vendor Purchase Order (`Vendor PO` or `Internal PO`).
+- The source PO must be submitted (`docstatus = 1`) and in the **Approved** state.
 - The PI print follows the supplied reference: a single total-amount column includes the margin, and the document shows the notify party, shipping destinations, beneficiary banking details, amount in words, and authorized-signatory area.
 - **Seller**: Automatically set to **Sarveksha Realty and Inframine LLP** with our full registered office address, GSTIN, PAN, and IEC (Import Export Code).
 - **Buyer**: Automatically set to the Child Company (e.g., *Odhav Holdings*) with their foreign destination address.
@@ -192,10 +191,10 @@ When you click **Print PO** or **Print Proforma Invoice**:
 A: Once a PO is approved, it is a legally binding contract. If changes are needed, you must click **Cancel** or use **Amend** to create an amendment revision (which will receive a `-1` suffix).
 
 **Q: How do I cancel an approved PO?**
-A: A user with the **Vendor & Equipment Manager** role can use **Cancel PO** and must enter a reason. The reason is saved on the PO and in its audit timeline. Cancel any active PI linked to the PO first.
+A: A user with `cancel` permission (`System Manager` or `Vendor & Equipment Manager`) can use **Cancel PO** and must enter a **Cancellation Reason**. The reason is saved in the **Cancellation Details** section, displayed in a non-dismissible red banner at the top of the cancelled PO, and logged in its audit timeline. Cancel any active PI linked to the PO first.
 
 **Q: Why is GST zero when I select Odhav Holdings or Baani Minerals?**
 A: Foreign entities outside India do not possess Indian GST registrations. The system automatically zeros out GST components to comply with international cross-border accounting standards.
 
-**Q: Can I create a Proforma Invoice directly without an Internal PO?**
-A: No. Every Proforma Invoice must reference an active Internal PO raised by a child company to maintain an unbroken audit trail for customs and reserve bank audits.
+**Q: Can I create a Proforma Invoice, Purchase Invoice, or Payment Entry directly from the List View?**
+A: No. **Proforma Invoices** (`Generate PI`), **Purchase Invoices** (`Create Bill`), and **Payment Entries** (`Make Payment`) are generated directly from an **Approved** Vendor Purchase Order (the `+ Add Purchase Invoice` and `+ Add Payment Entry` list-view buttons are hidden). Every saved PO also displays a live **Payment Progress** card showing Grand Total, Paid So Far (cleared + pending draft), and Remaining Balance, and payment approvals do not require an outgoing Email Account unless you choose to configure SMTP.

@@ -32,6 +32,29 @@ frappe.ui.form.on("Vendor Purchase Order", {
 
 		// Render custom buttons based on workflow state & user roles
 		const state = frm.doc.workflow_state || "Draft";
+		const is_cancelled_po = frm.doc.docstatus === 2 || state === "Cancelled";
+		frm.set_intro(null);
+		frm.$wrapper.find(".form-message").remove();
+		const $form_top = (frm.layout && frm.layout.wrapper)
+			? $(frm.layout.wrapper)
+			: $(frm.wrapper).find(".form-layout");
+		if ($form_top.length) {
+			$form_top.find("#po-cancelled-banner").remove();
+			if (is_cancelled_po) {
+				const cancel_reason = (frm.doc.cancellation_reason || "").trim();
+				$form_top.prepend(`
+					<div id="po-cancelled-banner" style="margin:0 0 12px 0; padding:10px 14px; background:#fef2f2; border:1px solid #fecaca; border-left:4px solid #dc2626; border-radius:6px; color:#991b1b; font-size:12.5px; font-weight:600;">
+						${__("Cancelled Purchase Order — Reason: {0}", [
+							frappe.utils.escape_html(cancel_reason || __("No reason recorded.")),
+						])}
+					</div>
+				`);
+			}
+		}
+		// Render Payment Progress, Cumulative Amount Breakdown & Audit Trail
+		try { render_po_payment_progress(frm); } catch (e) { console.error("prog err:", e); }
+		try { render_cumulative_breakdown(frm); } catch (e) { console.error("cum err:", e); }
+		try { render_workflow_activity_history(frm); } catch (e) { console.error("wf err:", e); }
 		const can_access_internal_remarks = frappe.user_roles.some((role) =>
 			["PO Verifier", "PO Approver", "System Manager", "Administrator"].includes(role),
 		);
@@ -439,25 +462,13 @@ frappe.ui.form.on("Vendor Purchase Order", {
 			frm.change_custom_button_type(__("Make Payment"), null, "primary");
 		}
 
-		// Send Payment Proof to Vendor when payment is completed
-		const is_payment_completed =
-			frm.doc.payment_tracking_status === "Paid" ||
-			frm.doc.payment_workflow_status === "Paid" ||
-			frm.doc.payment_status === "Fully Paid";
-
-		if (is_approved && is_payment_completed && !frm.doc.__islocal) {
-			frm.add_custom_button(__("Send Payment Proof to Vendor"), function () {
-				send_payment_proof_to_vendor(frm);
-			});
-			frm.change_custom_button_type(__("Send Payment Proof to Vendor"), null, "success");
-		}
-
 		// PI Generation Button for Approved Purchase Orders
 		if (
 			is_approved &&
 			!frm.doc.__islocal &&
 			frm.doc.name &&
-			frm.doc.workflow_state !== "Cancelled" &&
+			frm.doc.docstatus === 1 &&
+			state !== "Cancelled" &&
 			(user_roles.includes("PO Generator") || user_roles.includes("PO Approver") || is_admin)
 		) {
 			frappe.db
@@ -585,8 +596,8 @@ frappe.ui.form.on("Vendor Purchase Order", {
 		}
 
 		// Configure Verification & Approval Panel Dynamic Controls
-		setup_verification_approval_panel(frm);
-		apply_dynamic_field_locks(frm);
+		try { setup_verification_approval_panel(frm); } catch (e) { console.error(e); }
+		try { apply_dynamic_field_locks(frm); } catch (e) { console.error(e); }
 
 		// Lock Currency and Exchange Rate: evaluate whether user has System Manager or Administrator
 		const has_currency_admin_access =
@@ -602,21 +613,21 @@ frappe.ui.form.on("Vendor Purchase Order", {
 		}
 
 		// Lock Price Inputs for Verifiers and Approvers
-		lock_price_inputs_for_reviewers(frm);
+		try { lock_price_inputs_for_reviewers(frm); } catch (e) { console.error(e); }
 
 		// Payment Section Locking
-		toggle_payment_section(frm);
+		try { toggle_payment_section(frm); } catch (e) { console.error(e); }
 
 		// Save-Before-Forward Guard
-		bind_workflow_action_guard(frm);
-		update_save_before_forward_guard(frm);
+		try { bind_workflow_action_guard(frm); } catch (e) { console.error(e); }
+		try { update_save_before_forward_guard(frm); } catch (e) { console.error(e); }
 
 		// Render custom remarks and revision number in the sidebar
-		render_sidebar_custom_info(frm);
+		try { render_sidebar_custom_info(frm); } catch (e) { console.error(e); }
 
 		// Recalculate on every refresh to keep values consistent
-		calculate_gst_and_totals(frm);
-		set_port_filter(frm);
+		try { calculate_gst_and_totals(frm); } catch (e) { console.error(e); }
+		try { set_port_filter(frm); } catch (e) { console.error(e); }
 
 		// Auto-detect letterhead if not set
 		if (!frm.doc.letter_head && frm.doc.company) {
@@ -624,18 +635,29 @@ frappe.ui.form.on("Vendor Purchase Order", {
 		}
 
 		// Display standard terms preview on load
-		if (frm.doc.standard_terms) {
-			frm.trigger("standard_terms");
-		} else {
-			frm.set_df_property("terms_preview", "options", "");
-		}
+		try {
+			if (frm.doc.standard_terms) {
+				frm.trigger("standard_terms");
+			} else if (frm.fields_dict && frm.fields_dict.terms_preview) {
+				frm.set_df_property("terms_preview", "options", "");
+			}
+		} catch (e) { console.error(e); }
 
 		// Set up Shipment Subtype visibility and options
-		handle_shipment_type_change(frm);
+		try { handle_shipment_type_change(frm); } catch (e) { console.error(e); }
 
-		// Render Cumulative Amount Breakdown & Workflow Activity History
-		render_cumulative_breakdown(frm);
-		render_workflow_activity_history(frm);
+		// Render Cumulative Amount Breakdown, Payment Progress & Workflow Activity History
+		try { render_po_payment_progress(frm); } catch (e) { console.error(e); }
+		try { render_cumulative_breakdown(frm); } catch (e) { console.error(e); }
+		try { render_workflow_activity_history(frm); } catch (e) { console.error(e); }
+		setTimeout(() => {
+			if (!frm.doc) return;
+			try { render_cumulative_breakdown(frm); } catch (e) { console.error(e); }
+			const $wf = $(frm.wrapper).find('[data-fieldname="workflow_history_html"]');
+			if ($wf.length && !$wf.find("table").length) {
+				try { render_workflow_activity_history(frm); } catch (e) { console.error(e); }
+			}
+		}, 250);
 	},
 
 	// ─── COMPANY TRIGGER ──────────────────────────────────────
@@ -1517,6 +1539,91 @@ function lock_price_inputs_for_reviewers(frm) {
 	apply_dynamic_field_locks(frm);
 }
 
+function render_po_payment_progress(frm) {
+	if (!frm) return;
+	const $form_top = (frm.layout && frm.layout.wrapper)
+		? $(frm.layout.wrapper)
+		: $(frm.wrapper).find(".form-layout");
+	if (!$form_top.length) return;
+	$form_top.find("#po-payment-progress-card").remove();
+	if (!frm.doc || frm.doc.__islocal || !frm.doc.name || frm.doc.docstatus === 2) {
+		return;
+	}
+
+	frappe.call({
+		method: "sarveksha_erp.payment_tracking.payment_generator.get_po_payment_summary_for_generator",
+		args: { po_name: frm.doc.name },
+		callback: function (r) {
+			if (!r || !r.message) return;
+			const $target = (frm.layout && frm.layout.wrapper)
+				? $(frm.layout.wrapper)
+				: $(frm.wrapper).find(".form-layout");
+			if (!$target.length) return;
+			const s = r.message;
+			const grand = flt(s.grand_total, 2);
+			const paid = flt(s.total_paid, 2);
+			const cleared = flt(s.cleared_paid, 2);
+			const pending = flt(s.draft_paid ?? s.pending_draft_paid, 2);
+			const balance = flt(s.balance_due, 2);
+			const pct = grand > 0 ? Math.min(100, Math.max(0, Math.round((paid / grand) * 100))) : 0;
+
+			const bar_color =
+				pct >= 100 ? "#16a34a" : pct > 0 ? "#2563eb" : "#94a3b8";
+			const status_text = frappe.utils.escape_html(s.payment_status || "Pending");
+			const status_bg =
+				status_text === "Fully Paid"
+					? "#dcfce7; color:#166534;"
+					: status_text === "Pending"
+						? "#f1f5f9; color:#475569;"
+						: "#dbeafe; color:#1d4ed8;";
+
+			const sub_paid =
+				pending > 0
+					? `${format_currency(cleared, s.currency)} cleared + ${format_currency(pending, s.currency)} pending`
+					: __("All recorded payments cleared");
+
+			const card = $(`
+				<div id="po-payment-progress-card" style="margin:0 0 14px 0; padding:12px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; color:#0f172a;">
+					<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px;">
+						<div style="font-weight:700; font-size:12px; color:#0f172a; text-transform:uppercase; letter-spacing:0.4px;">
+							${__("Payment Progress")} (${pct}%)
+						</div>
+						<span style="padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600; background:${status_bg}">
+							${status_text}
+						</span>
+					</div>
+					<div style="height:8px; width:100%; background:#e2e8f0; border-radius:999px; overflow:hidden; margin-bottom:10px;">
+						<div style="height:100%; width:${pct}%; background:${bar_color}; transition:width 0.3s ease;"></div>
+					</div>
+					<div style="display:grid; grid-template-columns:repeat(3, minmax(120px, 1fr)); gap:10px; font-size:12px;">
+						<div>
+							<div style="color:#64748b; font-size:11px;">${__("Grand Total")}</div>
+							<div style="font-weight:700; color:#0f172a;">${s.formatted_grand_total}</div>
+						</div>
+						<div>
+							<div style="color:#64748b; font-size:11px;">${__("Paid So Far")}</div>
+							<div style="font-weight:700; color:#15803d;">${s.formatted_total_paid}</div>
+							<div style="color:#64748b; font-size:10px;">${sub_paid}</div>
+						</div>
+						<div>
+							<div style="color:#64748b; font-size:11px;">${__("Remaining Balance")}</div>
+							<div style="font-weight:700; color:${balance > 0 ? "#dc2626" : "#15803d"};">${s.formatted_balance_due}</div>
+						</div>
+					</div>
+				</div>
+			`);
+
+			$target.find("#po-payment-progress-card").remove();
+			const $cancel = $target.find("#po-cancelled-banner");
+			if ($cancel.length) {
+				$cancel.after(card);
+			} else {
+				$target.prepend(card);
+			}
+		},
+	});
+}
+
 function render_cumulative_breakdown(frm) {
 	const currency = frm.doc.currency || "USD";
 	const currency_sym = currency === "USD" ? "$" : currency === "INR" ? "₹" : currency + " ";
@@ -1673,20 +1780,20 @@ function render_cumulative_breakdown(frm) {
 		</div>
 	`;
 
-	const $field = $(frm.wrapper).find('[data-fieldname="cumulative_breakdown_html"]');
-	if ($field.length) {
-		$field.empty().html(html);
-	}
-	if (
-		frm.fields_dict &&
-		frm.fields_dict.cumulative_breakdown_html &&
-		frm.fields_dict.cumulative_breakdown_html.$wrapper
-	) {
-		frm.fields_dict.cumulative_breakdown_html.$wrapper.empty().html(html);
+	frm.toggle_display("sec_cumulative_breakdown", true);
+	frm.toggle_display("cumulative_breakdown_html", true);
+	if (frm.fields_dict && frm.fields_dict.cumulative_breakdown_html) {
+		frm.fields_dict.cumulative_breakdown_html.df.options = html;
+		if (frm.fields_dict.cumulative_breakdown_html.$wrapper) {
+			frm.fields_dict.cumulative_breakdown_html.$wrapper
+				.removeClass("hide-control hide")
+				.show()
+				.html(html);
+		}
 	}
 	const $sec = $(frm.wrapper).find('[data-fieldname="sec_cumulative_breakdown"]');
 	if ($sec.length) {
-		$sec.removeClass("hide-control hide").show();
+		$sec.removeClass("hide-control hide empty-section").show();
 		$sec.find(".section-body").removeClass("hide").show();
 	}
 }
@@ -1930,19 +2037,24 @@ function render_workflow_activity_history(frm) {
 
 			// Render directly into DOM
 			let rendered = false;
-			const $field = $(frm.wrapper).find('[data-fieldname="workflow_history_html"]');
-			if ($field.length) {
-				$field.empty().html(html);
-				rendered = true;
+			frm.toggle_display("sec_workflow_history", true);
+			frm.toggle_display("workflow_history_html", true);
+
+			const $sec = $(frm.wrapper).find('[data-fieldname="sec_workflow_history"]');
+			if ($sec.length) {
+				$sec.removeClass("hide-control hide empty-section").show();
+				$sec.find(".section-body").removeClass("hide").show();
 			}
 
-			if (
-				frm.fields_dict &&
-				frm.fields_dict.workflow_history_html &&
-				frm.fields_dict.workflow_history_html.$wrapper
-			) {
-				frm.fields_dict.workflow_history_html.$wrapper.empty().html(html);
-				rendered = true;
+			if (frm.fields_dict && frm.fields_dict.workflow_history_html) {
+				frm.fields_dict.workflow_history_html.df.options = html;
+				if (frm.fields_dict.workflow_history_html.$wrapper) {
+					frm.fields_dict.workflow_history_html.$wrapper
+						.removeClass("hide-control hide")
+						.show()
+						.html(html);
+					rendered = true;
+				}
 			}
 
 			const $secBody = $(frm.wrapper).find(
@@ -2358,13 +2470,13 @@ function show_payment_entry_generator_dialog(frm) {
 						return;
 					}
 
-					let term_name = values.payment_target;
+					let term_name = "";
 					let milestone_row_id = "";
 					if (values.payment_target === "Milestone / Scheduled Term" && values.selected_milestone) {
 						const selected_m = milestone_map[values.selected_milestone];
 						if (selected_m) {
-							term_name = selected_m.payment_term;
-							milestone_row_id = selected_m.row_name;
+							term_name = selected_m.payment_term || "";
+							milestone_row_id = selected_m.row_name || "";
 						}
 					}
 

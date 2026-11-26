@@ -672,10 +672,11 @@ Action buttons (\textbf{Send Forward}, \textbf{Create Bill}, \textbf{Make Paymen
         \textbf{Top Action Toolbar:} \quad
         \tikz\node[uibtn]{Send Forward}; \quad
         \tikz\node[uibtn]{Send Back}; \quad
+        \tikz\node[uibtn]{Cancel PO}; \quad
         \tikz\node[uibtn]{Generate PI / View PI}; \quad
         \tikz\node[uibtn]{Create Bill / View Bill}; \quad
         \tikz\node[uibtn]{Make Payment}; \quad
-        \tikz\node[uibtn]{Send Payment Proof};
+        \tikz\node[uibtn]{Print PO};
     };
 
     % Grid left & right
@@ -722,8 +723,13 @@ Action buttons (\textbf{Send Forward}, \textbf{Create Bill}, \textbf{Make Paymen
     \label{fig:po-dataflow}
 \end{figure}
 
-\begin{rulebox}{Yearwise \& Monthwise Reporting}
-In \textbf{Vendor Purchase Order List}, click \textbf{PO Amount Summary} to slice totals, statuses, and vendor rankings by \textbf{Year}, \textbf{Month}, or custom date range.
+\begin{rulebox}{Period Reporting and PO Controls}
+\begin{itemize}[leftmargin=1.5em, itemsep=1pt]
+    \item In \textbf{Vendor Purchase Order List}, click \textbf{PO Amount Summary} to slice totals, statuses, and vendor rankings by \textbf{Year}, \textbf{Month}, or custom date range.
+    \item Every saved PO displays a top \textbf{Payment Progress Card} (\textbf{Grand Total}, \textbf{Paid So Far}, \textbf{Remaining Balance}, and progress bar) alongside persistent \textbf{Section I} (Cumulative Breakdown) and \textbf{Section J} (Audit Trail).
+    \item Approved POs can be cancelled via \textbf{Cancel PO} with a required \textbf{Cancellation Reason} (shown in a non-dismissible red banner and \textbf{Cancellation Details} section).
+    \item \textbf{Purchase Invoices} and \textbf{Payment Entries} are generated directly from Approved POs (\textbf{Create Bill} / \textbf{Make Payment}); list-view \texttt{+ Add} buttons are hidden, and workflow/payment emails are skipped gracefully when no outgoing Email Account is configured.
+\end{itemize}
 \end{rulebox}
 
 % -------------------------------------------------------------------------

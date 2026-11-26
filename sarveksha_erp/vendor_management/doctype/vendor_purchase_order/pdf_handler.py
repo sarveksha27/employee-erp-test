@@ -1,6 +1,8 @@
 # Copyright (c) 2026, Sarveksha and contributors
 # For license information, please see license.txt
 
+import base64
+import mimetypes
 import os
 import re
 from io import BytesIO
@@ -10,7 +12,66 @@ from pypdf import PdfReader, PdfWriter, PageObject, Transformation
 
 import frappe
 from frappe.translate import print_language
+from frappe.utils.pdf import get_pdf
 from frappe.www.printview import validate_print_permission
+
+
+def _inline_local_assets_for_pdf(html: str) -> str:
+	"""Inline local /files/ and /assets/ resources and rewrite unresolvable *.localhost URLs for wkhtmltopdf."""
+	if not html:
+		return html
+
+	site_url = (frappe.utils.get_url() or "").rstrip("/")
+	if site_url:
+		html = html.replace(site_url + "/", "/")
+
+	# Rewrite any remaining http(s)://*.localhost(:port)? references to 127.0.0.1
+	html = re.sub(
+		r"https?://[A-Za-z0-9.-]*\.localhost(:\d+)?",
+		lambda m: f"http://127.0.0.1{m.group(1) or ''}",
+		html,
+	)
+
+	def _embed_img(match):
+		prefix, path, suffix = match.group(1), match.group(2), match.group(3)
+		rel = path.split("?", 1)[0].lstrip("/")
+		candidates = [
+			frappe.get_site_path("public", rel),
+			os.path.join(frappe.utils.get_bench_path(), "sites", rel),
+		]
+		for fs_path in candidates:
+			if os.path.isfile(fs_path):
+				try:
+					with open(fs_path, "rb") as f:
+						data = base64.b64encode(f.read()).decode("ascii")
+					mime, _ = mimetypes.guess_type(fs_path)
+					mime = mime or "application/octet-stream"
+					return f"{prefix}data:{mime};base64,{data}{suffix}"
+				except Exception:
+					pass
+		return match.group(0)
+
+	html = re.sub(r'(src=["\'])(/(?:files|assets)/[^"\']+)(["\'])', _embed_img, html)
+
+	def _inline_css(match):
+		full_tag, path = match.group(0), match.group(1)
+		rel = path.split("?", 1)[0].lstrip("/")
+		fs_path = os.path.join(frappe.utils.get_bench_path(), "sites", rel)
+		if os.path.isfile(fs_path):
+			try:
+				with open(fs_path, "r", encoding="utf-8", errors="ignore") as f:
+					return f"<style>{f.read()}</style>"
+			except Exception:
+				pass
+		return full_tag
+
+	html = re.sub(
+		r'<link[^>]+rel=["\']stylesheet["\'][^>]+href=["\'](?:http://127\.0\.0\.1(?::\d+)?)?(/assets/[^"\']+\.css[^"\']*)["\'][^>]*>',
+		_inline_css,
+		html,
+		flags=re.IGNORECASE,
+	)
+	return html
 
 
 @frappe.whitelist(allow_guest=True)
@@ -38,16 +99,19 @@ def download_pdf(
 	validate_print_permission(doc)
 
 	with print_language(language):
-		pdf_file = frappe.get_print(
+		html = frappe.get_print(
 			doctype,
 			name,
 			format,
 			doc=doc,
-			as_pdf=True,
+			as_pdf=False,
 			letterhead=letterhead,
 			no_letterhead=no_letterhead,
-			pdf_generator=pdf_generator,
-			pdf_options={
+		)
+		html = _inline_local_assets_for_pdf(html)
+		pdf_file = get_pdf(
+			html,
+			options={
 				"print-media-type": "",
 				"load-error-handling": "ignore",
 				"load-media-error-handling": "ignore",

@@ -137,7 +137,7 @@
   "modified": "2026-10-11 12:43:57.874026",
   "name": "Payment Entry Approval Workflow",
   "override_status": 0,
-  "send_email_alert": 1,
+  "send_email_alert": 0,
   "states": [
    {
     "allow_edit": "Accounts Clerk",
@@ -161,7 +161,7 @@
     "is_optional_state": 0,
     "message": null,
     "next_action_email_template": null,
-    "send_email": 1,
+    "send_email": 0,
     "state": "Pending Approval",
     "update_field": null,
     "update_value": null,
@@ -175,7 +175,7 @@
     "is_optional_state": 0,
     "message": null,
     "next_action_email_template": null,
-    "send_email": 1,
+    "send_email": 0,
     "state": "Completed",
     "update_field": null,
     "update_value": null,
@@ -200,7 +200,7 @@
     "allowed": "Accounts Manager",
     "condition": null,
     "next_state": "Completed",
-    "send_email_to_creator": 1,
+    "send_email_to_creator": 0,
     "state": "Pending Approval",
     "transition_tasks": null,
     "workflow_builder_id": null
@@ -211,7 +211,7 @@
     "allowed": "Accounts Manager",
     "condition": null,
     "next_state": "Draft",
-    "send_email_to_creator": 1,
+    "send_email_to_creator": 0,
     "state": "Pending Approval",
     "transition_tasks": null,
     "workflow_builder_id": null

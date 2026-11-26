@@ -3,11 +3,10 @@
 
 frappe.ui.form.on('Proforma Invoice', {
     setup: function(frm) {
-        // Only approved, submitted Internal POs can be invoiced.
+        // Only approved, submitted POs can be invoiced.
         frm.set_query('internal_po', function() {
             return {
                 filters: {
-                    'po_type': 'Internal PO',
                     'workflow_state': 'Approved',
                     'docstatus': 1
                 }

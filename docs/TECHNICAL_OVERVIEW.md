@@ -53,13 +53,15 @@ Child table recording competing vendor quotes:
 - Fields: `supplier`, `quotation_reference`, `quotation_date`, `quotation_amount`, `quotation_pdf` (Direct visible upload button in table list view).
 
 #### D. `Proforma Invoice` (`proforma_invoice`)
-Export billing document generated exclusively from referenced Internal POs:
+Commercial/export billing document generated from submitted, **Approved** Vendor Purchase Orders (`Vendor PO` or `Internal PO`):
 - Seller: Fixed to **Sarveksha Realty and Inframine LLP** (India).
-- Buyer: Overseas Child Company (e.g. Odhav Holdings, SVB SL, Baani Minerals).
-- Strictly references an `Internal PO` (cannot reference External POs).
+- Buyer: Child Company or PO Company.
+- Strictly references a submitted, **Approved** `Vendor Purchase Order` (`docstatus = 1`, `workflow_state = "Approved"`).
 - Enforces an SRI Margin between **5.0% and 30.0%**.
 - Manual logistics cost entry (freight, insurance, packing, other charges).
 - Encapsulates Indian banking and USD Nostro correspondent banking instructions.
+- `pdf_handler.py` embeds local `/files/` and `/assets/` resources inline for `wkhtmltopdf` compatibility and supports `CANCELLED` watermarks.
+- `purchase_invoice_list.js` and `payment_entry_list.js` hide `+ Add` buttons on List Views so Bills and Payment Entries are generated from Approved POs (`Create Bill` / `Make Payment`); `Payment Entry Approval Workflow` and `payment_entry_events.py` skip outgoing email when no default outgoing `Email Account` is configured.
 
 #### E. `Proforma Invoice Item` (`proforma_invoice_item`)
 Child table for PI line items:
